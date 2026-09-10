@@ -27,4 +27,4 @@ ENV PATH="/opt/robotci-venv/bin:${PATH}"
 
 COPY scripts ./scripts
 
-CMD ["bash", "scripts/run_simple_route.sh"]
+CMD ["robotci", "run", "--runtime", "native", "--output", "/workspace/artifacts/simple-route/result.json"]
