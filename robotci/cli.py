@@ -38,9 +38,11 @@ def doctor() -> None:
     for check in checks:
         if check.ok:
             status = "[green]PASS[/green]"
-        else:
+        elif check.blocking:
             status = "[red]FAIL[/red]"
             failed = True
+        else:
+            status = "[yellow]WARN[/yellow]"
 
         table.add_row(check.name, status, check.message)
 

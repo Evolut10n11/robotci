@@ -10,9 +10,16 @@ on:
       - main
 
 jobs:
-  python:
-    name: Python checks
-    runs-on: ubuntu-latest
+  core:
+    name: Core (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -35,3 +42,6 @@ jobs:
 
       - name: Pytest
         run: pytest -vv
+
+      - name: Verify CLI
+        run: robotci version
