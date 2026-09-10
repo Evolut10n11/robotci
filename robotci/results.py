@@ -34,7 +34,6 @@ class SuiteScenarioResult:
     status: ScenarioStatus
     duration_sec: float
     result_file: str
-    metrics: NavigationMetrics | None = None
 
 
 @dataclass(frozen=True)
