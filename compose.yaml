@@ -4,7 +4,5 @@ services:
       context: .
     image: robotci:dev
     init: true
-    environment:
-      ROBOTCI_TIMEOUT_SEC: "120"
     volumes:
       - ./artifacts:/workspace/artifacts
