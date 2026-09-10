@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from robotci.config import ConfigError, load_config
+from robotci.config import ConfigError, get_scenario, load_config
 
 
 def test_load_config_reads_valid_robotci_yaml(tmp_path: Path) -> None:
@@ -35,7 +35,6 @@ scenarios:
     assert len(config.scenarios) == 1
 
     scenario = config.scenarios[0]
-
     assert scenario.name == "test_route"
     assert scenario.start.x == 0.0
     assert scenario.start.y == 0.0
@@ -46,6 +45,17 @@ scenarios:
     assert scenario.timeout_sec == 45.0
 
 
+def test_load_config_accepts_utf8_bom(tmp_path: Path) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        "version: 1\nscenarios:\n  - name: route\n    start: {x: 0, y: 0}\n"
+        "    goal: {x: 1, y: 1}\n",
+        encoding="utf-8-sig",
+    )
+
+    assert load_config(config_path).scenarios[0].name == "route"
+
+
 def test_load_config_rejects_missing_file(tmp_path: Path) -> None:
     with pytest.raises(ConfigError, match="config not found"):
         load_config(tmp_path / "robotci.yaml")
@@ -53,13 +63,8 @@ def test_load_config_rejects_missing_file(tmp_path: Path) -> None:
 
 def test_load_config_rejects_unknown_version(tmp_path: Path) -> None:
     config_path = tmp_path / "robotci.yaml"
-
     config_path.write_text(
-        """
-version: 999
-runtime: auto
-scenarios: []
-""".strip(),
+        "version: 999\nruntime: auto\nscenarios: []\n",
         encoding="utf-8",
     )
 
@@ -69,20 +74,14 @@ scenarios: []
 
 def test_load_config_rejects_invalid_runtime(tmp_path: Path) -> None:
     config_path = tmp_path / "robotci.yaml"
-
     config_path.write_text(
         """
 version: 1
 runtime: windows
-
 scenarios:
   - name: route
-    start:
-      x: 0
-      y: 0
-    goal:
-      x: 1
-      y: 1
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
 """.strip(),
         encoding="utf-8",
     )
@@ -91,32 +90,18 @@ scenarios:
         load_config(config_path)
 
 
-def test_load_config_rejects_duplicate_scenario_names(
-    tmp_path: Path,
-) -> None:
+def test_load_config_rejects_duplicate_scenario_names(tmp_path: Path) -> None:
     config_path = tmp_path / "robotci.yaml"
-
     config_path.write_text(
         """
 version: 1
-runtime: auto
-
 scenarios:
   - name: route
-    start:
-      x: 0
-      y: 0
-    goal:
-      x: 1
-      y: 1
-
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
   - name: route
-    start:
-      x: 0
-      y: 0
-    goal:
-      x: 2
-      y: 2
+    start: {x: 0, y: 0}
+    goal: {x: 2, y: 2}
 """.strip(),
         encoding="utf-8",
     )
@@ -125,23 +110,32 @@ scenarios:
         load_config(config_path)
 
 
-def test_load_config_rejects_non_positive_timeout(
-    tmp_path: Path,
-) -> None:
+def test_load_config_rejects_unsafe_scenario_name(tmp_path: Path) -> None:
     config_path = tmp_path / "robotci.yaml"
-
     config_path.write_text(
         """
 version: 1
+scenarios:
+  - name: ../escape
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
+""".strip(),
+        encoding="utf-8",
+    )
 
+    with pytest.raises(ConfigError, match="only letters, numbers"):
+        load_config(config_path)
+
+
+def test_load_config_rejects_non_positive_timeout(tmp_path: Path) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        """
+version: 1
 scenarios:
   - name: route
-    start:
-      x: 0
-      y: 0
-    goal:
-      x: 1
-      y: 1
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
     timeout_sec: 0
 """.strip(),
         encoding="utf-8",
@@ -149,3 +143,26 @@ scenarios:
 
     with pytest.raises(ConfigError, match="timeout_sec must be greater than zero"):
         load_config(config_path)
+
+
+def test_get_scenario_reads_from_loaded_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        """
+version: 1
+scenarios:
+  - name: alpha
+    start: {x: 0, y: 0}
+    goal: {x: 3, y: 4}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+    scenario = get_scenario(config, "alpha")
+
+    assert scenario.goal.x == 3.0
+    assert scenario.goal.y == 4.0
+
+    with pytest.raises(ConfigError, match="unknown scenario 'missing'"):
+        get_scenario(config, "missing")
