@@ -25,7 +25,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             ros-jazzy-navigation2 \
-            ros-jazzy-nav2-bringup
+            ros-jazzy-nav2-bringup \
+            ros-jazzy-nav2-loopback-sim \
+            ros-jazzy-nav2-simple-commander
 
       - name: Verify ROS2 and Nav2 packages
         shell: bash
