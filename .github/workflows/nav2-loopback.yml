@@ -33,7 +33,7 @@ jobs:
       - name: Launch Nav2 Loopback and wait for readiness
         shell: bash
         run: |
-          set -Eeuo pipefail
+          set -Eeo pipefail
           source /opt/ros/jazzy/setup.bash
 
           LOG_FILE=/tmp/nav2-loopback.log
