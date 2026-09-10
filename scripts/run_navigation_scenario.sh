@@ -18,6 +18,14 @@ if [ "${ROS_DISTRO:-}" != "jazzy" ]; then
 fi
 
 SCENARIO="${ROBOTCI_SCENARIO:-simple_route}"
+START_X="${ROBOTCI_START_X:-0.0}"
+START_Y="${ROBOTCI_START_Y:-0.0}"
+START_YAW="${ROBOTCI_START_YAW:-0.0}"
+START_QZ="${ROBOTCI_START_QZ:-0.0}"
+START_QW="${ROBOTCI_START_QW:-1.0}"
+GOAL_X="${ROBOTCI_GOAL_X:-17.86}"
+GOAL_Y="${ROBOTCI_GOAL_Y:--0.77}"
+GOAL_YAW="${ROBOTCI_GOAL_YAW:-0.0}"
 LOG_FILE="${ROBOTCI_LOG_FILE:-/tmp/nav2-${SCENARIO}.log}"
 RESULT_FILE="${ROBOTCI_RESULT_FILE:-artifacts/${SCENARIO}/result.json}"
 TIMEOUT_SEC="${ROBOTCI_TIMEOUT_SEC:-120}"
@@ -29,10 +37,16 @@ fi
 
 mkdir -p "$(dirname "$RESULT_FILE")"
 
+stop_ros_daemon() {
+  # The ROS CLI daemon may keep stale graph state between sequential scenarios.
+  # Never let daemon shutdown consume the entire CI job if DDS is unhealthy.
+  timeout --kill-after=2s 10s ros2 daemon stop >/dev/null 2>&1 || true
+}
+
 # A suite executes multiple scenarios in the same CI job. Make sure the ROS CLI
 # graph cache from a previous scenario cannot leak stale nodes/services into the
 # next run.
-ros2 daemon stop >/dev/null 2>&1 || true
+stop_ros_daemon
 
 # Start the complete Nav2 launch in its own process group. Killing only the
 # ros2-launch parent can leave composed Nav2 child processes alive, which makes
@@ -45,8 +59,9 @@ NAV2_PID=$!
 
 cleanup() {
   set +e
+  trap - EXIT
 
-  # Terminate the whole launch process group, not just the launch parent.
+  echo "Stopping Nav2 process group for $SCENARIO..."
   kill -TERM -- "-$NAV2_PID" 2>/dev/null || true
 
   for _ in $(seq 1 20); do
@@ -56,11 +71,16 @@ cleanup() {
     sleep 0.25
   done
 
-  kill -KILL -- "-$NAV2_PID" 2>/dev/null || true
+  if kill -0 "$NAV2_PID" 2>/dev/null; then
+    echo "Nav2 did not stop after SIGTERM; sending SIGKILL..."
+    kill -KILL -- "-$NAV2_PID" 2>/dev/null || true
+  fi
+
   wait "$NAV2_PID" 2>/dev/null || true
 
-  # Force the next scenario to rebuild its ROS graph from live endpoints.
-  ros2 daemon stop >/dev/null 2>&1 || true
+  echo "Stopping ROS CLI daemon for $SCENARIO..."
+  stop_ros_daemon
+  echo "Scenario runtime cleanup complete: $SCENARIO"
 }
 trap cleanup EXIT
 
@@ -102,8 +122,6 @@ call_startup() {
   local service_name="$1"
   local output
 
-  # Never allow a stale/unresponsive lifecycle endpoint to consume the whole
-  # GitHub Actions job timeout.
   output="$(
     timeout 20s ros2 service call \
       "$service_name" \
@@ -148,11 +166,9 @@ for attempt in $(seq 1 30); do
   sleep 1
 done
 
-# M1 built-in scenarios intentionally share the same origin. M2 configuration
-# will make scenario start poses user-defined.
-echo "Setting Loopback start pose A = (0.0, 0.0, 0.0)..."
+echo "Setting Loopback start pose = ($START_X, $START_Y, $START_YAW)..."
 timeout 20s ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
-  "{header: {frame_id: map}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}" \
+  "{header: {frame_id: map}, pose: {pose: {position: {x: $START_X, y: $START_Y, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: $START_QZ, w: $START_QW}}}}" \
   || fail_with_log "Publishing initial pose timed out"
 
 sleep 2
@@ -183,6 +199,12 @@ echo "Running RobotCI scenario: $SCENARIO"
 set +e
 "$PYTHON_BIN" -m robotci.ros.navigation_scenario \
   --scenario "$SCENARIO" \
+  --start-x "$START_X" \
+  --start-y "$START_Y" \
+  --start-yaw "$START_YAW" \
+  --goal-x "$GOAL_X" \
+  --goal-y "$GOAL_Y" \
+  --goal-yaw "$GOAL_YAW" \
   --output "$RESULT_FILE" \
   --timeout-sec "$TIMEOUT_SEC"
 SCENARIO_EXIT=$?

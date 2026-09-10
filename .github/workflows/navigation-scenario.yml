@@ -8,7 +8,7 @@ on:
 
 jobs:
   suite:
-    name: Native Ubuntu / built-in suite
+    name: Native Ubuntu / YAML suite
     runs-on: ubuntu-24.04
     timeout-minutes: 25
 
@@ -37,12 +37,15 @@ jobs:
           python3 -m pip install --break-system-packages -e .
           python3 -m robotci.cli --help
 
-      - name: Run built-in RobotCI suite through CLI
+      - name: Validate robotci.yaml
+        run: python3 -m robotci.cli validate --config robotci.yaml
+
+      - name: Run RobotCI YAML suite through CLI
         run: |
           python3 -m robotci.cli run \
             --runtime native \
-            --output artifacts/suite-result.json \
-            --timeout-sec 120
+            --config robotci.yaml \
+            --output artifacts/suite-result.json
 
       - name: Verify suite result
         run: |
@@ -50,16 +53,28 @@ jobs:
           import json
           from pathlib import Path
 
-          path = Path("artifacts/suite-result.json")
-          result = json.loads(path.read_text(encoding="utf-8"))
-          names = [item["scenario"] for item in result["scenarios"]]
+          suite = json.loads(Path("artifacts/suite-result.json").read_text(encoding="utf-8"))
+          names = [item["scenario"] for item in suite["scenarios"]]
 
-          if result["status"] != "PASS":
-              raise SystemExit(f"Navigation suite did not PASS: {result}")
+          if suite["status"] != "PASS":
+              raise SystemExit(f"Navigation suite did not PASS: {suite}")
           if names != ["short_route", "medium_route", "simple_route"]:
               raise SystemExit(f"Unexpected suite scenarios: {names}")
 
-          print(f"Navigation suite PASS: {names}")
+          expected = {
+              "short_route": (4.0, -0.17),
+              "medium_route": (9.0, -0.39),
+              "simple_route": (17.86, -0.77),
+          }
+          for name, goal in expected.items():
+              result = json.loads(
+                  Path(f"artifacts/results/{name}.json").read_text(encoding="utf-8")
+              )
+              actual = (result["goal"]["x"], result["goal"]["y"])
+              if actual != goal:
+                  raise SystemExit(f"{name} did not use YAML goal {goal}: {actual}")
+
+          print(f"Navigation YAML suite PASS: {names}")
           PY
 
       - name: Upload suite results

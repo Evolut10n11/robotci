@@ -43,7 +43,8 @@ jobs:
       - name: Pytest
         run: pytest -vv
 
-      - name: Verify CLI
+      - name: Verify CLI and YAML config
         run: |
           robotci version
           robotci run --help
+          robotci validate --config robotci.yaml
