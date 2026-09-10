@@ -77,9 +77,31 @@ def test_metrics_tracker_ignores_tiny_pose_jitter_for_path_length() -> None:
     )
 
     tracker.update(x=0.005, y=0.0, now=1.0)
-    tracker.update(x=0.01, y=0.0, now=2.0)
+    tracker.update(x=-0.005, y=0.0, now=2.0)
+    tracker.update(x=0.004, y=0.0, now=3.0)
 
     metrics = tracker.snapshot(goal_x=1.0, goal_y=0.0)
 
     assert metrics.path_length_m == 0.0
-    assert metrics.feedback_samples == 2
+    assert metrics.feedback_samples == 3
+
+
+def test_metrics_tracker_accumulates_slow_motion_below_per_sample_epsilon() -> None:
+    tracker = NavigationMetricsTracker(
+        start_x=0.0,
+        start_y=0.0,
+        started_at=0.0,
+        movement_epsilon_m=0.02,
+    )
+
+    tracker.update(x=0.009, y=0.0, now=0.1)
+    tracker.update(x=0.018, y=0.0, now=0.2)
+    tracker.update(x=0.027, y=0.0, now=0.3)
+    tracker.update(x=0.036, y=0.0, now=0.4)
+    tracker.update(x=0.045, y=0.0, now=0.5)
+
+    metrics = tracker.snapshot(goal_x=1.0, goal_y=0.0)
+
+    assert metrics.path_length_m == 0.036
+    assert metrics.feedback_samples == 5
+    assert metrics.stuck_events == 0
