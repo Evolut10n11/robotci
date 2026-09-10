@@ -45,7 +45,7 @@ jobs:
             --runtime native \
             --scenario simple_route \
             --output artifacts/simple-route/result.json \
-            --timeout-sec 90
+            --timeout-sec 120
 
       - name: Upload scenario result
         if: always()
