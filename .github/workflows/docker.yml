@@ -1,0 +1,50 @@
+name: Docker Runtime
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  docker-simple-route:
+    name: Docker A to B / simple_route
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build RobotCI image
+        run: docker build -t robotci:ci .
+
+      - name: Run simple_route in Docker
+        run: |
+          mkdir -p artifacts/simple-route
+          docker run --rm \
+            -v "$PWD/artifacts:/workspace/artifacts" \
+            robotci:ci
+
+      - name: Verify Docker result
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("artifacts/simple-route/result.json")
+          result = json.loads(path.read_text(encoding="utf-8"))
+
+          if result["status"] != "PASS":
+              raise SystemExit(f"Docker scenario did not PASS: {result}")
+
+          print(f"Docker scenario PASS in {result['duration_sec']}s")
+          PY
+
+      - name: Upload Docker scenario result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-simple-route-result
+          path: artifacts/simple-route/result.json
+          if-no-files-found: warn
