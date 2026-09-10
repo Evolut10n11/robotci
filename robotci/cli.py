@@ -8,8 +8,10 @@ from rich.console import Console
 from rich.table import Table
 
 from robotci import __version__
+from robotci.config import ConfigError, load_config
 from robotci.doctor import run_doctor_checks
 from robotci.runner import (
+    DEFAULT_CONFIG_PATH,
     DEFAULT_RESULT_PATH,
     DEFAULT_SUITE_RESULT_PATH,
     RuntimeUnavailableError,
@@ -39,13 +41,11 @@ def doctor() -> None:
     checks = run_doctor_checks()
 
     table = Table(title="RobotCI environment")
-
     table.add_column("Check")
     table.add_column("Status")
     table.add_column("Details")
 
     failed = False
-
     for check in checks:
         if check.ok:
             status = "[green]PASS[/green]"
@@ -63,6 +63,41 @@ def doctor() -> None:
         raise typer.Exit(code=1)
 
 
+@app.command("validate")
+def validate_command(
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to robotci.yaml.",
+        ),
+    ] = DEFAULT_CONFIG_PATH,
+) -> None:
+    """Validate RobotCI YAML configuration without starting ROS."""
+    try:
+        loaded = load_config(config)
+    except ConfigError as exc:
+        console.print(f"[red]RobotCI config error:[/red] {exc}")
+        raise typer.Exit(code=3) from exc
+
+    table = Table(title="RobotCI configuration")
+    table.add_column("Scenario")
+    table.add_column("Start")
+    table.add_column("Goal")
+    table.add_column("Timeout")
+
+    for scenario in loaded.scenarios:
+        start = f"({scenario.start.x}, {scenario.start.y}, {scenario.start.yaw})"
+        goal = f"({scenario.goal.x}, {scenario.goal.y}, {scenario.goal.yaw})"
+        table.add_row(scenario.name, start, goal, f"{scenario.timeout_sec:g}s")
+
+    console.print(f"Config: {Path(config)}", soft_wrap=True)
+    console.print(f"Runtime: [cyan]{loaded.runtime}[/cyan]")
+    console.print(table)
+    console.print("[green]Configuration valid[/green]")
+
+
 @app.command("run")
 def run_command(
     scenario: Annotated[
@@ -70,17 +105,25 @@ def run_command(
         typer.Option(
             "--scenario",
             "-s",
-            help="Run one built-in scenario. Omit to run the full suite.",
+            help="Run one configured scenario. Omit to run the full suite.",
         ),
     ] = None,
     runtime: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--runtime",
             "-r",
-            help="Runtime: auto, native, or docker.",
+            help="Override config runtime: auto, native, or docker.",
         ),
-    ] = "auto",
+    ] = None,
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to robotci.yaml.",
+        ),
+    ] = DEFAULT_CONFIG_PATH,
     output: Annotated[
         Path | None,
         typer.Option(
@@ -90,16 +133,16 @@ def run_command(
         ),
     ] = None,
     timeout_sec: Annotated[
-        float,
+        float | None,
         typer.Option(
             "--timeout-sec",
             min=0.1,
-            help="Maximum navigation time per scenario in seconds.",
+            help="Override configured timeout for one or all scenarios.",
         ),
-    ] = 120.0,
+    ] = None,
 ) -> None:
-    """Run one RobotCI scenario or the full built-in suite."""
-    if runtime not in {"auto", "native", "docker"}:
+    """Run one configured scenario or the complete robotci.yaml suite."""
+    if runtime is not None and runtime not in {"auto", "native", "docker"}:
         console.print(f"[red]RobotCI error:[/red] unsupported runtime '{runtime}'")
         raise typer.Exit(code=3)
 
@@ -110,6 +153,7 @@ def run_command(
                 runtime=runtime,  # type: ignore[arg-type]
                 output=result_output,
                 timeout_sec=timeout_sec,
+                config_path=config,
             )
             label = "Suite verdict"
         else:
@@ -119,8 +163,12 @@ def run_command(
                 runtime=runtime,  # type: ignore[arg-type]
                 output=result_output,
                 timeout_sec=timeout_sec,
+                config_path=config,
             )
             label = "Verdict"
+    except ConfigError as exc:
+        console.print(f"[red]RobotCI config error:[/red] {exc}")
+        raise typer.Exit(code=3) from exc
     except (RuntimeUnavailableError, ValueError) as exc:
         console.print(f"[red]RobotCI runtime error:[/red] {exc}")
         raise typer.Exit(code=3) from exc
