@@ -49,12 +49,13 @@ cat <<'EOF'
 
 RobotCI Ubuntu environment is ready.
 
-Activate the environment and run the built-in suite with:
+Activate the environment, validate the YAML, and run the configured suite:
 
   source .venv/bin/activate
+  robotci validate
   robotci run --runtime native
 
-Run one scenario while debugging with:
+Run one configured scenario while debugging with:
 
   robotci run --runtime native --scenario simple_route
 
