@@ -1,0 +1,47 @@
+name: ROS smoke
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  ros-smoke:
+    name: ROS2 Jazzy + Nav2 smoke
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up ROS2 Jazzy
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+
+      - name: Install Nav2
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ros-jazzy-navigation2 \
+            ros-jazzy-nav2-bringup
+
+      - name: Verify ROS2 and Nav2 packages
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          echo "ROS_DISTRO=$ROS_DISTRO"
+          ros2 --help >/dev/null
+          ros2 pkg prefix nav2_bringup
+          ros2 pkg prefix nav2_loopback_sim
+          ros2 pkg prefix nav2_simple_commander
+
+      - name: Verify Nav2 Python API
+        shell: bash
+        run: |
+          source /opt/ros/jazzy/setup.bash
+          python3 - <<'PY'
+          from nav2_simple_commander.robot_navigator import BasicNavigator
+          print("BasicNavigator import: PASS")
+          PY
