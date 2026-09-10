@@ -31,12 +31,15 @@ jobs:
             ros-jazzy-nav2-simple-commander \
             ros-jazzy-nav2-minimal-tb4-description
 
-      - name: Run RobotCI simple_route
+      - name: Run RobotCI simple_route through CLI
         env:
-          ROBOTCI_RESULT_FILE: artifacts/simple-route/result.json
           ROBOTCI_LOG_FILE: /tmp/nav2-simple-route.log
-          ROBOTCI_TIMEOUT_SEC: "90"
-        run: bash scripts/run_simple_route.sh
+        run: |
+          python3 -m robotci.cli run \
+            --runtime native \
+            --scenario simple_route \
+            --output artifacts/simple-route/result.json \
+            --timeout-sec 90
 
       - name: Upload scenario result
         if: always()
