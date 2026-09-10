@@ -29,21 +29,44 @@ fi
 
 mkdir -p "$(dirname "$RESULT_FILE")"
 
-ros2 launch nav2_bringup tb4_loopback_simulation.launch.py \
+# A suite executes multiple scenarios in the same CI job. Make sure the ROS CLI
+# graph cache from a previous scenario cannot leak stale nodes/services into the
+# next run.
+ros2 daemon stop >/dev/null 2>&1 || true
+
+# Start the complete Nav2 launch in its own process group. Killing only the
+# ros2-launch parent can leave composed Nav2 child processes alive, which makes
+# the next scenario discover stale lifecycle services and hang indefinitely.
+setsid ros2 launch nav2_bringup tb4_loopback_simulation.launch.py \
   use_rviz:=False \
   autostart:=False \
   >"$LOG_FILE" 2>&1 &
 NAV2_PID=$!
 
 cleanup() {
-  kill "$NAV2_PID" 2>/dev/null || true
+  set +e
+
+  # Terminate the whole launch process group, not just the launch parent.
+  kill -TERM -- "-$NAV2_PID" 2>/dev/null || true
+
+  for _ in $(seq 1 20); do
+    if ! kill -0 "$NAV2_PID" 2>/dev/null; then
+      break
+    fi
+    sleep 0.25
+  done
+
+  kill -KILL -- "-$NAV2_PID" 2>/dev/null || true
   wait "$NAV2_PID" 2>/dev/null || true
+
+  # Force the next scenario to rebuild its ROS graph from live endpoints.
+  ros2 daemon stop >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
 lifecycle_active() {
   local state
-  state="$(ros2 lifecycle get "$1" 2>/dev/null || true)"
+  state="$(timeout 10s ros2 lifecycle get "$1" 2>/dev/null || true)"
   [[ "$state" == *"active [3]"* ]]
 }
 
@@ -51,7 +74,7 @@ wait_for_service() {
   local service_name="$1"
   for attempt in $(seq 1 60); do
     local services
-    services="$(ros2 service list 2>/dev/null || true)"
+    services="$(timeout 10s ros2 service list 2>/dev/null || true)"
     if printf '%s\n' "$services" | grep -qx "$service_name"; then
       return 0
     fi
@@ -65,7 +88,7 @@ wait_for_node() {
   local node_name="$1"
   for attempt in $(seq 1 60); do
     local nodes
-    nodes="$(ros2 node list 2>/dev/null || true)"
+    nodes="$(timeout 10s ros2 node list 2>/dev/null || true)"
     if printf '%s\n' "$nodes" | grep -qx "$node_name"; then
       return 0
     fi
@@ -78,7 +101,20 @@ wait_for_node() {
 call_startup() {
   local service_name="$1"
   local output
-  output="$(ros2 service call "$service_name" nav2_msgs/srv/ManageLifecycleNodes "{command: 0}")"
+
+  # Never allow a stale/unresponsive lifecycle endpoint to consume the whole
+  # GitHub Actions job timeout.
+  output="$(
+    timeout 20s ros2 service call \
+      "$service_name" \
+      nav2_msgs/srv/ManageLifecycleNodes \
+      "{command: 0}" \
+      2>&1
+  )" || {
+    echo "$output"
+    return 1
+  }
+
   echo "$output"
   [[ "$output" == *"success=True"* ]]
 }
@@ -115,8 +151,9 @@ done
 # M1 built-in scenarios intentionally share the same origin. M2 configuration
 # will make scenario start poses user-defined.
 echo "Setting Loopback start pose A = (0.0, 0.0, 0.0)..."
-ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
-  "{header: {frame_id: map}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"
+timeout 20s ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
+  "{header: {frame_id: map}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}" \
+  || fail_with_log "Publishing initial pose timed out"
 
 sleep 2
 
@@ -126,7 +163,7 @@ call_startup /lifecycle_manager_navigation/manage_nodes \
 
 READY=0
 for attempt in $(seq 1 60); do
-  actions="$(ros2 action list 2>/dev/null || true)"
+  actions="$(timeout 10s ros2 action list 2>/dev/null || true)"
   if printf '%s\n' "$actions" | grep -qx '/navigate_to_pose' \
     && lifecycle_active /bt_navigator \
     && lifecycle_active /planner_server \
