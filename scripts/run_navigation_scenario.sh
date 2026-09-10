@@ -37,10 +37,16 @@ fi
 
 mkdir -p "$(dirname "$RESULT_FILE")"
 
+stop_ros_daemon() {
+  # The ROS CLI daemon may keep stale graph state between sequential scenarios.
+  # Never let daemon shutdown consume the entire CI job if DDS is unhealthy.
+  timeout --kill-after=2s 10s ros2 daemon stop >/dev/null 2>&1 || true
+}
+
 # A suite executes multiple scenarios in the same CI job. Make sure the ROS CLI
 # graph cache from a previous scenario cannot leak stale nodes/services into the
 # next run.
-ros2 daemon stop >/dev/null 2>&1 || true
+stop_ros_daemon
 
 # Start the complete Nav2 launch in its own process group. Killing only the
 # ros2-launch parent can leave composed Nav2 child processes alive, which makes
@@ -53,7 +59,9 @@ NAV2_PID=$!
 
 cleanup() {
   set +e
+  trap - EXIT
 
+  echo "Stopping Nav2 process group for $SCENARIO..."
   kill -TERM -- "-$NAV2_PID" 2>/dev/null || true
 
   for _ in $(seq 1 20); do
@@ -63,9 +71,16 @@ cleanup() {
     sleep 0.25
   done
 
-  kill -KILL -- "-$NAV2_PID" 2>/dev/null || true
+  if kill -0 "$NAV2_PID" 2>/dev/null; then
+    echo "Nav2 did not stop after SIGTERM; sending SIGKILL..."
+    kill -KILL -- "-$NAV2_PID" 2>/dev/null || true
+  fi
+
   wait "$NAV2_PID" 2>/dev/null || true
-  ros2 daemon stop >/dev/null 2>&1 || true
+
+  echo "Stopping ROS CLI daemon for $SCENARIO..."
+  stop_ros_daemon
+  echo "Scenario runtime cleanup complete: $SCENARIO"
 }
 trap cleanup EXIT
 
