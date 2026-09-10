@@ -1,0 +1,96 @@
+name: Nav2 Loopback Launch
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  loopback-launch:
+    name: Headless Nav2 Loopback
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up ROS2 Jazzy
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+
+      - name: Install Nav2 Loopback runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ros-jazzy-navigation2 \
+            ros-jazzy-nav2-bringup \
+            ros-jazzy-nav2-loopback-sim \
+            ros-jazzy-nav2-simple-commander \
+            ros-jazzy-nav2-minimal-tb4-description
+
+      - name: Launch Nav2 Loopback and wait for readiness
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          source /opt/ros/jazzy/setup.bash
+
+          LOG_FILE=/tmp/nav2-loopback.log
+
+          ros2 launch nav2_bringup tb4_loopback_simulation.launch.py use_rviz:=False >"$LOG_FILE" 2>&1 &
+          NAV2_PID=$!
+
+          cleanup() {
+            kill "$NAV2_PID" 2>/dev/null || true
+            wait "$NAV2_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          READY=0
+          for attempt in $(seq 1 60); do
+            if ! kill -0 "$NAV2_PID" 2>/dev/null; then
+              echo "Nav2 launch process exited before becoming ready"
+              cat "$LOG_FILE"
+              exit 1
+            fi
+
+            if ros2 action list 2>/dev/null | grep -qx '/navigate_to_pose'; then
+              READY=1
+              break
+            fi
+
+            echo "Waiting for NavigateToPose action server ($attempt/60)..."
+            sleep 1
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "Timed out waiting for /navigate_to_pose"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          echo "Nav2 is ready. ROS graph:"
+          ros2 node list
+          ros2 topic list
+          ros2 action list
+
+          ros2 node list | grep -qx '/loopback_simulator'
+          ros2 node list | grep -qx '/bt_navigator'
+          ros2 node list | grep -qx '/planner_server'
+          ros2 node list | grep -qx '/controller_server'
+          ros2 node list | grep -qx '/map_server'
+
+          ros2 topic list | grep -qx '/odom'
+          ros2 topic list | grep -qx '/clock'
+          ros2 action list | grep -qx '/navigate_to_pose'
+
+          echo "Headless Nav2 Loopback readiness: PASS"
+
+      - name: Upload launch log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nav2-loopback-launch-log
+          path: /tmp/nav2-loopback.log
+          if-no-files-found: ignore
