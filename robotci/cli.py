@@ -88,7 +88,7 @@ def run_command(
         raise typer.Exit(code=3)
 
     try:
-        exit_code, selected_runtime = run_scenario(
+        exit_code, selected_runtime, result_path = run_scenario(
             scenario=scenario,
             runtime=runtime,  # type: ignore[arg-type]
             output=output,
@@ -98,12 +98,12 @@ def run_command(
         console.print(f"[red]RobotCI runtime error:[/red] {exc}")
         raise typer.Exit(code=3) from exc
 
-    status = read_result_status(output)
+    status = read_result_status(result_path)
     console.print(f"Runtime: [cyan]{selected_runtime}[/cyan]")
     if status is not None:
         style = "green" if status == "PASS" else "red"
         console.print(f"Verdict: [{style}]{status}[/{style}]")
-    console.print(f"Result: {output}")
+    console.print(f"Result: {result_path}")
 
     if exit_code != 0:
         raise typer.Exit(code=exit_code)
