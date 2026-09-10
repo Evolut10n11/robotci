@@ -10,10 +10,7 @@ from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 
 from robotci.results import Pose2D, ScenarioResult, write_result
-
-SCENARIO_NAME = "simple_route"
-DEFAULT_START = Pose2D(x=0.0, y=0.0, yaw=0.0)
-DEFAULT_GOAL = Pose2D(x=17.86, y=-0.77, yaw=0.0)
+from robotci.scenarios import get_scenario
 
 EXIT_PASS = 0
 EXIT_FAIL = 1
@@ -34,7 +31,8 @@ def _pose_stamped(navigator: BasicNavigator, pose: Pose2D) -> PoseStamped:
     return message
 
 
-def run_navigation_scenario(output: str | Path, timeout_sec: float) -> int:
+def run_navigation_scenario(scenario_name: str, output: str | Path, timeout_sec: float) -> int:
+    definition = get_scenario(scenario_name)
     started_at = time.monotonic()
     navigator: BasicNavigator | None = None
     status = "INFRA_ERROR"
@@ -43,9 +41,9 @@ def run_navigation_scenario(output: str | Path, timeout_sec: float) -> int:
 
     try:
         rclpy.init(args=["--ros-args", "-p", "use_sim_time:=true"])
-        navigator = BasicNavigator(node_name="robotci_simple_route")
+        navigator = BasicNavigator(node_name=f"robotci_{definition.name}")
 
-        goal_pose = _pose_stamped(navigator, DEFAULT_GOAL)
+        goal_pose = _pose_stamped(navigator, definition.goal)
         accepted = navigator.goToPose(goal_pose)
 
         if not accepted:
@@ -73,10 +71,7 @@ def run_navigation_scenario(output: str | Path, timeout_sec: float) -> int:
                 if result == TaskResult.SUCCEEDED:
                     status = "PASS"
                     exit_code = EXIT_PASS
-                elif result == TaskResult.CANCELED:
-                    status = "FAIL"
-                    exit_code = EXIT_FAIL
-                elif result == TaskResult.FAILED:
+                elif result in {TaskResult.CANCELED, TaskResult.FAILED}:
                     status = "FAIL"
                     exit_code = EXIT_FAIL
                 else:
@@ -90,16 +85,16 @@ def run_navigation_scenario(output: str | Path, timeout_sec: float) -> int:
     finally:
         duration_sec = round(time.monotonic() - started_at, 3)
         result = ScenarioResult(
-            scenario=SCENARIO_NAME,
+            scenario=definition.name,
             status=status,
             duration_sec=duration_sec,
-            start=DEFAULT_START,
-            goal=DEFAULT_GOAL,
+            start=definition.start,
+            goal=definition.goal,
             navigation_result=navigation_result,
         )
         result_path = write_result(result, output)
 
-        print(f"RobotCI scenario: {SCENARIO_NAME}")
+        print(f"RobotCI scenario: {definition.name}")
         print(f"Status: {status}")
         print(f"Navigation result: {navigation_result}")
         print(f"Duration: {duration_sec:.3f}s")
@@ -114,7 +109,12 @@ def run_navigation_scenario(output: str | Path, timeout_sec: float) -> int:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run the RobotCI A to B Nav2 scenario")
+    parser = argparse.ArgumentParser(description="Run one RobotCI Nav2 scenario")
+    parser.add_argument(
+        "--scenario",
+        default="simple_route",
+        help="Built-in RobotCI scenario name",
+    )
     parser.add_argument(
         "--output",
         type=Path,
@@ -132,7 +132,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 def main() -> int:
     args = _build_parser().parse_args()
-    return run_navigation_scenario(args.output, args.timeout_sec)
+    return run_navigation_scenario(args.scenario, args.output, args.timeout_sec)
 
 
 if __name__ == "__main__":
