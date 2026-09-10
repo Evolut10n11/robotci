@@ -61,17 +61,21 @@ class NavigationMetricsTracker:
         distance_remaining_m: float | None = None,
         recoveries: int | None = None,
     ) -> None:
+        # Compare against the last position that counted as real motion, not the
+        # immediately previous feedback sample. Slow robots can legitimately move
+        # less than the jitter threshold per sample; keeping the anchor in place
+        # lets those small increments accumulate until they represent real motion.
         step_m = math.hypot(x - self._last_x, y - self._last_y)
 
         if step_m >= self._movement_epsilon_m:
             self._path_length_m += step_m
+            self._last_x = x
+            self._last_y = y
             self._last_motion_at = now
             self._stuck_active = False
         else:
             self.tick(now)
 
-        self._last_x = x
-        self._last_y = y
         self._feedback_samples += 1
 
         if (
