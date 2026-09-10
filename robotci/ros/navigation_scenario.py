@@ -9,6 +9,7 @@ import rclpy
 from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 
+from robotci.metrics import NavigationMetricsTracker
 from robotci.results import Pose2D, ScenarioResult, write_result
 
 EXIT_PASS = 0
@@ -30,6 +31,26 @@ def _pose_stamped(navigator: BasicNavigator, pose: Pose2D) -> PoseStamped:
     return message
 
 
+def _record_feedback(
+    navigator: BasicNavigator,
+    tracker: NavigationMetricsTracker,
+    now: float,
+) -> None:
+    feedback = navigator.getFeedback()
+    if feedback is None:
+        tracker.tick(now)
+        return
+
+    position = feedback.current_pose.pose.position
+    tracker.update(
+        x=float(position.x),
+        y=float(position.y),
+        now=now,
+        distance_remaining_m=float(feedback.distance_remaining),
+        recoveries=int(feedback.number_of_recoveries),
+    )
+
+
 def run_navigation_scenario(
     scenario_name: str,
     start: Pose2D,
@@ -39,6 +60,11 @@ def run_navigation_scenario(
 ) -> int:
     started_at = time.monotonic()
     navigator: BasicNavigator | None = None
+    tracker = NavigationMetricsTracker(
+        start_x=start.x,
+        start_y=start.y,
+        started_at=started_at,
+    )
     status = "INFRA_ERROR"
     navigation_result = "UNKNOWN"
     exit_code = EXIT_INFRA_ERROR
@@ -59,7 +85,10 @@ def run_navigation_scenario(
             timed_out = False
 
             while not navigator.isTaskComplete():
-                if time.monotonic() - started_at >= timeout_sec:
+                now = time.monotonic()
+                _record_feedback(navigator, tracker, now)
+
+                if now - started_at >= timeout_sec:
                     navigator.cancelTask()
                     timed_out = True
                     break
@@ -89,6 +118,7 @@ def run_navigation_scenario(
         exit_code = EXIT_INFRA_ERROR
     finally:
         duration_sec = round(time.monotonic() - started_at, 3)
+        metrics = tracker.snapshot(goal_x=goal.x, goal_y=goal.y)
         result = ScenarioResult(
             scenario=scenario_name,
             status=status,
@@ -96,6 +126,7 @@ def run_navigation_scenario(
             start=start,
             goal=goal,
             navigation_result=navigation_result,
+            metrics=metrics,
         )
         result_path = write_result(result, output)
 
@@ -103,6 +134,10 @@ def run_navigation_scenario(
         print(f"Status: {status}")
         print(f"Navigation result: {navigation_result}")
         print(f"Duration: {duration_sec:.3f}s")
+        print(f"Path length: {metrics.path_length_m:.3f}m")
+        print(f"Distance to goal: {metrics.distance_to_goal_m:.3f}m")
+        print(f"Stuck events: {metrics.stuck_events}")
+        print(f"Recoveries: {metrics.recoveries}")
         print(f"Result: {result_path}")
 
         if navigator is not None:
