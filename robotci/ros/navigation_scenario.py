@@ -124,7 +124,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--timeout-sec",
         type=float,
-        default=90.0,
+        default=120.0,
         help="Maximum wall-clock time allowed for navigation",
     )
     return parser
