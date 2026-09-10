@@ -1,8 +1,7 @@
 FROM ros:jazzy-ros-base-noble
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV ROBOTCI_RESULT_FILE=/workspace/artifacts/simple-route/result.json
-ENV ROBOTCI_TIMEOUT_SEC=90
+ENV ROBOTCI_TIMEOUT_SEC=120
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -27,4 +26,4 @@ ENV PATH="/opt/robotci-venv/bin:${PATH}"
 
 COPY scripts ./scripts
 
-CMD ["robotci", "run", "--runtime", "native", "--output", "/workspace/artifacts/simple-route/result.json"]
+CMD ["robotci", "run", "--runtime", "native", "--output", "/workspace/artifacts/suite-result.json", "--timeout-sec", "120"]
