@@ -89,7 +89,7 @@ def run_command(
             min=0.1,
             help="Maximum navigation time in seconds.",
         ),
-    ] = 90.0,
+    ] = 120.0,
 ) -> None:
     """Run a RobotCI navigation scenario."""
     if runtime not in {"auto", "native", "docker"}:
@@ -112,7 +112,7 @@ def run_command(
     if status is not None:
         style = "green" if status == "PASS" else "red"
         console.print(f"Verdict: [{style}]{status}[/{style}]")
-    console.print(f"Result: {result_path}")
+    console.print(f"Result: {result_path}", soft_wrap=True)
 
     if exit_code != 0:
         raise typer.Exit(code=exit_code)
