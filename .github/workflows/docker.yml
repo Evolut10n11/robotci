@@ -26,7 +26,7 @@ jobs:
             -v "$PWD/artifacts:/workspace/artifacts" \
             robotci:ci
 
-      - name: Verify Docker suite result
+      - name: Verify Docker suite result and runtime metrics
         run: |
           python3 - <<'PY'
           import json
@@ -53,7 +53,21 @@ jobs:
               if actual != goal:
                   raise SystemExit(f"{name} did not use YAML goal {goal}: {actual}")
 
-          print(f"Docker YAML suite PASS: {names}")
+              metrics = result.get("metrics")
+              if not isinstance(metrics, dict):
+                  raise SystemExit(f"{name} did not produce metrics: {result}")
+              if metrics.get("path_length_m", 0) <= 0:
+                  raise SystemExit(f"{name} path length was not recorded: {metrics}")
+              if metrics.get("feedback_samples", 0) <= 0:
+                  raise SystemExit(f"{name} feedback samples were not recorded: {metrics}")
+              if metrics.get("distance_to_goal_m", 999) > 0.75:
+                  raise SystemExit(f"{name} finished too far from goal: {metrics}")
+              if metrics.get("stuck_events", -1) < 0:
+                  raise SystemExit(f"{name} has invalid stuck telemetry: {metrics}")
+              if metrics.get("recoveries", -1) < 0:
+                  raise SystemExit(f"{name} has invalid recovery telemetry: {metrics}")
+
+          print(f"Docker YAML suite + metrics PASS: {names}")
           PY
 
       - name: Upload Docker suite results
