@@ -169,7 +169,7 @@ def run_scenario(
     output: str | Path = DEFAULT_RESULT_PATH,
     timeout_sec: float = 90.0,
     project_root: Path | None = None,
-) -> tuple[int, Literal["native", "docker"]]:
+) -> tuple[int, Literal["native", "docker"], Path]:
     if scenario not in SUPPORTED_SCENARIOS:
         supported = ", ".join(SUPPORTED_SCENARIOS)
         raise ValueError(f"unsupported scenario '{scenario}'; supported: {supported}")
@@ -182,10 +182,11 @@ def run_scenario(
 
     if not result_path.is_absolute():
         result_path = root / result_path
+    result_path = result_path.resolve()
 
     if selected == "native":
         exit_code = _run_native(root, result_path, timeout_sec)
     else:
         exit_code = _run_docker(root, result_path, timeout_sec)
 
-    return exit_code, selected
+    return exit_code, selected, result_path
