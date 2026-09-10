@@ -123,9 +123,11 @@ Examples:
 robotci run
 robotci run --runtime native
 robotci run --runtime docker
-robotci run --scenario simple_route --timeout-sec 90
+robotci run --scenario simple_route --timeout-sec 120
 robotci run --output .robotci/result.json
 ```
+
+The default navigation timeout is 120 seconds. The current `simple_route` is intentionally long enough to exercise the Nav2 loopback path, so the timeout includes margin for slower CI runners.
 
 The command returns the scenario exit code and writes a machine-readable JSON result.
 
@@ -234,7 +236,7 @@ Example result:
 
 ```json
 {
-  "duration_sec": 12.345,
+  "duration_sec": 88.412,
   "goal": {
     "x": 17.86,
     "y": -0.77,
