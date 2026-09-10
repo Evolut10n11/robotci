@@ -102,6 +102,9 @@ def test_metrics_tracker_accumulates_slow_motion_below_per_sample_epsilon() -> N
 
     metrics = tracker.snapshot(goal_x=1.0, goal_y=0.0)
 
-    assert metrics.path_length_m == 0.036
+    # Motion is accumulated once net displacement crosses the 2 cm deadband.
+    # The remaining 1.8 cm stays below the jitter threshold and is intentionally
+    # not added until a later sample moves far enough from the last accepted pose.
+    assert metrics.path_length_m == 0.027
     assert metrics.feedback_samples == 5
     assert metrics.stuck_events == 0
