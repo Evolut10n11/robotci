@@ -1,0 +1,11 @@
+services:
+  robotci:
+    build:
+      context: .
+    image: robotci:dev
+    init: true
+    environment:
+      ROBOTCI_RESULT_FILE: /workspace/artifacts/simple-route/result.json
+      ROBOTCI_TIMEOUT_SEC: "90"
+    volumes:
+      - ./artifacts:/workspace/artifacts
