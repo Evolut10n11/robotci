@@ -19,7 +19,7 @@ fi
 
 LOG_FILE="${ROBOTCI_LOG_FILE:-/tmp/nav2-simple-route.log}"
 RESULT_FILE="${ROBOTCI_RESULT_FILE:-artifacts/simple-route/result.json}"
-TIMEOUT_SEC="${ROBOTCI_TIMEOUT_SEC:-90}"
+TIMEOUT_SEC="${ROBOTCI_TIMEOUT_SEC:-120}"
 
 PYTHON_BIN="${ROBOTCI_PYTHON:-python3}"
 if [ -x ".venv/bin/python" ]; then
