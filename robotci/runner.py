@@ -6,12 +6,24 @@ import platform as stdlib_platform
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 from typing import Literal
 
+from robotci.results import SuiteResult, SuiteScenarioResult, write_suite_result
+from robotci.scenarios import scenario_names
+
 RuntimeName = Literal["auto", "native", "docker"]
-SUPPORTED_SCENARIOS = ("simple_route",)
+SUPPORTED_SCENARIOS = scenario_names()
 DEFAULT_RESULT_PATH = Path(".robotci") / "result.json"
+DEFAULT_SUITE_RESULT_PATH = Path(".robotci") / "suite-result.json"
+
+_EXIT_BY_STATUS = {
+    "PASS": 0,
+    "FAIL": 1,
+    "TIMEOUT": 2,
+    "INFRA_ERROR": 3,
+}
 
 
 class RuntimeUnavailableError(RuntimeError):
@@ -87,7 +99,7 @@ def _find_project_root(start: Path | None = None) -> Path:
         candidates.append(package_root)
 
     for candidate in candidates:
-        if (candidate / "scripts" / "run_simple_route.sh").is_file() and (
+        if (candidate / "scripts" / "run_navigation_scenario.sh").is_file() and (
             candidate / "pyproject.toml"
         ).is_file():
             return candidate
@@ -97,9 +109,10 @@ def _find_project_root(start: Path | None = None) -> Path:
     )
 
 
-def _run_native(project_root: Path, output: Path, timeout_sec: float) -> int:
-    script = project_root / "scripts" / "run_simple_route.sh"
+def _run_native(project_root: Path, scenario: str, output: Path, timeout_sec: float) -> int:
+    script = project_root / "scripts" / "run_navigation_scenario.sh"
     environment = os.environ.copy()
+    environment["ROBOTCI_SCENARIO"] = scenario
     environment["ROBOTCI_RESULT_FILE"] = str(output.resolve())
     environment["ROBOTCI_TIMEOUT_SEC"] = str(timeout_sec)
     environment["ROBOTCI_PYTHON"] = sys.executable
@@ -117,9 +130,9 @@ def _run_native(project_root: Path, output: Path, timeout_sec: float) -> int:
     return completed.returncode
 
 
-def _run_docker(project_root: Path, output: Path, timeout_sec: float) -> int:
-    container_result = "/workspace/artifacts/simple-route/result.json"
-    host_result = project_root / "artifacts" / "simple-route" / "result.json"
+def _run_docker(project_root: Path, scenario: str, output: Path, timeout_sec: float) -> int:
+    container_result = f"/workspace/artifacts/{scenario}/result.json"
+    host_result = project_root / "artifacts" / scenario / "result.json"
     host_result.parent.mkdir(parents=True, exist_ok=True)
 
     command = [
@@ -128,11 +141,17 @@ def _run_docker(project_root: Path, output: Path, timeout_sec: float) -> int:
         "run",
         "--rm",
         "--build",
-        "-e",
-        f"ROBOTCI_RESULT_FILE={container_result}",
-        "-e",
-        f"ROBOTCI_TIMEOUT_SEC={timeout_sec}",
         "robotci",
+        "robotci",
+        "run",
+        "--runtime",
+        "native",
+        "--scenario",
+        scenario,
+        "--output",
+        container_result,
+        "--timeout-sec",
+        str(timeout_sec),
     ]
 
     try:
@@ -149,7 +168,7 @@ def _run_docker(project_root: Path, output: Path, timeout_sec: float) -> int:
     return completed.returncode
 
 
-def read_result_status(path: str | Path) -> str | None:
+def read_result_payload(path: str | Path) -> dict[str, object] | None:
     result_path = Path(path)
     if not result_path.is_file():
         return None
@@ -157,6 +176,14 @@ def read_result_status(path: str | Path) -> str | None:
     try:
         payload = json.loads(result_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
+        return None
+
+    return payload if isinstance(payload, dict) else None
+
+
+def read_result_status(path: str | Path) -> str | None:
+    payload = read_result_payload(path)
+    if payload is None:
         return None
 
     status = payload.get("status")
@@ -186,8 +213,73 @@ def run_scenario(
     result_path = result_path.resolve()
 
     if selected == "native":
-        exit_code = _run_native(root, result_path, timeout_sec)
+        exit_code = _run_native(root, scenario, result_path, timeout_sec)
     else:
-        exit_code = _run_docker(root, result_path, timeout_sec)
+        exit_code = _run_docker(root, scenario, result_path, timeout_sec)
 
     return exit_code, selected, result_path
+
+
+def run_suite(
+    *,
+    runtime: RuntimeName = "auto",
+    output: str | Path = DEFAULT_SUITE_RESULT_PATH,
+    timeout_sec: float = 120.0,
+    project_root: Path | None = None,
+) -> tuple[int, Literal["native", "docker"], Path]:
+    if timeout_sec <= 0:
+        raise ValueError("timeout must be greater than zero")
+
+    selected = select_runtime(runtime)
+    root = _find_project_root(project_root)
+    suite_path = Path(output)
+    if not suite_path.is_absolute():
+        suite_path = root / suite_path
+    suite_path = suite_path.resolve()
+
+    scenario_dir = suite_path.parent / "results"
+    started_at = time.monotonic()
+    scenario_results: list[SuiteScenarioResult] = []
+    final_exit_code = 0
+
+    for scenario in SUPPORTED_SCENARIOS:
+        result_path = scenario_dir / f"{scenario}.json"
+
+        if selected == "native":
+            exit_code = _run_native(root, scenario, result_path, timeout_sec)
+        else:
+            exit_code = _run_docker(root, scenario, result_path, timeout_sec)
+
+        payload = read_result_payload(result_path)
+        status = payload.get("status") if payload is not None else None
+        duration = payload.get("duration_sec") if payload is not None else None
+
+        if status not in _EXIT_BY_STATUS:
+            status = "INFRA_ERROR"
+        if not isinstance(duration, int | float):
+            duration = 0.0
+
+        final_exit_code = max(final_exit_code, _EXIT_BY_STATUS[status])
+        final_exit_code = max(final_exit_code, exit_code)
+        scenario_results.append(
+            SuiteScenarioResult(
+                scenario=scenario,
+                status=status,  # type: ignore[arg-type]
+                duration_sec=float(duration),
+                result_file=str(result_path),
+            )
+        )
+
+    suite_status = next(
+        status
+        for status, code in sorted(_EXIT_BY_STATUS.items(), key=lambda item: item[1])
+        if code == final_exit_code
+    )
+    suite = SuiteResult(
+        status=suite_status,  # type: ignore[arg-type]
+        runtime=selected,
+        duration_sec=round(time.monotonic() - started_at, 3),
+        scenarios=tuple(scenario_results),
+    )
+    suite_path = write_suite_result(suite, suite_path)
+    return final_exit_code, selected, suite_path
