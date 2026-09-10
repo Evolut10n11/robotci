@@ -168,7 +168,7 @@ def run_scenario(
     scenario: str = "simple_route",
     runtime: RuntimeName = "auto",
     output: str | Path = DEFAULT_RESULT_PATH,
-    timeout_sec: float = 90.0,
+    timeout_sec: float = 120.0,
     project_root: Path | None = None,
 ) -> tuple[int, Literal["native", "docker"], Path]:
     if scenario not in SUPPORTED_SCENARIOS:
