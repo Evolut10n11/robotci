@@ -49,9 +49,14 @@ cat <<'EOF'
 
 RobotCI Ubuntu environment is ready.
 
-Run the current end-to-end scenario with:
+Activate the environment and run the built-in suite with:
 
-  bash scripts/run_simple_route.sh
+  source .venv/bin/activate
+  robotci run --runtime native
+
+Run one scenario while debugging with:
+
+  robotci run --runtime native --scenario simple_route
 
 Core checks:
 
