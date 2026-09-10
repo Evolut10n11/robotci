@@ -1,0 +1,224 @@
+name: Nav2 Loopback Launch
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  loopback-launch:
+    name: Headless Nav2 Loopback
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up ROS2 Jazzy
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+
+      - name: Install Nav2 Loopback runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ros-jazzy-navigation2 \
+            ros-jazzy-nav2-bringup \
+            ros-jazzy-nav2-loopback-sim \
+            ros-jazzy-nav2-simple-commander \
+            ros-jazzy-nav2-minimal-tb4-description
+
+      - name: Launch Nav2 Loopback and wait for readiness
+        shell: bash
+        run: |
+          set -Eeo pipefail
+          source /opt/ros/jazzy/setup.bash
+
+          LOG_FILE=/tmp/nav2-loopback.log
+
+          ros2 launch nav2_bringup tb4_loopback_simulation.launch.py \
+            use_rviz:=False \
+            autostart:=False \
+            >"$LOG_FILE" 2>&1 &
+          NAV2_PID=$!
+
+          cleanup() {
+            kill "$NAV2_PID" 2>/dev/null || true
+            wait "$NAV2_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          lifecycle_active() {
+            local state
+            state=$(ros2 lifecycle get "$1" 2>/dev/null || true)
+            [[ "$state" == *"active [3]"* ]]
+          }
+
+          list_contains_exact() {
+            local list="$1"
+            local expected="$2"
+            grep -Fxq "$expected" <<<"$list"
+          }
+
+          wait_for_service() {
+            local service_name="$1"
+            local services
+            for attempt in $(seq 1 60); do
+              services=$(ros2 service list 2>/dev/null || true)
+              if list_contains_exact "$services" "$service_name"; then
+                return 0
+              fi
+              echo "Waiting for service $service_name ($attempt/60)..."
+              sleep 1
+            done
+            return 1
+          }
+
+          wait_for_node() {
+            local node_name="$1"
+            local nodes
+            for attempt in $(seq 1 60); do
+              nodes=$(ros2 node list 2>/dev/null || true)
+              if list_contains_exact "$nodes" "$node_name"; then
+                return 0
+              fi
+              echo "Waiting for node $node_name ($attempt/60)..."
+              sleep 1
+            done
+            return 1
+          }
+
+          call_startup() {
+            local service_name="$1"
+            local output
+            output=$(ros2 service call "$service_name" nav2_msgs/srv/ManageLifecycleNodes "{command: 0}")
+            echo "$output"
+            [[ "$output" == *"success=True"* ]]
+          }
+
+          if ! wait_for_node /loopback_simulator; then
+            echo "Loopback simulator did not appear"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          if ! wait_for_service /lifecycle_manager_map_server/manage_nodes; then
+            echo "Map lifecycle manager service did not appear"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          if ! wait_for_service /lifecycle_manager_navigation/manage_nodes; then
+            echo "Navigation lifecycle manager service did not appear"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          echo "Starting map server lifecycle..."
+          if ! call_startup /lifecycle_manager_map_server/manage_nodes; then
+            echo "Map server lifecycle startup failed"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          MAP_READY=0
+          for attempt in $(seq 1 30); do
+            if lifecycle_active /map_server; then
+              MAP_READY=1
+              break
+            fi
+            echo "Waiting for active map_server ($attempt/30)..."
+            sleep 1
+          done
+
+          if [ "$MAP_READY" -ne 1 ]; then
+            echo "map_server did not become active"
+            ros2 lifecycle get /map_server || true
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          echo "Publishing initial pose so Loopback can create map -> odom TF..."
+          ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
+            "{header: {frame_id: map}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"
+
+          sleep 2
+
+          echo "Starting navigation lifecycle..."
+          if ! call_startup /lifecycle_manager_navigation/manage_nodes; then
+            echo "Navigation lifecycle startup failed"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          READY=0
+          for attempt in $(seq 1 60); do
+            if ! kill -0 "$NAV2_PID" 2>/dev/null; then
+              echo "Nav2 launch process exited before becoming ready"
+              cat "$LOG_FILE"
+              exit 1
+            fi
+
+            ACTIONS=$(ros2 action list 2>/dev/null || true)
+            if list_contains_exact "$ACTIONS" "/navigate_to_pose" \
+              && lifecycle_active /bt_navigator \
+              && lifecycle_active /planner_server \
+              && lifecycle_active /controller_server \
+              && lifecycle_active /map_server; then
+              READY=1
+              break
+            fi
+
+            echo "Waiting for active Nav2 lifecycle nodes ($attempt/60)..."
+            sleep 1
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "Timed out waiting for active Nav2"
+            echo "Lifecycle states:"
+            ros2 lifecycle get /bt_navigator || true
+            ros2 lifecycle get /planner_server || true
+            ros2 lifecycle get /controller_server || true
+            ros2 lifecycle get /map_server || true
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          NODES=$(ros2 node list)
+          TOPICS=$(ros2 topic list)
+          ACTIONS=$(ros2 action list)
+
+          echo "Nav2 is ready. ROS graph:"
+          echo "Nodes:"
+          echo "$NODES"
+          echo "Topics:"
+          echo "$TOPICS"
+          echo "Actions:"
+          echo "$ACTIONS"
+
+          list_contains_exact "$NODES" "/loopback_simulator"
+          list_contains_exact "$NODES" "/bt_navigator"
+          list_contains_exact "$NODES" "/planner_server"
+          list_contains_exact "$NODES" "/controller_server"
+          list_contains_exact "$NODES" "/map_server"
+
+          list_contains_exact "$TOPICS" "/odom"
+          list_contains_exact "$TOPICS" "/clock"
+          list_contains_exact "$ACTIONS" "/navigate_to_pose"
+
+          lifecycle_active /bt_navigator
+          lifecycle_active /planner_server
+          lifecycle_active /controller_server
+          lifecycle_active /map_server
+
+          echo "Headless Nav2 Loopback readiness: PASS"
+
+      - name: Upload launch log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nav2-loopback-launch-log
+          path: /tmp/nav2-loopback.log
+          if-no-files-found: ignore
