@@ -7,10 +7,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  docker-simple-route:
-    name: Docker A to B / simple_route
+  docker-suite:
+    name: Docker / built-in suite
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -19,32 +19,37 @@ jobs:
       - name: Build RobotCI image
         run: docker build -t robotci:ci .
 
-      - name: Run simple_route in Docker
+      - name: Run built-in suite in Docker
         run: |
-          mkdir -p artifacts/simple-route
+          mkdir -p artifacts
           docker run --rm \
             -v "$PWD/artifacts:/workspace/artifacts" \
             robotci:ci
 
-      - name: Verify Docker result
+      - name: Verify Docker suite result
         run: |
           python3 - <<'PY'
           import json
           from pathlib import Path
 
-          path = Path("artifacts/simple-route/result.json")
+          path = Path("artifacts/suite-result.json")
           result = json.loads(path.read_text(encoding="utf-8"))
+          names = [item["scenario"] for item in result["scenarios"]]
 
           if result["status"] != "PASS":
-              raise SystemExit(f"Docker scenario did not PASS: {result}")
+              raise SystemExit(f"Docker suite did not PASS: {result}")
+          if names != ["short_route", "medium_route", "simple_route"]:
+              raise SystemExit(f"Unexpected Docker suite scenarios: {names}")
 
-          print(f"Docker scenario PASS in {result['duration_sec']}s")
+          print(f"Docker suite PASS: {names}")
           PY
 
-      - name: Upload Docker scenario result
+      - name: Upload Docker suite results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: docker-simple-route-result
-          path: artifacts/simple-route/result.json
+          name: docker-suite-results
+          path: |
+            artifacts/suite-result.json
+            artifacts/results/*.json
           if-no-files-found: warn
