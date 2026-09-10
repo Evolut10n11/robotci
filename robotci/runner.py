@@ -24,6 +24,7 @@ _EXIT_BY_STATUS = {
     "TIMEOUT": 2,
     "INFRA_ERROR": 3,
 }
+_STATUS_BY_EXIT = {code: status for status, code in _EXIT_BY_STATUS.items()}
 
 
 class RuntimeUnavailableError(RuntimeError):
@@ -259,8 +260,8 @@ def run_suite(
         if not isinstance(duration, int | float):
             duration = 0.0
 
-        final_exit_code = max(final_exit_code, _EXIT_BY_STATUS[status])
-        final_exit_code = max(final_exit_code, exit_code)
+        normalized_exit = exit_code if exit_code in _STATUS_BY_EXIT else 3
+        final_exit_code = max(final_exit_code, _EXIT_BY_STATUS[status], normalized_exit)
         scenario_results.append(
             SuiteScenarioResult(
                 scenario=scenario,
@@ -270,11 +271,7 @@ def run_suite(
             )
         )
 
-    suite_status = next(
-        status
-        for status, code in sorted(_EXIT_BY_STATUS.items(), key=lambda item: item[1])
-        if code == final_exit_code
-    )
+    suite_status = _STATUS_BY_EXIT[final_exit_code]
     suite = SuiteResult(
         status=suite_status,  # type: ignore[arg-type]
         runtime=selected,
