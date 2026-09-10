@@ -5,9 +5,9 @@ import math
 import time
 from pathlib import Path
 
+import rclpy
 from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
-import rclpy
 
 from robotci.results import Pose2D, ScenarioResult, write_result
 
