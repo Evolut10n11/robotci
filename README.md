@@ -2,9 +2,9 @@
 
 Local-first regression testing for ROS2 / Nav2.
 
-RobotCI is an open-source-first developer tool for running repeatable robot navigation scenarios, collecting metrics, comparing results with a baseline, and returning a clear CI verdict before changes reach a physical robot.
+RobotCI is an open-source-first developer tool for running repeatable robot navigation scenarios, collecting machine-readable results, and eventually comparing candidate behavior with a baseline before changes reach a physical robot.
 
-> Status: early alpha. M0 Vertical Slice is complete. The current focus is making the same runtime reproducible from native Ubuntu, Docker, and CI before building the general `robotci run` suite runner.
+> Status: early alpha. M0 Vertical Slice is complete. The current milestone is M1: turning the proven A → B scenario into a reusable `robotci run` CLI workflow across native Ubuntu, Docker, and CI.
 
 ## Why RobotCI
 
@@ -25,11 +25,11 @@ code / config change
         ↓
  ROS2 + Nav2 simulation
         ↓
- collect navigation metrics
+ collect navigation results
         ↓
  compare with baseline
         ↓
- PASS / FAIL / REGRESSION / INFRA_ERROR
+ PASS / FAIL / TIMEOUT / REGRESSION / INFRA_ERROR
 ```
 
 ## Current scope
@@ -54,7 +54,7 @@ RobotCI is not trying to become a universal robotics platform in the first relea
 
 ## What works today
 
-The cross-platform Python foundation is working on Windows and Ubuntu:
+The cross-platform Python foundation works on Windows and Ubuntu:
 
 ```text
 Python 3.12
@@ -68,16 +68,12 @@ pytest + Ruff
 Windows / Ubuntu CI
 ```
 
-The first complete navigation scenario is also working:
+The first complete navigation scenario also works end-to-end:
 
 ```text
-clean Ubuntu 24.04 runner
+start A = (0.0, 0.0, 0.0)
         ↓
-ROS2 Jazzy
-        ↓
-Nav2 + Loopback
-        ↓
-start pose A = (0.0, 0.0, 0.0)
+ROS2 Jazzy + Nav2 + Loopback
         ↓
 NavigateToPose
         ↓
@@ -85,25 +81,53 @@ goal B = (17.86, -0.77, 0.0)
         ↓
 PASS / FAIL / TIMEOUT / INFRA_ERROR
         ↓
-artifacts/simple-route/result.json
+result.json
 ```
 
-The scenario has already passed end-to-end in GitHub Actions. This is the first RobotCI test that validates robot behavior rather than only checking that ROS packages and nodes exist.
+That path has passed on a clean GitHub-hosted Ubuntu 24.04 runner and inside the Docker runtime.
 
 ## Runtime model
 
-RobotCI keeps one repository and one product version while supporting different development/runtime environments.
+RobotCI keeps one repository and one product version while supporting several execution environments.
 
-| Environment | Core CLI | Unit tests | ROS2 / Nav2 | A → B scenario |
+| Environment | Core CLI | Unit tests | ROS2 / Nav2 | Navigation scenario |
 | --- | --- | --- | --- | --- |
-| Windows 11 / PowerShell | ✅ | ✅ | optional | via Docker, Ubuntu, or CI |
+| Windows 11 / PowerShell | ✅ | ✅ | optional | via Docker or CI |
 | Ubuntu 24.04 native | ✅ | ✅ | ✅ | ✅ |
 | Docker Linux container | ✅ | ✅ | ✅ | ✅ |
 | GitHub Actions Ubuntu 24.04 | ✅ | ✅ | ✅ | ✅ |
 
-The core package must not import ROS modules during normal startup. ROS is an optional runtime capability isolated under `robotci.ros`.
+The core package does not import ROS modules during normal startup. ROS remains isolated under `robotci.ros` and is only required when a robotics scenario actually runs.
 
-Docker is not required for core development. On Windows, running Linux Docker containers requires a working virtualization-backed Docker engine. If that is unavailable, contributors can still develop the core locally and use GitHub Actions or an Ubuntu machine for full navigation runs.
+Docker is not required for core development. Windows users need a working Linux-container backend to use the Docker runtime; otherwise they can still develop the core locally and rely on GitHub Actions or an Ubuntu machine for full robotics execution.
+
+## Unified CLI runner
+
+M1 introduces one user-facing entry point:
+
+```text
+robotci run
+```
+
+The current alpha supports one scenario, `simple_route`, and three runtime choices:
+
+```text
+auto    choose native ROS on Linux, otherwise Docker if available
+native  run against local Ubuntu + ROS2 Jazzy/Nav2
+docker  build/run the Docker Compose runtime
+```
+
+Examples:
+
+```bash
+robotci run
+robotci run --runtime native
+robotci run --runtime docker
+robotci run --scenario simple_route --timeout-sec 90
+robotci run --output .robotci/result.json
+```
+
+The command returns the scenario exit code and writes a machine-readable JSON result.
 
 ## Quick start — Windows / PowerShell
 
@@ -125,84 +149,64 @@ pytest -vv
 ruff check .
 ```
 
-Expected version output:
+If Docker Desktop or another Linux-container engine is working on the machine, the full scenario can be started from PowerShell with:
 
-```text
-RobotCI 0.0.1
+```powershell
+robotci run --runtime docker
+Get-Content .\.robotci\result.json
 ```
 
-Missing ROS on Windows is reported as a warning rather than making the core CLI unusable.
+If Docker is installed but its daemon/backend is unavailable, RobotCI reports a runtime error instead of pretending the navigation test failed.
 
 ## Quick start — Ubuntu 24.04 native
 
-For a clean Ubuntu 24.04 machine, bootstrap ROS2 Jazzy, Nav2, the Python environment, and RobotCI with:
+Clone and bootstrap the supported native robotics environment:
+
+```bash
+git clone https://github.com/Evolut10n11/robotci.git
+cd robotci
+bash scripts/bootstrap_ubuntu.sh
+```
+
+Then run:
+
+```bash
+source .venv/bin/activate
+robotci doctor
+robotci run --runtime native
+cat .robotci/result.json
+```
+
+`robotci run` automatically uses the existing Nav2 Loopback orchestration and returns the final scenario verdict.
+
+## Quick start — Docker
+
+With a working Docker engine:
 
 ```bash
 git clone https://github.com/Evolut10n11/robotci.git
 cd robotci
 
-bash scripts/bootstrap_ubuntu.sh
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+robotci run --runtime docker
+cat .robotci/result.json
 ```
 
-Then run the current end-to-end scenario:
-
-```bash
-bash scripts/run_simple_route.sh
-```
-
-The result is written to:
-
-```text
-artifacts/simple-route/result.json
-```
-
-Inspect it with:
-
-```bash
-cat artifacts/simple-route/result.json
-```
-
-The Ubuntu bootstrap intentionally targets Ubuntu 24.04 + ROS2 Jazzy, which is the supported native robotics environment for the current alpha.
-
-## Quick start — Docker
-
-RobotCI also provides a reproducible Linux-container runtime based on ROS2 Jazzy.
-
-Build and run with Docker Compose:
+You can still use the lower-level container commands directly when debugging the runtime:
 
 ```bash
 docker compose build
 docker compose run --rm robotci
 ```
 
-Or directly with Docker:
+The image itself starts the scenario through the RobotCI CLI, so Docker and native Ubuntu exercise the same product entry point.
 
-```bash
-docker build -t robotci:dev .
-docker run --rm \
-  -v "$(pwd)/artifacts:/workspace/artifacts" \
-  robotci:dev
-```
+## GitHub Actions
 
-The container runs the same `simple_route` scenario and writes the same result format to:
-
-```text
-artifacts/simple-route/result.json
-```
-
-On a Windows machine where Docker Desktop and Linux containers are available, the Compose commands are the same from PowerShell:
-
-```powershell
-docker compose build
-docker compose run --rm robotci
-Get-Content .\artifacts\simple-route\result.json
-```
-
-## Quick start — GitHub Actions
-
-A contributor who has no local ROS2 installation can still run the complete robotics path through GitHub Actions.
-
-Current workflows validate:
+The repository currently validates several layers independently:
 
 ```text
 CI
@@ -216,17 +220,17 @@ Nav2 Loopback Launch
 └── headless runtime + lifecycle readiness
 
 Navigation Scenario
-└── native Ubuntu A → B + result.json
+└── native Ubuntu `robotci run` + result.json
 
 Docker Runtime
-└── image build + containerized A → B + result.json
+└── image build + containerized `robotci run` + result.json
 ```
+
+This gives the project a clean split: core code stays cross-platform, while the ROS runtime is exercised where Linux robotics dependencies are available.
 
 ## Current scenario result
 
-The current machine-readable result contains the scenario name, verdict, duration, start/goal poses, and the Nav2 action result.
-
-Example shape:
+Example result:
 
 ```json
 {
@@ -247,7 +251,7 @@ Example shape:
 }
 ```
 
-Current scenario exit codes:
+Exit codes:
 
 ```text
 0  PASS
@@ -256,75 +260,35 @@ Current scenario exit codes:
 3  INFRA_ERROR
 ```
 
-RobotCI deliberately separates robot behavior failures from infrastructure failures. A broken ROS environment must not be reported as a navigation regression.
-
-## Doctor command
-
-Run:
-
-```text
-robotci doctor
-```
-
-On Ubuntu with the supported ROS stack installed, ROS checks are blocking.
-
-On Windows, missing ROS is non-blocking because Windows remains a supported environment for core/CLI development.
+RobotCI deliberately separates robot behavior failures from infrastructure failures. A broken ROS environment or unavailable Docker daemon must not be reported as a navigation regression.
 
 ## M0 — Vertical Slice ✅
 
-M0 is complete.
+M0 is complete. RobotCI can launch Nav2 Loopback, set the initial pose, activate the lifecycle nodes, send `NavigateToPose`, wait for A → B completion, and write a machine-readable result.
 
-The project can now execute one navigation scenario without manual interaction:
+## M1 — CLI runner 🚧
 
-```text
-launch ROS2 / Nav2
-        ↓
-start Loopback simulator
-        ↓
-set initial pose
-        ↓
-activate Nav2 lifecycle
-        ↓
-send NavigateToPose goal
-        ↓
-robot moves A → B
-        ↓
-wait for result
-        ↓
-write result.json
-        ↓
-return machine-readable verdict + exit code
-```
+The current M1 slice adds runtime selection and the `robotci run` command around the proven scenario.
 
-This path has passed on a clean GitHub-hosted Ubuntu 24.04 runner.
-
-## Next milestone — M1 runner
-
-The next product step is to stop treating `simple_route` as a special integration script and turn it into a reusable RobotCI runner.
-
-Target user experience:
+The remaining M1 work is to move from one hard-coded scenario to a real suite model:
 
 ```text
 robotci run
-```
-
-Then:
-
-```text
-load scenario suite
-        ↓
+    ↓
+load one or more scenarios
+    ↓
 select runtime
-        ↓
-run one or more scenarios
-        ↓
-collect results
-        ↓
+    ↓
+execute scenarios
+    ↓
+collect individual results
+    ↓
 produce suite summary
-        ↓
+    ↓
 return final exit code
 ```
 
-The intended runtime choices are native Ubuntu and Docker, while GitHub Actions acts as the remote CI execution environment. Windows continues to support the core CLI and can invoke Docker when the host has a working Docker engine.
+Configuration files are intentionally deferred to M2. M1 first proves the runner abstraction with the existing working scenario.
 
 ## Planned verdict model
 
@@ -358,10 +322,10 @@ Later simulator-backed stages may add collision count, minimum clearance, and re
 M0 — Vertical Slice ✅
 one headless A → B navigation scenario + result.json
 
-Runtime portability — in progress
-same scenario from native Ubuntu + Docker + GitHub Actions
+Runtime portability ✅
+native Ubuntu + Docker + GitHub Actions
 
-M1 — CLI runner
+M1 — CLI runner 🚧
 robotci run + multiple scenarios + suite summary
 
 M2 — Configuration
@@ -407,11 +371,6 @@ INFRA_ERROR != FAIL
 robotci/
 ├── .github/
 │   └── workflows/
-│       ├── ci.yml
-│       ├── docker.yml
-│       ├── navigation-scenario.yml
-│       ├── nav2-loopback.yml
-│       └── ros-smoke.yml
 ├── robotci/
 │   ├── ros/
 │   │   ├── __init__.py
@@ -421,7 +380,8 @@ robotci/
 │   ├── doctor.py
 │   ├── paths.py
 │   ├── platform.py
-│   └── results.py
+│   ├── results.py
+│   └── runner.py
 ├── scripts/
 │   ├── bootstrap_ubuntu.sh
 │   └── run_simple_route.sh
@@ -434,11 +394,7 @@ robotci/
 └── .gitignore
 ```
 
-The internal architecture grows only when a working product slice requires it.
-
 ## Contributing
-
-Prefer small pull requests that produce a runnable or testable result.
 
 Core checks:
 
