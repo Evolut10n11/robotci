@@ -9,7 +9,14 @@ from rich.table import Table
 
 from robotci import __version__
 from robotci.doctor import run_doctor_checks
-from robotci.runner import RuntimeUnavailableError, read_result_status, run_scenario
+from robotci.runner import (
+    DEFAULT_RESULT_PATH,
+    DEFAULT_SUITE_RESULT_PATH,
+    RuntimeUnavailableError,
+    read_result_status,
+    run_scenario,
+    run_suite,
+)
 
 app = typer.Typer(
     name="robotci",
@@ -59,13 +66,13 @@ def doctor() -> None:
 @app.command("run")
 def run_command(
     scenario: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--scenario",
             "-s",
-            help="Scenario to execute.",
+            help="Run one built-in scenario. Omit to run the full suite.",
         ),
-    ] = "simple_route",
+    ] = None,
     runtime: Annotated[
         str,
         typer.Option(
@@ -75,34 +82,45 @@ def run_command(
         ),
     ] = "auto",
     output: Annotated[
-        Path,
+        Path | None,
         typer.Option(
             "--output",
             "-o",
             help="Machine-readable result JSON path.",
         ),
-    ] = Path(".robotci/result.json"),
+    ] = None,
     timeout_sec: Annotated[
         float,
         typer.Option(
             "--timeout-sec",
             min=0.1,
-            help="Maximum navigation time in seconds.",
+            help="Maximum navigation time per scenario in seconds.",
         ),
     ] = 120.0,
 ) -> None:
-    """Run a RobotCI navigation scenario."""
+    """Run one RobotCI scenario or the full built-in suite."""
     if runtime not in {"auto", "native", "docker"}:
         console.print(f"[red]RobotCI error:[/red] unsupported runtime '{runtime}'")
         raise typer.Exit(code=3)
 
     try:
-        exit_code, selected_runtime, result_path = run_scenario(
-            scenario=scenario,
-            runtime=runtime,  # type: ignore[arg-type]
-            output=output,
-            timeout_sec=timeout_sec,
-        )
+        if scenario is None:
+            result_output = output or DEFAULT_SUITE_RESULT_PATH
+            exit_code, selected_runtime, result_path = run_suite(
+                runtime=runtime,  # type: ignore[arg-type]
+                output=result_output,
+                timeout_sec=timeout_sec,
+            )
+            label = "Suite verdict"
+        else:
+            result_output = output or DEFAULT_RESULT_PATH
+            exit_code, selected_runtime, result_path = run_scenario(
+                scenario=scenario,
+                runtime=runtime,  # type: ignore[arg-type]
+                output=result_output,
+                timeout_sec=timeout_sec,
+            )
+            label = "Verdict"
     except (RuntimeUnavailableError, ValueError) as exc:
         console.print(f"[red]RobotCI runtime error:[/red] {exc}")
         raise typer.Exit(code=3) from exc
@@ -111,7 +129,7 @@ def run_command(
     console.print(f"Runtime: [cyan]{selected_runtime}[/cyan]")
     if status is not None:
         style = "green" if status == "PASS" else "red"
-        console.print(f"Verdict: [{style}]{status}[/{style}]")
+        console.print(f"{label}: [{style}]{status}[/{style}]")
     console.print(f"Result: {result_path}", soft_wrap=True)
 
     if exit_code != 0:
