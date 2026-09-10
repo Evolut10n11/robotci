@@ -58,7 +58,8 @@ def select_runtime(requested: RuntimeName = "auto") -> Literal["native", "docker
     if requested == "docker":
         if not _docker_available():
             raise RuntimeUnavailableError(
-                "Docker runtime is unavailable; make sure Docker is installed and the daemon is running"
+                "Docker runtime is unavailable; make sure Docker is installed "
+                "and the daemon is running"
             )
         return "docker"
 
