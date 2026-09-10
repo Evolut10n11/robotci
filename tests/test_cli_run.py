@@ -33,7 +33,8 @@ def test_run_command_reports_selected_runtime_and_verdict(
     assert result.exit_code == 0
     assert "docker" in result.stdout
     assert "PASS" in result.stdout
-    assert str(result_path) in result.stdout
+    normalized_stdout = result.stdout.replace("\r", "").replace("\n", "")
+    assert str(result_path) in normalized_stdout
 
 
 def test_run_command_returns_infra_error_when_runtime_is_unavailable(
