@@ -267,7 +267,7 @@ def run_suite(
                 scenario=scenario,
                 status=status,  # type: ignore[arg-type]
                 duration_sec=float(duration),
-                result_file=str(result_path),
+                result_file=result_path.relative_to(suite_path.parent).as_posix(),
             )
         )
 
