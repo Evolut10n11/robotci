@@ -47,6 +47,10 @@ jobs:
           }
           trap cleanup EXIT
 
+          lifecycle_active() {
+            ros2 lifecycle get "$1" 2>/dev/null | grep -q 'active \[3\]'
+          }
+
           READY=0
           for attempt in $(seq 1 60); do
             if ! kill -0 "$NAV2_PID" 2>/dev/null; then
@@ -55,17 +59,26 @@ jobs:
               exit 1
             fi
 
-            if ros2 action list 2>/dev/null | grep -qx '/navigate_to_pose'; then
+            if ros2 action list 2>/dev/null | grep -qx '/navigate_to_pose' \
+              && lifecycle_active /bt_navigator \
+              && lifecycle_active /planner_server \
+              && lifecycle_active /controller_server \
+              && lifecycle_active /map_server; then
               READY=1
               break
             fi
 
-            echo "Waiting for NavigateToPose action server ($attempt/60)..."
+            echo "Waiting for active Nav2 lifecycle nodes ($attempt/60)..."
             sleep 1
           done
 
           if [ "$READY" -ne 1 ]; then
-            echo "Timed out waiting for /navigate_to_pose"
+            echo "Timed out waiting for active Nav2"
+            echo "Lifecycle states:"
+            ros2 lifecycle get /bt_navigator || true
+            ros2 lifecycle get /planner_server || true
+            ros2 lifecycle get /controller_server || true
+            ros2 lifecycle get /map_server || true
             cat "$LOG_FILE"
             exit 1
           fi
@@ -84,6 +97,11 @@ jobs:
           ros2 topic list | grep -qx '/odom'
           ros2 topic list | grep -qx '/clock'
           ros2 action list | grep -qx '/navigate_to_pose'
+
+          lifecycle_active /bt_navigator
+          lifecycle_active /planner_server
+          lifecycle_active /controller_server
+          lifecycle_active /map_server
 
           echo "Headless Nav2 Loopback readiness: PASS"
 
