@@ -51,13 +51,23 @@ jobs:
           trap cleanup EXIT
 
           lifecycle_active() {
-            ros2 lifecycle get "$1" 2>/dev/null | grep -q 'active \[3\]'
+            local state
+            state=$(ros2 lifecycle get "$1" 2>/dev/null || true)
+            [[ "$state" == *"active [3]"* ]]
+          }
+
+          list_contains_exact() {
+            local list="$1"
+            local expected="$2"
+            grep -Fxq "$expected" <<<"$list"
           }
 
           wait_for_service() {
             local service_name="$1"
+            local services
             for attempt in $(seq 1 60); do
-              if ros2 service list 2>/dev/null | grep -qx "$service_name"; then
+              services=$(ros2 service list 2>/dev/null || true)
+              if list_contains_exact "$services" "$service_name"; then
                 return 0
               fi
               echo "Waiting for service $service_name ($attempt/60)..."
@@ -68,8 +78,10 @@ jobs:
 
           wait_for_node() {
             local node_name="$1"
+            local nodes
             for attempt in $(seq 1 60); do
-              if ros2 node list 2>/dev/null | grep -qx "$node_name"; then
+              nodes=$(ros2 node list 2>/dev/null || true)
+              if list_contains_exact "$nodes" "$node_name"; then
                 return 0
               fi
               echo "Waiting for node $node_name ($attempt/60)..."
@@ -83,7 +95,7 @@ jobs:
             local output
             output=$(ros2 service call "$service_name" nav2_msgs/srv/ManageLifecycleNodes "{command: 0}")
             echo "$output"
-            echo "$output" | grep -q 'success=True'
+            [[ "$output" == *"success=True"* ]]
           }
 
           if ! wait_for_node /loopback_simulator; then
@@ -149,7 +161,8 @@ jobs:
               exit 1
             fi
 
-            if ros2 action list 2>/dev/null | grep -qx '/navigate_to_pose' \
+            ACTIONS=$(ros2 action list 2>/dev/null || true)
+            if list_contains_exact "$ACTIONS" "/navigate_to_pose" \
               && lifecycle_active /bt_navigator \
               && lifecycle_active /planner_server \
               && lifecycle_active /controller_server \
@@ -173,20 +186,27 @@ jobs:
             exit 1
           fi
 
+          NODES=$(ros2 node list)
+          TOPICS=$(ros2 topic list)
+          ACTIONS=$(ros2 action list)
+
           echo "Nav2 is ready. ROS graph:"
-          ros2 node list
-          ros2 topic list
-          ros2 action list
+          echo "Nodes:"
+          echo "$NODES"
+          echo "Topics:"
+          echo "$TOPICS"
+          echo "Actions:"
+          echo "$ACTIONS"
 
-          ros2 node list | grep -qx '/loopback_simulator'
-          ros2 node list | grep -qx '/bt_navigator'
-          ros2 node list | grep -qx '/planner_server'
-          ros2 node list | grep -qx '/controller_server'
-          ros2 node list | grep -qx '/map_server'
+          list_contains_exact "$NODES" "/loopback_simulator"
+          list_contains_exact "$NODES" "/bt_navigator"
+          list_contains_exact "$NODES" "/planner_server"
+          list_contains_exact "$NODES" "/controller_server"
+          list_contains_exact "$NODES" "/map_server"
 
-          ros2 topic list | grep -qx '/odom'
-          ros2 topic list | grep -qx '/clock'
-          ros2 action list | grep -qx '/navigate_to_pose'
+          list_contains_exact "$TOPICS" "/odom"
+          list_contains_exact "$TOPICS" "/clock"
+          list_contains_exact "$ACTIONS" "/navigate_to_pose"
 
           lifecycle_active /bt_navigator
           lifecycle_active /planner_server
