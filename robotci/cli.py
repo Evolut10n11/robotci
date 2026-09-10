@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -57,30 +58,38 @@ def doctor() -> None:
 
 @app.command("run")
 def run_command(
-    scenario: str = typer.Option(
-        "simple_route",
-        "--scenario",
-        "-s",
-        help="Scenario to execute.",
-    ),
-    runtime: str = typer.Option(
-        "auto",
-        "--runtime",
-        "-r",
-        help="Runtime: auto, native, or docker.",
-    ),
-    output: Path = typer.Option(
-        Path(".robotci/result.json"),
-        "--output",
-        "-o",
-        help="Machine-readable result JSON path.",
-    ),
-    timeout_sec: float = typer.Option(
-        90.0,
-        "--timeout-sec",
-        min=0.1,
-        help="Maximum navigation time in seconds.",
-    ),
+    scenario: Annotated[
+        str,
+        typer.Option(
+            "--scenario",
+            "-s",
+            help="Scenario to execute.",
+        ),
+    ] = "simple_route",
+    runtime: Annotated[
+        str,
+        typer.Option(
+            "--runtime",
+            "-r",
+            help="Runtime: auto, native, or docker.",
+        ),
+    ] = "auto",
+    output: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Machine-readable result JSON path.",
+        ),
+    ] = Path(".robotci/result.json"),
+    timeout_sec: Annotated[
+        float,
+        typer.Option(
+            "--timeout-sec",
+            min=0.1,
+            help="Maximum navigation time in seconds.",
+        ),
+    ] = 90.0,
 ) -> None:
     """Run a RobotCI navigation scenario."""
     if runtime not in {"auto", "native", "docker"}:
