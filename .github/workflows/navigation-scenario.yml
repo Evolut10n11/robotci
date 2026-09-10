@@ -1,4 +1,4 @@
-name: Navigation Scenario
+name: Navigation Suite
 
 on:
   pull_request:
@@ -7,10 +7,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  simple-route:
-    name: A to B / simple_route
+  suite:
+    name: Native Ubuntu / built-in suite
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
 
     steps:
       - name: Checkout repository
@@ -37,28 +37,45 @@ jobs:
           python3 -m pip install --break-system-packages -e .
           python3 -m robotci.cli --help
 
-      - name: Run RobotCI simple_route through CLI
-        env:
-          ROBOTCI_LOG_FILE: /tmp/nav2-simple-route.log
+      - name: Run built-in RobotCI suite through CLI
         run: |
           python3 -m robotci.cli run \
             --runtime native \
-            --scenario simple_route \
-            --output artifacts/simple-route/result.json \
+            --output artifacts/suite-result.json \
             --timeout-sec 120
 
-      - name: Upload scenario result
+      - name: Verify suite result
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("artifacts/suite-result.json")
+          result = json.loads(path.read_text(encoding="utf-8"))
+          names = [item["scenario"] for item in result["scenarios"]]
+
+          if result["status"] != "PASS":
+              raise SystemExit(f"Navigation suite did not PASS: {result}")
+          if names != ["short_route", "medium_route", "simple_route"]:
+              raise SystemExit(f"Unexpected suite scenarios: {names}")
+
+          print(f"Navigation suite PASS: {names}")
+          PY
+
+      - name: Upload suite results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: simple-route-result
-          path: artifacts/simple-route/result.json
+          name: navigation-suite-results
+          path: |
+            artifacts/suite-result.json
+            artifacts/results/*.json
           if-no-files-found: warn
 
-      - name: Upload Nav2 log on failure
+      - name: Upload Nav2 logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: simple-route-nav2-log
-          path: /tmp/nav2-simple-route.log
+          name: navigation-suite-nav2-logs
+          path: /tmp/nav2-*.log
           if-no-files-found: ignore
