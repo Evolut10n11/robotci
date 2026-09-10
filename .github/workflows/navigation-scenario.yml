@@ -1,0 +1,187 @@
+name: Navigation Scenario
+
+on:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  simple-route:
+    name: A to B / simple_route
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up ROS2 Jazzy
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+
+      - name: Install Nav2 Loopback runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ros-jazzy-navigation2 \
+            ros-jazzy-nav2-bringup \
+            ros-jazzy-nav2-loopback-sim \
+            ros-jazzy-nav2-simple-commander \
+            ros-jazzy-nav2-minimal-tb4-description
+
+      - name: Launch Nav2 and run simple_route
+        shell: bash
+        run: |
+          set -Eeo pipefail
+          source /opt/ros/jazzy/setup.bash
+
+          LOG_FILE=/tmp/nav2-simple-route.log
+          RESULT_FILE=artifacts/simple-route/result.json
+          mkdir -p artifacts/simple-route
+
+          ros2 launch nav2_bringup tb4_loopback_simulation.launch.py \
+            use_rviz:=False \
+            autostart:=False \
+            >"$LOG_FILE" 2>&1 &
+          NAV2_PID=$!
+
+          cleanup() {
+            kill "$NAV2_PID" 2>/dev/null || true
+            wait "$NAV2_PID" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          lifecycle_active() {
+            ros2 lifecycle get "$1" 2>/dev/null | grep -q 'active \[3\]'
+          }
+
+          wait_for_service() {
+            local service_name="$1"
+            for attempt in $(seq 1 60); do
+              local services
+              services="$(ros2 service list 2>/dev/null || true)"
+              if printf '%s\n' "$services" | grep -qx "$service_name"; then
+                return 0
+              fi
+              echo "Waiting for service $service_name ($attempt/60)..."
+              sleep 1
+            done
+            return 1
+          }
+
+          wait_for_node() {
+            local node_name="$1"
+            for attempt in $(seq 1 60); do
+              local nodes
+              nodes="$(ros2 node list 2>/dev/null || true)"
+              if printf '%s\n' "$nodes" | grep -qx "$node_name"; then
+                return 0
+              fi
+              echo "Waiting for node $node_name ($attempt/60)..."
+              sleep 1
+            done
+            return 1
+          }
+
+          call_startup() {
+            local service_name="$1"
+            local output
+            output=$(ros2 service call "$service_name" nav2_msgs/srv/ManageLifecycleNodes "{command: 0}")
+            echo "$output"
+            echo "$output" | grep -q 'success=True'
+          }
+
+          if ! wait_for_node /loopback_simulator; then
+            echo "Loopback simulator did not appear"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          if ! wait_for_service /lifecycle_manager_map_server/manage_nodes; then
+            echo "Map lifecycle manager service did not appear"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          if ! wait_for_service /lifecycle_manager_navigation/manage_nodes; then
+            echo "Navigation lifecycle manager service did not appear"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          echo "Starting map server lifecycle..."
+          if ! call_startup /lifecycle_manager_map_server/manage_nodes; then
+            echo "Map server lifecycle startup failed"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          for attempt in $(seq 1 30); do
+            if lifecycle_active /map_server; then
+              break
+            fi
+            if [ "$attempt" -eq 30 ]; then
+              echo "map_server did not become active"
+              cat "$LOG_FILE"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          echo "Setting Loopback start pose A = (0.0, 0.0, 0.0)..."
+          ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
+            "{header: {frame_id: map}, pose: {pose: {position: {x: 0.0, y: 0.0, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: 0.0, w: 1.0}}}}"
+
+          sleep 2
+
+          echo "Starting navigation lifecycle..."
+          if ! call_startup /lifecycle_manager_navigation/manage_nodes; then
+            echo "Navigation lifecycle startup failed"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          READY=0
+          for attempt in $(seq 1 60); do
+            actions="$(ros2 action list 2>/dev/null || true)"
+            if printf '%s\n' "$actions" | grep -qx '/navigate_to_pose' \
+              && lifecycle_active /bt_navigator \
+              && lifecycle_active /planner_server \
+              && lifecycle_active /controller_server; then
+              READY=1
+              break
+            fi
+            echo "Waiting for navigation readiness ($attempt/60)..."
+            sleep 1
+          done
+
+          if [ "$READY" -ne 1 ]; then
+            echo "Nav2 did not become ready"
+            cat "$LOG_FILE"
+            exit 1
+          fi
+
+          echo "Running RobotCI simple_route A -> B..."
+          python3 -m robotci.ros.navigation_scenario \
+            --output "$RESULT_FILE" \
+            --timeout-sec 90
+
+          echo "Scenario result:"
+          cat "$RESULT_FILE"
+
+      - name: Upload scenario result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simple-route-result
+          path: artifacts/simple-route/result.json
+          if-no-files-found: warn
+
+      - name: Upload Nav2 log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simple-route-nav2-log
+          path: /tmp/nav2-simple-route.log
+          if-no-files-found: ignore
