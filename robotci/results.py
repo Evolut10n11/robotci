@@ -25,11 +25,35 @@ class ScenarioResult:
     navigation_result: str
 
 
-def write_result(result: ScenarioResult, path: str | Path) -> Path:
+@dataclass(frozen=True)
+class SuiteScenarioResult:
+    scenario: str
+    status: ScenarioStatus
+    duration_sec: float
+    result_file: str
+
+
+@dataclass(frozen=True)
+class SuiteResult:
+    status: ScenarioStatus
+    runtime: str
+    duration_sec: float
+    scenarios: tuple[SuiteScenarioResult, ...]
+
+
+def _write_json(payload: object, path: str | Path) -> Path:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        json.dumps(asdict(result), indent=2, sort_keys=True) + "\n",
+        json.dumps(asdict(payload), indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     return output_path
+
+
+def write_result(result: ScenarioResult, path: str | Path) -> Path:
+    return _write_json(result, path)
+
+
+def write_suite_result(result: SuiteResult, path: str | Path) -> Path:
+    return _write_json(result, path)
