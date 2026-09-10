@@ -8,7 +8,7 @@ on:
 
 jobs:
   docker-suite:
-    name: Docker / built-in suite
+    name: Docker / YAML suite
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
@@ -19,7 +19,7 @@ jobs:
       - name: Build RobotCI image
         run: docker build -t robotci:ci .
 
-      - name: Run built-in suite in Docker
+      - name: Run YAML suite in Docker
         run: |
           mkdir -p artifacts
           docker run --rm \
@@ -32,16 +32,28 @@ jobs:
           import json
           from pathlib import Path
 
-          path = Path("artifacts/suite-result.json")
-          result = json.loads(path.read_text(encoding="utf-8"))
-          names = [item["scenario"] for item in result["scenarios"]]
+          suite = json.loads(Path("artifacts/suite-result.json").read_text(encoding="utf-8"))
+          names = [item["scenario"] for item in suite["scenarios"]]
 
-          if result["status"] != "PASS":
-              raise SystemExit(f"Docker suite did not PASS: {result}")
+          if suite["status"] != "PASS":
+              raise SystemExit(f"Docker suite did not PASS: {suite}")
           if names != ["short_route", "medium_route", "simple_route"]:
               raise SystemExit(f"Unexpected Docker suite scenarios: {names}")
 
-          print(f"Docker suite PASS: {names}")
+          expected = {
+              "short_route": (4.0, -0.17),
+              "medium_route": (9.0, -0.39),
+              "simple_route": (17.86, -0.77),
+          }
+          for name, goal in expected.items():
+              result = json.loads(
+                  Path(f"artifacts/results/{name}.json").read_text(encoding="utf-8")
+              )
+              actual = (result["goal"]["x"], result["goal"]["y"])
+              if actual != goal:
+                  raise SystemExit(f"{name} did not use YAML goal {goal}: {actual}")
+
+          print(f"Docker YAML suite PASS: {names}")
           PY
 
       - name: Upload Docker suite results
