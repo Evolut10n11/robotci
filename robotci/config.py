@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, cast
@@ -7,6 +8,7 @@ from typing import Literal, cast
 import yaml
 
 RuntimeName = Literal["auto", "native", "docker"]
+_SCENARIO_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
 class ConfigError(ValueError):
@@ -70,6 +72,12 @@ def _parse_scenario(value: object, index: int) -> ScenarioConfig:
     if not isinstance(name, str) or not name.strip():
         raise ConfigError(f"{prefix}.name must be a non-empty string")
 
+    clean_name = name.strip()
+    if not _SCENARIO_NAME_RE.fullmatch(clean_name):
+        raise ConfigError(
+            f"{prefix}.name must use only letters, numbers, '_' or '-'"
+        )
+
     if "start" not in data:
         raise ConfigError(f"{prefix}.start is required")
     if "goal" not in data:
@@ -83,7 +91,7 @@ def _parse_scenario(value: object, index: int) -> ScenarioConfig:
         raise ConfigError(f"{prefix}.timeout_sec must be greater than zero")
 
     return ScenarioConfig(
-        name=name.strip(),
+        name=clean_name,
         start=_parse_pose(data["start"], f"{prefix}.start"),
         goal=_parse_pose(data["goal"], f"{prefix}.goal"),
         timeout_sec=timeout_sec,
