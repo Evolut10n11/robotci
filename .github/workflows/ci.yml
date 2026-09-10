@@ -44,4 +44,6 @@ jobs:
         run: pytest -vv
 
       - name: Verify CLI
-        run: robotci version
+        run: |
+          robotci version
+          robotci run --help
