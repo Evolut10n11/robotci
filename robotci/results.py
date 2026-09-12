@@ -5,6 +5,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Literal
 
+from robotci.metrics import NavigationMetrics
+
 ScenarioStatus = Literal["PASS", "FAIL", "TIMEOUT", "INFRA_ERROR"]
 
 
@@ -23,6 +25,7 @@ class ScenarioResult:
     start: Pose2D
     goal: Pose2D
     navigation_result: str
+    metrics: NavigationMetrics
 
 
 @dataclass(frozen=True)

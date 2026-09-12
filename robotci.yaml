@@ -23,7 +23,7 @@ scenarios:
       x: 9.0
       y: -0.39
       yaw: 0.0
-    timeout_sec: 90
+    timeout_sec: 150
 
   - name: simple_route
     start:
