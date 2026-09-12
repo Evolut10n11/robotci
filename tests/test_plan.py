@@ -32,6 +32,14 @@ scenarios:
     )
 
 
+def _make_project_root(path: Path) -> Path:
+    scripts = path / "scripts"
+    scripts.mkdir(parents=True)
+    (scripts / "run_navigation_scenario.sh").write_text("#!/usr/bin/env bash\n")
+    (path / "pyproject.toml").write_text("[project]\nname = 'robotci-test'\n")
+    return path
+
+
 def test_build_execution_plan_uses_config_defaults(tmp_path: Path) -> None:
     config_path = tmp_path / "robotci.yaml"
     _write_config(config_path)
@@ -59,6 +67,34 @@ def test_build_execution_plan_applies_overrides_without_runtime_probe(tmp_path: 
     assert plan.scenarios[0].name == "long_route"
     assert plan.scenarios[0].timeout_sec == 12.5
     assert plan.scenarios[0].start.yaw == 0.5
+
+
+def test_build_execution_plan_resolves_default_config_from_project_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project_root = _make_project_root(tmp_path / "checkout")
+    _write_config(project_root / "robotci.yaml")
+    nested = project_root / "src" / "nested"
+    nested.mkdir(parents=True)
+    monkeypatch.chdir(nested)
+
+    plan = build_execution_plan()
+
+    assert plan.runtime == "docker"
+    assert [scenario.name for scenario in plan.scenarios] == ["smoke", "long_route"]
+
+
+@pytest.mark.parametrize("timeout_sec", [float("nan"), float("inf"), float("-inf"), 0.0, -1.0])
+def test_build_execution_plan_rejects_invalid_timeout_override(
+    tmp_path: Path,
+    timeout_sec: float,
+) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    _write_config(config_path)
+
+    with pytest.raises(ConfigError, match="finite number greater than zero"):
+        build_execution_plan(config_path=config_path, timeout_sec=timeout_sec)
 
 
 def test_build_execution_plan_rejects_unknown_scenario(tmp_path: Path) -> None:
