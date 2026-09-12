@@ -10,6 +10,7 @@ from rich.table import Table
 from robotci import __version__
 from robotci.config import ConfigError, load_config
 from robotci.doctor import run_doctor_checks
+from robotci.plan import build_execution_plan
 from robotci.runner import (
     DEFAULT_CONFIG_PATH,
     DEFAULT_RESULT_PATH,
@@ -96,6 +97,85 @@ def validate_command(
     console.print(f"Runtime: [cyan]{loaded.runtime}[/cyan]")
     console.print(table)
     console.print("[green]Configuration valid[/green]")
+
+
+@app.command("plan")
+def plan_command(
+    scenario: Annotated[
+        str | None,
+        typer.Option(
+            "--scenario",
+            "-s",
+            help="Show one configured scenario. Omit to show the full suite.",
+        ),
+    ] = None,
+    runtime: Annotated[
+        str | None,
+        typer.Option(
+            "--runtime",
+            "-r",
+            help="Override config runtime: auto, native, or docker.",
+        ),
+    ] = None,
+    config: Annotated[
+        Path,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Path to robotci.yaml.",
+        ),
+    ] = DEFAULT_CONFIG_PATH,
+    timeout_sec: Annotated[
+        float | None,
+        typer.Option(
+            "--timeout-sec",
+            min=0.1,
+            help="Override configured timeout in the resolved plan.",
+        ),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Print the resolved plan as machine-readable JSON.",
+        ),
+    ] = False,
+) -> None:
+    """Resolve what RobotCI would run without starting ROS or Docker."""
+    if runtime is not None and runtime not in {"auto", "native", "docker"}:
+        console.print(f"[red]RobotCI error:[/red] unsupported runtime '{runtime}'")
+        raise typer.Exit(code=3)
+
+    try:
+        plan = build_execution_plan(
+            config_path=config,
+            scenario=scenario,
+            runtime=runtime,  # type: ignore[arg-type]
+            timeout_sec=timeout_sec,
+        )
+    except ConfigError as exc:
+        console.print(f"[red]RobotCI config error:[/red] {exc}")
+        raise typer.Exit(code=3) from exc
+
+    if json_output:
+        console.print_json(data=plan.as_dict())
+        return
+
+    table = Table(title="RobotCI execution plan")
+    table.add_column("Scenario")
+    table.add_column("Start")
+    table.add_column("Goal")
+    table.add_column("Timeout")
+
+    for planned in plan.scenarios:
+        start = f"({planned.start.x}, {planned.start.y}, {planned.start.yaw})"
+        goal = f"({planned.goal.x}, {planned.goal.y}, {planned.goal.yaw})"
+        table.add_row(planned.name, start, goal, f"{planned.timeout_sec:g}s")
+
+    console.print(f"Config: {Path(config)}", soft_wrap=True)
+    console.print(f"Runtime request: [cyan]{plan.runtime}[/cyan]")
+    console.print(table)
+    console.print("[green]Plan resolved; no runtime started[/green]")
 
 
 @app.command("run")
