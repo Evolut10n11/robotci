@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from pathlib import Path
 
 from robotci.config import ConfigError, PoseConfig, RuntimeName, get_scenario, load_config
+from robotci.runner import _find_project_root, _resolve_config_path
 
 
 @dataclass(frozen=True)
@@ -48,12 +50,17 @@ def build_execution_plan(
     scenario: str | None = None,
     runtime: RuntimeName | None = None,
     timeout_sec: float | None = None,
+    project_root: Path | None = None,
 ) -> ExecutionPlan:
     """Resolve config and CLI overrides without probing or starting a runtime."""
-    if timeout_sec is not None and timeout_sec <= 0:
-        raise ConfigError("timeout must be greater than zero")
+    if timeout_sec is not None and (
+        not math.isfinite(timeout_sec) or timeout_sec <= 0
+    ):
+        raise ConfigError("timeout must be a finite number greater than zero")
 
-    config = load_config(config_path)
+    root = _find_project_root(project_root)
+    resolved_config = _resolve_config_path(root, config_path)
+    config = load_config(resolved_config)
     definitions = (
         (get_scenario(config, scenario),)
         if scenario is not None
