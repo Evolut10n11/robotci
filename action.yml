@@ -21,6 +21,10 @@ inputs:
     description: Path where the human-readable Markdown regression summary will be written.
     required: false
     default: artifacts/suite-regression-summary.md
+  junit:
+    description: Path where the JUnit XML regression report will be written.
+    required: false
+    default: artifacts/suite-regression-junit.xml
   max-duration-increase-pct:
     description: Maximum allowed duration increase in percent for each scenario.
     required: false
@@ -45,6 +49,9 @@ outputs:
   summary:
     description: Path to the generated human-readable Markdown regression summary.
     value: ${{ steps.gate.outputs.summary }}
+  junit:
+    description: Path to the generated JUnit XML regression report.
+    value: ${{ steps.gate.outputs.junit }}
 
 runs:
   using: composite
@@ -66,6 +73,7 @@ runs:
         ROBOTCI_CANDIDATE: ${{ inputs.candidate }}
         ROBOTCI_REPORT: ${{ inputs.report }}
         ROBOTCI_SUMMARY: ${{ inputs.summary }}
+        ROBOTCI_JUNIT: ${{ inputs.junit }}
         ROBOTCI_MAX_DURATION: ${{ inputs.max-duration-increase-pct }}
         ROBOTCI_MAX_PATH: ${{ inputs.max-path-length-increase-pct }}
         ROBOTCI_MAX_STUCK: ${{ inputs.max-stuck-events-increase }}
@@ -73,6 +81,7 @@ runs:
       run: |
         echo "report=$ROBOTCI_REPORT" >> "$GITHUB_OUTPUT"
         echo "summary=$ROBOTCI_SUMMARY" >> "$GITHUB_OUTPUT"
+        echo "junit=$ROBOTCI_JUNIT" >> "$GITHUB_OUTPUT"
 
         set +e
         robotci-suite-gate \
@@ -80,6 +89,7 @@ runs:
           --candidate "$ROBOTCI_CANDIDATE" \
           --output "$ROBOTCI_REPORT" \
           --markdown-output "$ROBOTCI_SUMMARY" \
+          --junit-output "$ROBOTCI_JUNIT" \
           --max-duration-increase-pct "$ROBOTCI_MAX_DURATION" \
           --max-path-length-increase-pct "$ROBOTCI_MAX_PATH" \
           --max-stuck-events-increase "$ROBOTCI_MAX_STUCK" \
