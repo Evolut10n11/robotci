@@ -4,10 +4,10 @@ Use the support bundle when a RobotCI pilot is blocked during setup and the team
 
 ## Create the bundle
 
-From the repository root:
+After installing RobotCI, run:
 
 ```bash
-python -m robotci.support_bundle
+robotci-support-bundle
 ```
 
 The default output is:
@@ -19,19 +19,33 @@ The default output is:
 For inventory or an early compatibility discussion where a working runtime is not required yet:
 
 ```bash
-python -m robotci.support_bundle --runtime-optional
+robotci-support-bundle --runtime-optional
 ```
 
 When the pilot specifically requires native ROS2 Jazzy/Nav2 and Docker fallback must not satisfy readiness:
 
 ```bash
-python -m robotci.support_bundle --require-ros
+robotci-support-bundle --require-ros
 ```
 
 A custom config and destination can be selected explicitly:
 
 ```bash
-python -m robotci.support_bundle --config robotci.yaml --output .robotci/support-bundle.json
+robotci-support-bundle --config robotci.yaml --output .robotci/support-bundle.json
+```
+
+The module form remains available for source checkouts or environments where console scripts are not on `PATH`:
+
+```bash
+python -m robotci.support_bundle --runtime-optional
+```
+
+For machine-readable runtime readiness without config validation, use:
+
+```bash
+robotci-doctor
+robotci-doctor --runtime-optional
+robotci-doctor --require-ros --output .robotci/doctor.json
 ```
 
 ## What it contains
@@ -63,7 +77,7 @@ Doctor diagnostics may identify installed runtime components and system-level RO
 
 When a pilot setup is blocked:
 
-1. Run `python -m robotci.support_bundle`.
+1. Run `robotci-support-bundle`.
 2. Open `.robotci/support-bundle.json` and review it before sharing.
 3. Share only that JSON plus a short description of the intended simulator/runtime.
 4. Keep source code, maps, secrets, full shell logs, and production robot access private unless the team independently decides otherwise.
