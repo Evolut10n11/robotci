@@ -1,0 +1,74 @@
+name: RobotCI Suite Regression Gate
+description: Fail a GitHub Actions job when any RobotCI scenario regresses against a known-good suite.
+author: RobotCI Team
+
+branding:
+  icon: activity
+  color: blue
+
+inputs:
+  baseline:
+    description: Path to the known-good RobotCI suite-result.json.
+    required: true
+  candidate:
+    description: Path to the candidate RobotCI suite-result.json.
+    required: true
+  report:
+    description: Path where the machine-readable suite regression report will be written.
+    required: false
+    default: artifacts/suite-regression-report.json
+  max-duration-increase-pct:
+    description: Maximum allowed duration increase in percent for each scenario.
+    required: false
+    default: "10"
+  max-path-length-increase-pct:
+    description: Maximum allowed path-length increase in percent for each scenario.
+    required: false
+    default: "10"
+  max-stuck-events-increase:
+    description: Maximum allowed additional stuck events per scenario.
+    required: false
+    default: "0"
+  max-recoveries-increase:
+    description: Maximum allowed additional recoveries per scenario.
+    required: false
+    default: "0"
+
+outputs:
+  report:
+    description: Path to the generated machine-readable suite regression report.
+    value: ${{ steps.gate.outputs.report }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install RobotCI
+      shell: bash
+      run: python -m pip install "${{ github.action_path }}"
+
+    - name: Compare candidate suite with baseline
+      id: gate
+      shell: bash
+      env:
+        ROBOTCI_BASELINE: ${{ inputs.baseline }}
+        ROBOTCI_CANDIDATE: ${{ inputs.candidate }}
+        ROBOTCI_REPORT: ${{ inputs.report }}
+        ROBOTCI_MAX_DURATION: ${{ inputs.max-duration-increase-pct }}
+        ROBOTCI_MAX_PATH: ${{ inputs.max-path-length-increase-pct }}
+        ROBOTCI_MAX_STUCK: ${{ inputs.max-stuck-events-increase }}
+        ROBOTCI_MAX_RECOVERIES: ${{ inputs.max-recoveries-increase }}
+      run: |
+        echo "report=$ROBOTCI_REPORT" >> "$GITHUB_OUTPUT"
+        robotci-suite-gate \
+          --baseline "$ROBOTCI_BASELINE" \
+          --candidate "$ROBOTCI_CANDIDATE" \
+          --output "$ROBOTCI_REPORT" \
+          --max-duration-increase-pct "$ROBOTCI_MAX_DURATION" \
+          --max-path-length-increase-pct "$ROBOTCI_MAX_PATH" \
+          --max-stuck-events-increase "$ROBOTCI_MAX_STUCK" \
+          --max-recoveries-increase "$ROBOTCI_MAX_RECOVERIES"

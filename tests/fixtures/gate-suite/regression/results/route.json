@@ -1,0 +1,12 @@
+{
+  "duration_sec": 12.5,
+  "metrics": {
+    "distance_to_goal_m": 0.1,
+    "feedback_samples": 20,
+    "path_length_m": 6.2,
+    "recoveries": 1,
+    "stuck_events": 1
+  },
+  "scenario": "route",
+  "status": "PASS"
+}

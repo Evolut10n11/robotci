@@ -1,0 +1,13 @@
+{
+  "duration_sec": 12.5,
+  "runtime": "native",
+  "scenarios": [
+    {
+      "duration_sec": 12.5,
+      "result_file": "results/route.json",
+      "scenario": "route",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS"
+}
