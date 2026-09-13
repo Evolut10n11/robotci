@@ -146,7 +146,9 @@ def suite_regression_junit_xml(
                     "message": f"{len(item.report.findings)} regression finding(s)",
                 },
             )
-            failure.text = "\n".join(_format_junit_finding(finding) for finding in item.report.findings)
+            failure.text = "\n".join(
+                _format_junit_finding(finding) for finding in item.report.findings
+            )
         system_out = ET.SubElement(case, "system-out")
         system_out.text = (
             f"baseline_result={item.baseline_result}\n"
