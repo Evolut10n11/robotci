@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 
+from robotci.metrics import NavigationMetrics
 from robotci.results import (
     Pose2D,
     ScenarioResult,
@@ -20,6 +21,13 @@ def test_write_result_creates_portable_json(tmp_path) -> None:
         start=Pose2D(x=0.0, y=0.0, yaw=0.0),
         goal=Pose2D(x=17.86, y=-0.77, yaw=0.0),
         navigation_result="SUCCEEDED",
+        metrics=NavigationMetrics(
+            path_length_m=18.024,
+            distance_to_goal_m=0.011,
+            stuck_events=0,
+            feedback_samples=95,
+            recoveries=0,
+        ),
     )
 
     output = tmp_path / "nested" / "result.json"
@@ -32,6 +40,13 @@ def test_write_result_creates_portable_json(tmp_path) -> None:
     assert payload == {
         "duration_sec": 12.345,
         "goal": {"x": 17.86, "y": -0.77, "yaw": 0.0},
+        "metrics": {
+            "distance_to_goal_m": 0.011,
+            "feedback_samples": 95,
+            "path_length_m": 18.024,
+            "recoveries": 0,
+            "stuck_events": 0,
+        },
         "navigation_result": "SUCCEEDED",
         "scenario": "simple_route",
         "start": {"x": 0.0, "y": 0.0, "yaw": 0.0},

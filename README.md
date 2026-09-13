@@ -2,30 +2,30 @@
 
 Local-first regression testing for ROS2 / Nav2.
 
-RobotCI is an open-source-first developer tool for running repeatable robot navigation scenarios, collecting machine-readable results, and eventually comparing candidate behavior with a baseline before changes reach a physical robot.
+RobotCI is an open-source developer tool for running repeatable navigation scenarios in simulation, producing machine-readable results, and eventually comparing candidate robot behavior against a known-good baseline before changes reach a physical robot.
 
-> Status: early alpha. M0 and M1 are complete. M2 adds validated `robotci.yaml` configuration so scenario coordinates and timeouts no longer live in Python source code.
+> Status: early alpha. M0–M2 are complete. M3 is in progress and adds runtime navigation telemetry such as path length, distance to goal, stuck events, feedback samples, and recoveries.
 
 ## Why RobotCI
 
-A normal unit test can tell you that a function still returns the expected value. It usually cannot answer the more useful robotics question:
+A normal unit test can tell you whether a function still returns the expected value. It usually cannot answer the robotics question that matters after a navigation change:
 
-> I changed navigation code or configuration. Can the robot still complete the same tasks as well as before?
+> Can the robot still complete the same tasks as well as before?
 
-RobotCI makes navigation checks repeatable and suitable for CI:
+RobotCI turns that question into a repeatable CI workflow:
 
 ```text
 code / config change
         ↓
-     git push
+     RobotCI
         ↓
-   RobotCI suite
+ robotci.yaml
         ↓
  ROS2 + Nav2 runtime
         ↓
- configured navigation scenarios
+ navigation scenarios
         ↓
- machine-readable results
+ result JSON + telemetry
         ↓
  PASS / FAIL / TIMEOUT / INFRA_ERROR
         ↓
@@ -34,29 +34,90 @@ code / config change
 
 ## Current stack
 
-The first supported robotics stack is intentionally narrow:
-
 ```text
 Python 3.12
-+
 ROS2 Jazzy
-+
 Nav2
-+
 Nav2 Loopback
-+
-Ubuntu 24.04 / Docker / GitHub Actions
+Ubuntu 24.04
+Docker
+GitHub Actions
 ```
 
-The Python core is tested on Windows and Ubuntu. ROS imports stay isolated under `robotci.ros`, so Windows developers can work on CLI, YAML validation, result models, reports, and regression logic without installing ROS locally.
+The Python core is tested on both Windows and Ubuntu. ROS imports stay isolated under `robotci.ros`, so Windows contributors can work on the CLI, YAML validation, result models, metrics logic, reporting, and regression logic without installing ROS locally.
 
-## robotci.yaml
+## Quick start
 
-RobotCI reads scenarios from `robotci.yaml` in the project root.
+### Windows / PowerShell
+
+```powershell
+git clone https://github.com/Evolut10n11/robotci.git
+cd robotci
+
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -e ".[dev]"
+
+robotci version
+robotci validate
+robotci doctor
+pytest -vv
+ruff check .
+```
+
+Windows without virtualization can develop and test the cross-platform core locally. Run the full ROS2 / Nav2 suite in GitHub Actions or on Ubuntu.
+
+If a Linux-container Docker backend is available:
+
+```powershell
+robotci run --runtime docker
+Get-Content .\.robotci\suite-result.json
+```
+
+### Ubuntu 24.04 native
+
+```bash
+git clone https://github.com/Evolut10n11/robotci.git
+cd robotci
+bash scripts/bootstrap_ubuntu.sh
+
+source .venv/bin/activate
+robotci validate
+robotci doctor
+robotci run --runtime native
+cat .robotci/suite-result.json
+```
+
+### Docker
+
+```bash
+git clone https://github.com/Evolut10n11/robotci.git
+cd robotci
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+
+robotci validate
+robotci run --runtime docker
+cat .robotci/suite-result.json
+```
+
+The container can also be started directly:
+
+```bash
+docker compose build
+docker compose run --rm robotci
+cat artifacts/suite-result.json
+```
+
+## Configuration
+
+RobotCI uses `robotci.yaml` as the source of truth for scenarios:
 
 ```yaml
 version: 1
-
 runtime: auto
 
 scenarios:
@@ -94,7 +155,7 @@ scenarios:
     timeout_sec: 120
 ```
 
-Supported runtime values:
+Runtime values:
 
 ```text
 auto    prefer native ROS on Linux, otherwise Docker when available
@@ -102,80 +163,90 @@ native  local Linux + ROS2 Jazzy/Nav2
 docker  Docker Compose Linux runtime
 ```
 
-Scenario names must be unique and use only letters, numbers, `_`, or `-`. Start and goal require numeric `x` and `y`; `yaw` defaults to `0.0`. `timeout_sec` must be greater than zero.
-
-## Validate configuration
-
-Validation does not start ROS, so it works on Windows as well as Linux:
+Validate configuration without starting ROS:
 
 ```bash
 robotci validate
-```
-
-Use another config file when needed:
-
-```bash
 robotci validate --config path/to/robotci.yaml
 ```
 
-A valid config prints the runtime and scenario table. Invalid YAML, unsupported versions, duplicate names, unsafe names, invalid coordinates, and non-positive timeouts fail before a robotics runtime starts.
+Validation rejects malformed YAML, unsupported config versions, duplicate or unsafe scenario names, invalid coordinates, invalid runtimes, and non-positive timeouts before any robotics runtime starts.
 
-## Run the suite
+## Running scenarios
 
-With no `--scenario`, RobotCI runs every scenario from the YAML file in order:
+Run every configured scenario in order:
 
 ```bash
 robotci run
 ```
 
-Flow:
-
-```text
-robotci.yaml
-    ↓
-validate
-    ↓
-select runtime
-    ↓
-short_route
-    ↓
-medium_route
-    ↓
-simple_route
-    ↓
-individual result JSON files
-    ↓
-suite-result.json
-    ↓
-aggregate exit code
-```
-
-Run only one configured scenario:
+Run one scenario:
 
 ```bash
 robotci run --scenario simple_route
 ```
 
-Override the YAML runtime for one invocation:
+Temporary CLI overrides:
 
 ```bash
 robotci run --runtime native
 robotci run --runtime docker
-```
-
-Override configured timeouts temporarily:
-
-```bash
 robotci run --timeout-sec 120
-```
-
-Use another config file:
-
-```bash
 robotci run --config path/to/robotci.yaml
 ```
 
-CLI overrides do not modify the YAML file.
+CLI overrides do not modify `robotci.yaml`.
+
+## Results and metrics
+
+A suite writes one summary plus one JSON file per scenario:
+
+```text
+.robotci/
+├── suite-result.json
+└── results/
+    ├── short_route.json
+    ├── medium_route.json
+    └── simple_route.json
+```
+
+Individual scenario results include the configured start and goal, verdict, duration, Nav2 result, and runtime navigation telemetry:
+
+```json
+{
+  "duration_sec": 19.2,
+  "goal": {
+    "x": 4.0,
+    "y": -0.17,
+    "yaw": 0.0
+  },
+  "metrics": {
+    "distance_to_goal_m": 0.08,
+    "feedback_samples": 181,
+    "path_length_m": 4.12,
+    "recoveries": 0,
+    "stuck_events": 0
+  },
+  "navigation_result": "SUCCEEDED",
+  "scenario": "short_route",
+  "start": {
+    "x": 0.0,
+    "y": 0.0,
+    "yaw": 0.0
+  },
+  "status": "PASS"
+}
+```
+
+Current M3 telemetry:
+
+- `path_length_m` — accumulated traveled distance with a small deadband to suppress pose jitter
+- `distance_to_goal_m` — latest Nav2 remaining distance, with geometric fallback
+- `stuck_events` — number of detected no-motion periods
+- `feedback_samples` — number of Nav2 feedback samples processed
+- `recoveries` — highest recovery count reported by Nav2
+
+These metrics are collected now so the next regression milestone can compare candidate runs against a baseline instead of gating only on pass/fail.
 
 ## Verdicts and exit codes
 
@@ -186,13 +257,15 @@ CLI overrides do not modify the YAML file.
 3  INFRA_ERROR
 ```
 
-For a suite, RobotCI returns the worst verdict encountered. For example, if two scenarios pass and one times out, the suite verdict is `TIMEOUT` and the process exits with code `2`.
+For a suite, RobotCI returns the worst verdict encountered. Infrastructure problems remain separate from robot behavior failures by design:
 
-RobotCI deliberately separates behavior failures from infrastructure failures. A broken ROS environment, unavailable Docker daemon, or missing result file must not be presented as a robot regression.
+```text
+INFRA_ERROR != FAIL
+```
 
-## Runtime model
+A broken ROS environment, unavailable Docker daemon, or missing result file must not be reported as a robot regression.
 
-RobotCI keeps one repository and one product version across all supported environments.
+## Runtime support
 
 | Environment | Core CLI | YAML validation | ROS2 / Nav2 | Full suite |
 | --- | --- | --- | --- | --- |
@@ -201,131 +274,31 @@ RobotCI keeps one repository and one product version across all supported enviro
 | Docker Linux container | ✅ | ✅ | ✅ | ✅ |
 | GitHub Actions Ubuntu 24.04 | ✅ | ✅ | ✅ | ✅ |
 
-## Quick start — Windows / PowerShell
-
-```powershell
-git clone https://github.com/Evolut10n11/robotci.git
-cd robotci
-
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
-python -m pip install --upgrade pip
-pip install -e ".[dev]"
-
-robotci version
-robotci validate
-pytest -vv
-ruff check .
-```
-
-If a Linux-container Docker backend is available:
-
-```powershell
-robotci run --runtime docker
-Get-Content .\.robotci\suite-result.json
-```
-
-On a Windows machine without virtualization or Docker, core development and YAML validation still work locally; the full robotics suite can run in GitHub Actions or on Ubuntu.
-
-## Quick start — Ubuntu 24.04 native
-
-```bash
-git clone https://github.com/Evolut10n11/robotci.git
-cd robotci
-bash scripts/bootstrap_ubuntu.sh
-
-source .venv/bin/activate
-robotci validate
-robotci doctor
-robotci run --runtime native
-cat .robotci/suite-result.json
-```
-
-Each scenario uses its own `timeout_sec` from `robotci.yaml` unless `--timeout-sec` is supplied on the command line.
-
-## Quick start — Docker
-
-From a machine with a working Docker engine:
-
-```bash
-git clone https://github.com/Evolut10n11/robotci.git
-cd robotci
-
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-
-robotci validate
-robotci run --runtime docker
-cat .robotci/suite-result.json
-```
-
-The image also contains the repository `robotci.yaml` and runs that suite by default:
-
-```bash
-docker compose build
-docker compose run --rm robotci
-cat artifacts/suite-result.json
-```
-
-## Results
-
-A successful suite produces a summary similar to:
-
-```json
-{
-  "duration_sec": 154.321,
-  "runtime": "native",
-  "scenarios": [
-    {
-      "duration_sec": 19.2,
-      "result_file": "results/short_route.json",
-      "scenario": "short_route",
-      "status": "PASS"
-    },
-    {
-      "duration_sec": 43.4,
-      "result_file": "results/medium_route.json",
-      "scenario": "medium_route",
-      "status": "PASS"
-    },
-    {
-      "duration_sec": 88.4,
-      "result_file": "results/simple_route.json",
-      "scenario": "simple_route",
-      "status": "PASS"
-    }
-  ],
-  "status": "PASS"
-}
-```
-
-Individual scenario files contain start pose, goal pose, duration, navigation result, and verdict.
+RobotCI keeps one repository and one product version across all supported environments.
 
 ## GitHub Actions
 
-The repository validates independent layers:
+The repository checks independent layers:
 
 ```text
 CI
-├── Windows / Python 3.12 / YAML validation
-└── Ubuntu / Python 3.12 / YAML validation
+├── Windows / Python 3.12 / YAML validation / unit tests / Ruff
+└── Ubuntu / Python 3.12 / YAML validation / unit tests / Ruff
 
 ROS smoke
 └── ROS2 Jazzy + Nav2 package/API availability
 
 Nav2 Loopback Launch
-└── headless runtime + lifecycle readiness
+└── headless runtime + TF + lifecycle readiness
 
 Navigation Suite
-└── native Ubuntu + robotci.yaml + suite-result.json
+└── native Ubuntu + robotci.yaml + scenario telemetry
 
 Docker Runtime
-└── image build + robotci.yaml + suite-result.json
+└── image build + robotci.yaml + scenario telemetry
 ```
 
-The native and Docker workflows also verify that the goals written to scenario results match the YAML configuration.
+The native and Docker workflows verify both configured goals and runtime metrics written into scenario result files.
 
 ## Milestones
 
@@ -339,14 +312,14 @@ Windows core + Ubuntu native + Docker + GitHub Actions
 M1 — Scenario suite ✅
 robotci run + multiple scenarios + suite-result.json
 
-M2 — Configuration 🚧
+M2 — Configuration ✅
 robotci.yaml + validation + config-driven start/goal/timeout/runtime
 
-M3 — Metrics
-duration + path length + stuck detection
+M3 — Metrics 🚧
+duration + path length + distance-to-goal + stuck detection + recoveries
 
 M4 — Regression
-baseline + candidate comparison
+baseline + candidate comparison + REGRESSION verdict
 
 M5 — Reproducibility
 repeatable clean-environment execution
@@ -391,6 +364,7 @@ robotci/
 │   ├── cli.py
 │   ├── config.py
 │   ├── doctor.py
+│   ├── metrics.py
 │   ├── paths.py
 │   ├── platform.py
 │   ├── results.py
@@ -413,14 +387,14 @@ robotci/
 
 Core checks:
 
-```text
+```bash
 robotci validate
 pytest -vv
 ruff check .
 ```
 
-Robotics changes should also pass the native Ubuntu YAML suite and Docker YAML suite before merge.
+Robotics changes should also pass the native Ubuntu navigation suite and Docker runtime workflow before merge.
 
 ## License
 
-RobotCI is licensed under the Apache License 2.0.
+Apache License 2.0.

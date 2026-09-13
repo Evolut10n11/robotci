@@ -118,6 +118,41 @@ wait_for_node() {
   return 1
 }
 
+wait_for_initialpose_subscriber() {
+  for attempt in $(seq 1 30); do
+    local info
+    info="$(timeout 10s ros2 topic info /initialpose 2>/dev/null || true)"
+    if printf '%s\n' "$info" | grep -Eq 'Subscription count: [1-9][0-9]*'; then
+      return 0
+    fi
+    echo "Waiting for Loopback /initialpose subscriber ($attempt/30)..."
+    sleep 1
+  done
+  return 1
+}
+
+publish_initial_pose() {
+  local pose_message
+  pose_message="{header: {frame_id: map}, pose: {pose: {position: {x: $START_X, y: $START_Y, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: $START_QZ, w: $START_QW}}}}"
+
+  for attempt in $(seq 1 3); do
+    echo "Publishing Loopback start pose attempt $attempt/3..."
+    timeout 20s ros2 topic pub --once \
+      /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
+      "$pose_message" \
+      || true
+
+    for _ in $(seq 1 10); do
+      if grep -Fq "Received initial pose!" "$LOG_FILE"; then
+        return 0
+      fi
+      sleep 0.2
+    done
+  done
+
+  return 1
+}
+
 call_startup() {
   local service_name="$1"
   local output
@@ -166,10 +201,13 @@ for attempt in $(seq 1 30); do
   sleep 1
 done
 
+echo "Waiting until Loopback can receive the initial pose..."
+wait_for_initialpose_subscriber \
+  || fail_with_log "Loopback did not subscribe to /initialpose"
+
 echo "Setting Loopback start pose = ($START_X, $START_Y, $START_YAW)..."
-timeout 20s ros2 topic pub --once /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
-  "{header: {frame_id: map}, pose: {pose: {position: {x: $START_X, y: $START_Y, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: $START_QZ, w: $START_QW}}}}" \
-  || fail_with_log "Publishing initial pose timed out"
+publish_initial_pose \
+  || fail_with_log "Loopback did not receive the initial pose"
 
 sleep 2
 
