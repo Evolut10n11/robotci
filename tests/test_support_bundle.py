@@ -57,16 +57,33 @@ def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monk
     }
 
 
-def test_bundle_fails_when_config_is_invalid(tmp_path: Path, monkeypatch) -> None:
-    config = tmp_path / "robotci.yaml"
+def test_bundle_redacts_invalid_config_details(tmp_path: Path, monkeypatch) -> None:
+    config = tmp_path / "secret-project" / "robotci.yaml"
+    config.parent.mkdir()
     config.write_text("version: 1\nruntime: auto\nscenarios: []\n", encoding="utf-8")
     monkeypatch.setattr("robotci.support_bundle.run_doctor_checks", lambda **_: _passing_checks())
 
     bundle = build_support_bundle(config_path=config)
+    payload = json.dumps(bundle)
 
     assert bundle["status"] == "FAIL"
     assert bundle["config"]["status"] == "FAIL"
-    assert "at least one scenario" in bundle["config"]["error"]
+    assert bundle["config"]["error"] == (
+        "RobotCI config is invalid; run 'robotci validate' locally for details"
+    )
+    assert "secret-project" not in payload
+
+
+def test_bundle_redacts_missing_config_path(tmp_path: Path, monkeypatch) -> None:
+    config = tmp_path / "private-company-repo" / "robotci.yaml"
+    monkeypatch.setattr("robotci.support_bundle.run_doctor_checks", lambda **_: _passing_checks())
+
+    bundle = build_support_bundle(config_path=config)
+    payload = json.dumps(bundle)
+
+    assert bundle["status"] == "FAIL"
+    assert "private-company-repo" not in payload
+    assert str(config) not in payload
 
 
 def test_bundle_fails_when_runtime_is_not_ready(tmp_path: Path, monkeypatch) -> None:
