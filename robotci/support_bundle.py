@@ -13,17 +13,18 @@ from robotci.doctor import run_doctor_checks
 from robotci.doctor_report import build_report
 
 SCHEMA_VERSION = 1
+_CONFIG_ERROR_MESSAGE = "RobotCI config is invalid; run 'robotci validate' locally for details"
 
 
 def _config_report(config_path: Path) -> dict[str, object]:
     try:
         config = load_config(config_path)
-    except ConfigError as exc:
+    except ConfigError:
         return {
             "status": "FAIL",
             "runtime": None,
             "scenario_count": 0,
-            "error": str(exc),
+            "error": _CONFIG_ERROR_MESSAGE,
         }
 
     return {
