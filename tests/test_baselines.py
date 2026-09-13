@@ -95,7 +95,8 @@ def test_explicit_replace_updates_capture(tmp_path: Path) -> None:
     capture_baseline("stable", suite, store_root=store, replace=True)
 
     captured_result = store / "stable" / "results" / "route.json"
-    assert json.loads(captured_result.read_text(encoding="utf-8"))["metrics"]["path_length_m"] == 4.5
+    captured = json.loads(captured_result.read_text(encoding="utf-8"))
+    assert captured["metrics"]["path_length_m"] == 4.5
 
 
 def test_list_show_and_remove_baselines(tmp_path: Path) -> None:
