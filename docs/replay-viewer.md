@@ -18,13 +18,37 @@ robotci view --replay path/to/replay.json
 
 By default the viewer binds to `127.0.0.1:8765` and opens the browser automatically. Use `--no-open` for headless/manual use, or override `--host` and `--port` when needed.
 
+## Record a real Nav2 run
+
+A single-scenario `robotci run` now records fresh Nav2 feedback poses automatically. The replay is written beside the normal result using the `.replay.json` suffix.
+
+```bash
+robotci run --scenario simple_route
+robotci view --replay .robotci/result.replay.json
+```
+
+With a custom result path, the replay follows the same location:
+
+```bash
+robotci run --scenario simple_route --output artifacts/run-42.json
+robotci view --replay artifacts/run-42.replay.json
+```
+
+The behavior is the same for native and Docker runtimes. Docker runs copy the replay out of the container beside the requested host result. Suite runs produce one replay per scenario under the suite `results/` directory, for example:
+
+```bash
+robotci run
+robotci view --replay .robotci/results/simple_route.replay.json
+```
+
 ## Replay v1
 
 The viewer reads the replay from `GET /api/replay`. A Replay v1 document contains:
 
 - `schema_version`: must be `1`.
 - `scenario`: human-readable scenario identifier.
-- `status`: `PASS` or `FAIL`.
+- `status`: viewer verdict, `PASS` or `FAIL`.
+- `result_status`: original RobotCI verdict (`PASS`, `FAIL`, `TIMEOUT`, or `INFRA_ERROR`) when emitted by the runtime recorder.
 - `runtime`: runtime/backend label.
 - `duration_sec`: total replay duration.
 - `robot.type`: robot visualization type. Unknown types fall back to the generic mobile base.
@@ -41,7 +65,8 @@ Minimal shape:
   "schema_version": 1,
   "scenario": "simple_route",
   "status": "PASS",
-  "runtime": "native",
+  "result_status": "PASS",
+  "runtime": "ros2_nav2",
   "duration_sec": 2.0,
   "robot": {"type": "generic_mobile_base"},
   "world": {
