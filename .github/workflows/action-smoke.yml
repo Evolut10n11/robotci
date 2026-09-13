@@ -1,0 +1,81 @@
+name: Suite Regression Gate Action
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  action-smoke:
+    name: Composite action smoke
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Passing suite stays green
+        id: passing
+        uses: ./
+        with:
+          baseline: tests/fixtures/gate-suite/baseline/suite-result.json
+          candidate: tests/fixtures/gate-suite/pass/suite-result.json
+          report: artifacts/pass-suite-report.json
+
+      - name: Verify passing report
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("${{ steps.passing.outputs.report }}")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          assert report["schema_version"] == 1
+          assert report["kind"] == "suite_regression"
+          assert report["status"] == "PASS"
+          assert report["scenarios"][0]["status"] == "PASS"
+          print(f"PASS suite report verified: {path}")
+          PY
+
+      - name: Regressing suite fails the gate
+        id: regression
+        continue-on-error: true
+        uses: ./
+        with:
+          baseline: tests/fixtures/gate-suite/baseline/suite-result.json
+          candidate: tests/fixtures/gate-suite/regression/suite-result.json
+          report: artifacts/regression-suite-report.json
+
+      - name: Verify regression was blocked and reported
+        if: always()
+        shell: bash
+        run: |
+          if [ "${{ steps.regression.outcome }}" != "failure" ]; then
+            echo "Expected suite regression gate to fail, got: ${{ steps.regression.outcome }}"
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("artifacts/regression-suite-report.json")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          assert report["schema_version"] == 1
+          assert report["kind"] == "suite_regression"
+          assert report["status"] == "REGRESSION"
+          assert report["scenarios"][0]["status"] == "REGRESSION"
+          assert report["scenarios"][0]["findings"]
+          print(f"Suite regression correctly blocked: {path}")
+          PY
+
+      - name: Upload gate reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: suite-regression-gate-smoke-reports
+          path: artifacts/*.json
+          if-no-files-found: error
