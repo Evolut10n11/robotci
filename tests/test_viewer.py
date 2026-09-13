@@ -7,7 +7,13 @@ from urllib.request import urlopen
 
 import pytest
 
-from robotci.viewer import ViewerError, create_viewer_server, demo_replay, load_replay, validate_replay
+from robotci.viewer import (
+    ViewerError,
+    create_viewer_server,
+    demo_replay,
+    load_replay,
+    validate_replay,
+)
 
 
 def test_demo_replay_is_valid() -> None:
