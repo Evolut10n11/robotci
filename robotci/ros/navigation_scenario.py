@@ -17,6 +17,8 @@ EXIT_FAIL = 1
 EXIT_TIMEOUT = 2
 EXIT_INFRA_ERROR = 3
 
+FeedbackKey = tuple[int, int, int, int]
+
 
 def _pose_stamped(navigator: BasicNavigator, pose: Pose2D) -> PoseStamped:
     message = PoseStamped()
@@ -31,15 +33,35 @@ def _pose_stamped(navigator: BasicNavigator, pose: Pose2D) -> PoseStamped:
     return message
 
 
+def _feedback_key(feedback: object) -> FeedbackKey:
+    """Return fields that change only when Nav2 publishes fresh feedback."""
+    pose_stamp = feedback.current_pose.header.stamp
+    navigation_time = feedback.navigation_time
+    return (
+        int(pose_stamp.sec),
+        int(pose_stamp.nanosec),
+        int(navigation_time.sec),
+        int(navigation_time.nanosec),
+    )
+
+
 def _record_feedback(
     navigator: BasicNavigator,
     tracker: NavigationMetricsTracker,
     now: float,
-) -> None:
+    last_feedback_key: FeedbackKey | None,
+) -> FeedbackKey | None:
     feedback = navigator.getFeedback()
     if feedback is None:
         tracker.tick(now)
-        return
+        return last_feedback_key
+
+    feedback_key = _feedback_key(feedback)
+    if feedback_key == last_feedback_key:
+        # BasicNavigator caches the latest feedback object. Polling faster than
+        # Nav2 publishes must not turn one message into many telemetry samples.
+        tracker.tick(now)
+        return last_feedback_key
 
     position = feedback.current_pose.pose.position
     tracker.update(
@@ -49,6 +71,7 @@ def _record_feedback(
         distance_remaining_m=float(feedback.distance_remaining),
         recoveries=int(feedback.number_of_recoveries),
     )
+    return feedback_key
 
 
 def run_navigation_scenario(
@@ -83,10 +106,16 @@ def run_navigation_scenario(
             exit_code = EXIT_FAIL
         else:
             timed_out = False
+            last_feedback_key: FeedbackKey | None = None
 
             while not navigator.isTaskComplete():
                 now = time.monotonic()
-                _record_feedback(navigator, tracker, now)
+                last_feedback_key = _record_feedback(
+                    navigator,
+                    tracker,
+                    now,
+                    last_feedback_key,
+                )
 
                 if now - started_at >= timeout_sec:
                     navigator.cancelTask()
