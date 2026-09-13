@@ -17,6 +17,10 @@ inputs:
     description: Path where the machine-readable suite regression report will be written.
     required: false
     default: artifacts/suite-regression-report.json
+  summary:
+    description: Path where the human-readable Markdown regression summary will be written.
+    required: false
+    default: artifacts/suite-regression-summary.md
   max-duration-increase-pct:
     description: Maximum allowed duration increase in percent for each scenario.
     required: false
@@ -38,6 +42,9 @@ outputs:
   report:
     description: Path to the generated machine-readable suite regression report.
     value: ${{ steps.gate.outputs.report }}
+  summary:
+    description: Path to the generated human-readable Markdown regression summary.
+    value: ${{ steps.gate.outputs.summary }}
 
 runs:
   using: composite
@@ -58,17 +65,30 @@ runs:
         ROBOTCI_BASELINE: ${{ inputs.baseline }}
         ROBOTCI_CANDIDATE: ${{ inputs.candidate }}
         ROBOTCI_REPORT: ${{ inputs.report }}
+        ROBOTCI_SUMMARY: ${{ inputs.summary }}
         ROBOTCI_MAX_DURATION: ${{ inputs.max-duration-increase-pct }}
         ROBOTCI_MAX_PATH: ${{ inputs.max-path-length-increase-pct }}
         ROBOTCI_MAX_STUCK: ${{ inputs.max-stuck-events-increase }}
         ROBOTCI_MAX_RECOVERIES: ${{ inputs.max-recoveries-increase }}
       run: |
         echo "report=$ROBOTCI_REPORT" >> "$GITHUB_OUTPUT"
+        echo "summary=$ROBOTCI_SUMMARY" >> "$GITHUB_OUTPUT"
+
+        set +e
         robotci-suite-gate \
           --baseline "$ROBOTCI_BASELINE" \
           --candidate "$ROBOTCI_CANDIDATE" \
           --output "$ROBOTCI_REPORT" \
+          --markdown-output "$ROBOTCI_SUMMARY" \
           --max-duration-increase-pct "$ROBOTCI_MAX_DURATION" \
           --max-path-length-increase-pct "$ROBOTCI_MAX_PATH" \
           --max-stuck-events-increase "$ROBOTCI_MAX_STUCK" \
           --max-recoveries-increase "$ROBOTCI_MAX_RECOVERIES"
+        status=$?
+        set -e
+
+        if [ -f "$ROBOTCI_SUMMARY" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+          cat "$ROBOTCI_SUMMARY" >> "$GITHUB_STEP_SUMMARY"
+        fi
+
+        exit "$status"
