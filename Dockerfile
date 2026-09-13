@@ -16,6 +16,7 @@ WORKDIR /workspace
 
 COPY pyproject.toml README.md LICENSE robotci.yaml ./
 COPY robotci ./robotci
+COPY examples ./examples
 
 RUN python3 -m venv --system-site-packages /opt/robotci-venv \
     && /opt/robotci-venv/bin/python -m pip install --upgrade pip \
