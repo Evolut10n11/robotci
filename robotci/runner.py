@@ -18,6 +18,7 @@ from robotci.config import (
     get_scenario,
     load_config,
 )
+from robotci.replay import default_replay_path
 from robotci.results import (
     ScenarioStatus,
     SuiteResult,
@@ -177,6 +178,7 @@ def _run_docker(
 ) -> int:
     container_result = f"/workspace/artifacts/{scenario.name}/result.json"
     host_result = project_root / "artifacts" / scenario.name / "result.json"
+    host_replay = default_replay_path(host_result)
     host_result.parent.mkdir(parents=True, exist_ok=True)
     config_mount = f"{config_path.resolve()}:/workspace/robotci.yaml:ro"
 
@@ -208,11 +210,16 @@ def _run_docker(
     except OSError as exc:
         raise RuntimeUnavailableError(f"failed to start Docker runtime: {exc}") from exc
 
-    if host_result.is_file():
-        resolved_output = output.resolve()
-        resolved_output.parent.mkdir(parents=True, exist_ok=True)
-        if host_result.resolve() != resolved_output:
-            shutil.copy2(host_result, resolved_output)
+    resolved_output = output.resolve()
+    resolved_output.parent.mkdir(parents=True, exist_ok=True)
+    if host_result.is_file() and host_result.resolve() != resolved_output:
+        shutil.copy2(host_result, resolved_output)
+
+    if host_replay.is_file():
+        replay_output = default_replay_path(resolved_output)
+        replay_output.parent.mkdir(parents=True, exist_ok=True)
+        if host_replay.resolve() != replay_output.resolve():
+            shutil.copy2(host_replay, replay_output)
 
     return completed.returncode
 
