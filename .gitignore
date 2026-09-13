@@ -219,3 +219,9 @@ __marimo__/
 
 # Local autonomous-agent state and machine-specific handoffs
 .agent/
+
+# Frontend dependencies, build output, and browser-test artifacts
+web/node_modules/
+web/dist/
+web/test-results/
+web/playwright-report/
