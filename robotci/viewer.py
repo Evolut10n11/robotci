@@ -3,12 +3,10 @@ from __future__ import annotations
 import json
 import math
 import webbrowser
-from collections.abc import Mapping
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
-
 
 VIEWER_ASSETS_DIR = Path(__file__).with_name("viewer_assets")
 DEFAULT_VIEWER_HOST = "127.0.0.1"
@@ -60,8 +58,8 @@ def demo_replay() -> dict[str, Any]:
     }
 
 
-def _require_mapping(value: object, name: str) -> Mapping[str, Any]:
-    if not isinstance(value, Mapping):
+def _require_mapping(value: object, name: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
         raise ViewerError(f"{name} must be an object")
     return value
 
@@ -179,7 +177,7 @@ def load_replay(path: Path) -> dict[str, Any]:
     return validate_replay(payload)
 
 
-def _handler_for(replay: Mapping[str, Any]) -> type[SimpleHTTPRequestHandler]:
+def _handler_for(replay: dict[str, Any]) -> type[SimpleHTTPRequestHandler]:
     encoded_replay = json.dumps(replay, separators=(",", ":")).encode("utf-8")
 
     class ReplayHandler(SimpleHTTPRequestHandler):
@@ -211,7 +209,7 @@ def _handler_for(replay: Mapping[str, Any]) -> type[SimpleHTTPRequestHandler]:
 
 
 def create_viewer_server(
-    replay: Mapping[str, Any],
+    replay: dict[str, Any],
     *,
     host: str = DEFAULT_VIEWER_HOST,
     port: int = DEFAULT_VIEWER_PORT,
@@ -225,7 +223,7 @@ def create_viewer_server(
 
 
 def serve_viewer(
-    replay: Mapping[str, Any],
+    replay: dict[str, Any],
     *,
     host: str = DEFAULT_VIEWER_HOST,
     port: int = DEFAULT_VIEWER_PORT,
