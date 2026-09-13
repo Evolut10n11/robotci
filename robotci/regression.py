@@ -57,6 +57,16 @@ def _percent_increase(*, baseline: float, candidate: float) -> float:
     return ((candidate - baseline) / baseline) * 100.0
 
 
+def _exceeds_percent_limit(increase: float, limit: float) -> bool:
+    """Treat mathematically equal threshold values as inclusive despite float noise."""
+    return increase > limit and not math.isclose(
+        increase,
+        limit,
+        rel_tol=1e-9,
+        abs_tol=1e-12,
+    )
+
+
 def compare_navigation_metrics(
     *,
     baseline_duration_sec: float,
@@ -73,7 +83,10 @@ def compare_navigation_metrics(
         baseline=baseline_duration_sec,
         candidate=candidate_duration_sec,
     )
-    if duration_increase > selected_policy.max_duration_increase_pct:
+    if _exceeds_percent_limit(
+        duration_increase,
+        selected_policy.max_duration_increase_pct,
+    ):
         findings.append(
             RegressionFinding(
                 metric="duration_sec",
@@ -89,7 +102,10 @@ def compare_navigation_metrics(
         baseline=baseline.path_length_m,
         candidate=candidate.path_length_m,
     )
-    if path_increase > selected_policy.max_path_length_increase_pct:
+    if _exceeds_percent_limit(
+        path_increase,
+        selected_policy.max_path_length_increase_pct,
+    ):
         findings.append(
             RegressionFinding(
                 metric="path_length_m",
