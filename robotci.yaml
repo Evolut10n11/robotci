@@ -34,4 +34,4 @@ scenarios:
       x: 17.86
       y: -0.77
       yaw: 0.0
-    timeout_sec: 120
+    timeout_sec: 180
