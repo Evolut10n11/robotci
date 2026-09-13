@@ -82,6 +82,18 @@ def test_regression_threshold_is_inclusive() -> None:
     assert report.status == "PASS"
 
 
+def test_decimal_threshold_is_inclusive_despite_float_noise() -> None:
+    report = compare_navigation_metrics(
+        baseline_duration_sec=0.3,
+        baseline=_metrics(path_length_m=0.3),
+        candidate_duration_sec=0.33,
+        candidate=_metrics(path_length_m=0.33),
+    )
+
+    assert report.status == "PASS"
+    assert report.findings == ()
+
+
 def test_zero_baseline_only_regresses_when_candidate_is_nonzero() -> None:
     stable = compare_navigation_metrics(
         baseline_duration_sec=0.0,
