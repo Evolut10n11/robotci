@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from typer.testing import CliRunner
@@ -93,6 +94,33 @@ def test_suite_gate_writes_report_before_regression_exit(tmp_path: Path) -> None
     assert payload["scenarios"][0]["status"] == "REGRESSION"
 
 
+def test_suite_gate_writes_markdown_before_regression_exit(tmp_path: Path) -> None:
+    baseline = _write_suite(tmp_path / "baseline", duration=10.0, path_length=5.0)
+    candidate = _write_suite(tmp_path / "candidate", duration=12.0, path_length=6.0)
+    summary = tmp_path / "artifacts" / "suite-regression.md"
+
+    result = runner.invoke(
+        app,
+        [
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--markdown-output",
+            str(summary),
+        ],
+    )
+
+    assert result.exit_code == 4
+    markdown = summary.read_text(encoding="utf-8")
+    assert "## RobotCI suite regression gate" in markdown
+    assert "❌ **REGRESSION**" in markdown
+    assert "| `route` | ❌ REGRESSION |" in markdown
+    assert "`duration_sec`" in markdown
+    assert "`path_length_m`" in markdown
+    assert "### Policy" in markdown
+
+
 def test_suite_gate_json_output_is_strict_for_zero_baseline(tmp_path: Path) -> None:
     baseline = _write_suite(tmp_path / "baseline", duration=0.0, path_length=0.0)
     candidate = _write_suite(tmp_path / "candidate", duration=1.0, path_length=1.0)
@@ -113,3 +141,61 @@ def test_suite_gate_json_output_is_strict_for_zero_baseline(tmp_path: Path) -> N
     findings = payload["scenarios"][0]["findings"]
     assert all(item["increase"] is None for item in findings)
     assert all(item["increase_unbounded"] is True for item in findings)
+
+
+def test_suite_gate_writes_junit_before_regression_exit(tmp_path: Path) -> None:
+    baseline = _write_suite(tmp_path / "baseline", duration=10.0, path_length=5.0)
+    candidate = _write_suite(tmp_path / "candidate", duration=12.0, path_length=6.0)
+    junit = tmp_path / "artifacts" / "suite-regression.xml"
+
+    result = runner.invoke(
+        app,
+        [
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--junit-output",
+            str(junit),
+        ],
+    )
+
+    assert result.exit_code == 4
+    root = ET.parse(junit).getroot()
+    assert root.tag == "testsuite"
+    assert root.attrib["tests"] == "1"
+    assert root.attrib["failures"] == "1"
+    case = root.find("testcase")
+    assert case is not None
+    assert case.attrib["name"] == "route"
+    failure = case.find("failure")
+    assert failure is not None
+    assert failure.attrib["type"] == "REGRESSION"
+    assert "duration" in (failure.text or "")
+    assert "path_length" in (failure.text or "")
+
+
+def test_suite_gate_writes_passing_junit(tmp_path: Path) -> None:
+    baseline = _write_suite(tmp_path / "baseline", duration=10.0, path_length=5.0)
+    candidate = _write_suite(tmp_path / "candidate", duration=10.5, path_length=5.1)
+    junit = tmp_path / "artifacts" / "suite-pass.xml"
+
+    result = runner.invoke(
+        app,
+        [
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--junit-output",
+            str(junit),
+        ],
+    )
+
+    assert result.exit_code == 0
+    root = ET.parse(junit).getroot()
+    assert root.attrib["tests"] == "1"
+    assert root.attrib["failures"] == "0"
+    case = root.find("testcase")
+    assert case is not None
+    assert case.find("failure") is None

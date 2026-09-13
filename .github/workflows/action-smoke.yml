@@ -24,21 +24,35 @@ jobs:
           baseline: tests/fixtures/gate-suite/baseline/suite-result.json
           candidate: tests/fixtures/gate-suite/pass/suite-result.json
           report: artifacts/pass-suite-report.json
+          summary: artifacts/pass-suite-summary.md
+          junit: artifacts/pass-suite-junit.xml
 
-      - name: Verify passing report
+      - name: Verify passing artifacts
         shell: bash
         run: |
           python - <<'PY'
           import json
+          import xml.etree.ElementTree as ET
           from pathlib import Path
 
-          path = Path("${{ steps.passing.outputs.report }}")
-          report = json.loads(path.read_text(encoding="utf-8"))
+          report_path = Path("${{ steps.passing.outputs.report }}")
+          report = json.loads(report_path.read_text(encoding="utf-8"))
           assert report["schema_version"] == 1
           assert report["kind"] == "suite_regression"
           assert report["status"] == "PASS"
           assert report["scenarios"][0]["status"] == "PASS"
-          print(f"PASS suite report verified: {path}")
+
+          summary_path = Path("${{ steps.passing.outputs.summary }}")
+          summary = summary_path.read_text(encoding="utf-8")
+          assert "✅ **PASS**" in summary
+          assert "| `route` | ✅ PASS | 0 |" in summary
+
+          junit_path = Path("${{ steps.passing.outputs.junit }}")
+          junit = ET.parse(junit_path).getroot()
+          assert junit.tag == "testsuite"
+          assert junit.attrib["tests"] == "1"
+          assert junit.attrib["failures"] == "0"
+          print(f"PASS suite artifacts verified: {report_path}, {summary_path}, {junit_path}")
           PY
 
       - name: Regressing suite fails the gate
@@ -49,6 +63,8 @@ jobs:
           baseline: tests/fixtures/gate-suite/baseline/suite-result.json
           candidate: tests/fixtures/gate-suite/regression/suite-result.json
           report: artifacts/regression-suite-report.json
+          summary: artifacts/regression-suite-summary.md
+          junit: artifacts/regression-suite-junit.xml
 
       - name: Verify regression was blocked and reported
         if: always()
@@ -60,16 +76,32 @@ jobs:
           fi
           python - <<'PY'
           import json
+          import xml.etree.ElementTree as ET
           from pathlib import Path
 
-          path = Path("artifacts/regression-suite-report.json")
-          report = json.loads(path.read_text(encoding="utf-8"))
+          report_path = Path("artifacts/regression-suite-report.json")
+          report = json.loads(report_path.read_text(encoding="utf-8"))
           assert report["schema_version"] == 1
           assert report["kind"] == "suite_regression"
           assert report["status"] == "REGRESSION"
           assert report["scenarios"][0]["status"] == "REGRESSION"
           assert report["scenarios"][0]["findings"]
-          print(f"Suite regression correctly blocked: {path}")
+
+          summary_path = Path("artifacts/regression-suite-summary.md")
+          summary = summary_path.read_text(encoding="utf-8")
+          assert "❌ **REGRESSION**" in summary
+          assert "### Regression details" in summary
+          assert "`duration_sec`" in summary
+
+          junit_path = Path("artifacts/regression-suite-junit.xml")
+          junit = ET.parse(junit_path).getroot()
+          assert junit.tag == "testsuite"
+          assert junit.attrib["tests"] == "1"
+          assert junit.attrib["failures"] == "1"
+          failure = junit.find("testcase/failure")
+          assert failure is not None
+          assert failure.attrib["type"] == "REGRESSION"
+          print(f"Suite regression correctly blocked: {report_path}, {summary_path}, {junit_path}")
           PY
 
       - name: Upload gate reports
@@ -77,5 +109,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: suite-regression-gate-smoke-reports
-          path: artifacts/*.json
+          path: |
+            artifacts/*.json
+            artifacts/*.md
+            artifacts/*.xml
           if-no-files-found: error
