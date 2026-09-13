@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import "./styles.css";
+import { sampleAt } from "./playback.js";
 
 const root = document.querySelector("#root");
 
@@ -23,37 +24,6 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function interpolateAngle(a, b, alpha) {
-  const delta = Math.atan2(Math.sin(b - a), Math.cos(b - a));
-  return a + delta * alpha;
-}
-
-function sampleAt(samples, time) {
-  if (time <= samples[0].t) return samples[0];
-  const last = samples[samples.length - 1];
-  if (time >= last.t) return last;
-
-  const high = samples.findIndex((sample) => sample.t >= time);
-  if (high <= 0) return samples[0];
-  const low = high - 1;
-  const a = samples[low];
-  const b = samples[high];
-  const span = Math.max(0.0001, b.t - a.t);
-  const alpha = clamp((time - a.t) / span, 0, 1);
-
-  return {
-    t: time,
-    position: {
-      x: THREE.MathUtils.lerp(a.position.x, b.position.x, alpha),
-      y: THREE.MathUtils.lerp(a.position.y, b.position.y, alpha),
-      z: THREE.MathUtils.lerp(a.position.z, b.position.z, alpha),
-    },
-    orientation: {
-      yaw: interpolateAngle(a.orientation.yaw, b.orientation.yaw, alpha),
-    },
-  };
 }
 
 function renderLoading(message = "Loading replay…") {
@@ -97,7 +67,7 @@ function shell(replay) {
 
   const eventMarkers = replay.events
     .map((event, index) => {
-      const left = clamp((event.t / replay.duration_sec) * 100, 0, 100);
+      const left = replay.duration_sec ? clamp((event.t / replay.duration_sec) * 100, 0, 100) : 0;
       return `<button type="button" class="event-marker event-${event.type.toLowerCase()}" data-event-index="${index}" style="left:${left}%" aria-label="Jump to ${escapeHtml(event.type)} at ${formatSeconds(event.t)}"><span></span></button>`;
     })
     .join("");
@@ -281,6 +251,7 @@ function makeScene(replay, onFrame) {
       orbit.target.z + orbit.distance * Math.sin(orbit.pitch),
     );
     camera.lookAt(orbit.target.x, orbit.target.y, 0);
+    renderer.render(scene, camera);
   }
 
   function fit() {
@@ -337,6 +308,7 @@ function makeScene(replay, onFrame) {
     renderer.setSize(width, height, false);
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
+    renderer.render(scene, camera);
   };
   new ResizeObserver(resize).observe(host);
   resize();
@@ -403,6 +375,7 @@ function startReplay(replay) {
 
     const activeIndex = currentEventIndex();
     document.querySelectorAll(".event-row").forEach((row, index) => row.classList.toggle("active", index === activeIndex));
+    sceneEvent.style.display = activeIndex < 0 ? "none" : "";
     if (activeIndex >= 0) {
       const event = replay.events[activeIndex];
       sceneEvent.className = `scene-event event-${event.type.toLowerCase()}`;
@@ -460,14 +433,19 @@ function startReplay(replay) {
   });
 
   window.addEventListener("keydown", (event) => {
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLSelectElement) return;
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.target instanceof Element && event.target.closest(
+      'input, select, textarea, button, a, [contenteditable="true"], [role="button"]',
+    )) return;
     if (event.code === "Space") {
       event.preventDefault();
       togglePlay();
     } else if (event.key === "ArrowLeft") {
+      event.preventDefault();
       playing = false;
       seekTo(currentTime - 0.5);
     } else if (event.key === "ArrowRight") {
+      event.preventDefault();
       playing = false;
       seekTo(currentTime + 0.5);
     } else if (event.key.toLowerCase() === "i") {
@@ -477,6 +455,14 @@ function startReplay(replay) {
     } else if (event.key.toLowerCase() === "f") {
       scene.fit();
     }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      playing = false;
+      sync();
+    }
+    lastFrame = performance.now();
   });
 
   function frame(now) {

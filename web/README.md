@@ -35,6 +35,11 @@ npm run build
 
 ## Responsibilities
 
+Run playback regression checks with `npm test`. Camera orbit, zoom, presets, and
+resize work while paused. Playback pauses when the tab becomes hidden, so returning
+to the viewer does not skip the failure window. Keyboard shortcuts apply outside
+focused controls; buttons and form inputs retain their native keyboard behavior.
+
 - `src/main.js`: Replay v1 loading, deterministic playback, event seeking, Three.js scene, camera controls, and live pose state.
 - `src/styles.css`: the 12ui-derived RobotCI dark workbench visual system and responsive layouts.
 - `vite.config.js`: development API proxy and production output into the Python package.
