@@ -1,0 +1,12 @@
+{
+  "scenario": "gate_smoke",
+  "status": "PASS",
+  "duration_sec": 12.0,
+  "metrics": {
+    "path_length_m": 6.0,
+    "distance_to_goal_m": 0.2,
+    "stuck_events": 1,
+    "feedback_samples": 20,
+    "recoveries": 1
+  }
+}
