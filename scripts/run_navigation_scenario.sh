@@ -4,7 +4,7 @@ set -uo pipefail
 SCENARIO="${ROBOTCI_SCENARIO:-simple_route}"
 LOG_FILE="${ROBOTCI_LOG_FILE:-/tmp/nav2-${SCENARIO}.log}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-ATTEMPT_SCRIPT="$SCRIPT_DIR/run_navigation_attempt.sh"
+ATTEMPT_SCRIPT="${ROBOTCI_ATTEMPT_SCRIPT:-$SCRIPT_DIR/run_navigation_attempt.sh}"
 
 is_known_loopback_map_race() {
   [ -f "$LOG_FILE" ] \
