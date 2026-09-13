@@ -42,7 +42,7 @@ robotci-init --force
 To initialize another existing repository without changing the current working directory:
 
 ```bash
-robotci-init --project-root path/to/repository
+robotci-init --project-root ../my-nav2-project
 ```
 
 The command prints the exact config path and follow-up `validate`, `doctor`, and `run` commands.
