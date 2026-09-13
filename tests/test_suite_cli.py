@@ -93,6 +93,33 @@ def test_suite_gate_writes_report_before_regression_exit(tmp_path: Path) -> None
     assert payload["scenarios"][0]["status"] == "REGRESSION"
 
 
+def test_suite_gate_writes_markdown_before_regression_exit(tmp_path: Path) -> None:
+    baseline = _write_suite(tmp_path / "baseline", duration=10.0, path_length=5.0)
+    candidate = _write_suite(tmp_path / "candidate", duration=12.0, path_length=6.0)
+    summary = tmp_path / "artifacts" / "suite-regression.md"
+
+    result = runner.invoke(
+        app,
+        [
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--markdown-output",
+            str(summary),
+        ],
+    )
+
+    assert result.exit_code == 4
+    markdown = summary.read_text(encoding="utf-8")
+    assert "## RobotCI suite regression gate" in markdown
+    assert "❌ **REGRESSION**" in markdown
+    assert "| `route` | ❌ REGRESSION |" in markdown
+    assert "`duration_sec`" in markdown
+    assert "`path_length_m`" in markdown
+    assert "### Policy" in markdown
+
+
 def test_suite_gate_json_output_is_strict_for_zero_baseline(tmp_path: Path) -> None:
     baseline = _write_suite(tmp_path / "baseline", duration=0.0, path_length=0.0)
     candidate = _write_suite(tmp_path / "candidate", duration=1.0, path_length=1.0)
