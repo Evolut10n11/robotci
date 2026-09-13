@@ -29,6 +29,8 @@ robotci = "robotci.entrypoint:app"
 robotci-init = "robotci.init_cli:app"
 robotci-baseline = "robotci.baseline_cli:app"
 robotci-suite-gate = "robotci.suite_cli:app"
+robotci-doctor = "robotci.doctor_report:main"
+robotci-support-bundle = "robotci.support_bundle:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["robotci"]
