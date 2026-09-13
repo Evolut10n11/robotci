@@ -36,8 +36,10 @@ The free CLI should remain strong enough to earn trust:
 - navigation metrics
 - local baseline comparison
 - regression verdict and non-zero exit code
-- JUnit/JSON artifacts
-- GitHub Actions examples
+- suite-level regression gating
+- JSON, Markdown, and JUnit reports
+- reusable GitHub Action / PR gate
+- replay and visualization as the next major developer-facing layer
 
 A team must be able to prove RobotCI is useful before paying us.
 
@@ -60,32 +62,65 @@ Candidate paid capabilities:
 
 Do not optimize pricing before validating demand. A simple hypothesis to test with real users:
 
-- Open source: local CLI and regression engine.
-- Team: hosted history, GitHub PR reports and team policies.
+- Open source: local CLI, regression engine, reports, replay, and CI gate.
+- Team: hosted history, GitHub PR reports, persistent baselines, and team policies.
 - Enterprise later: self-hosted control plane, SSO, auditability, retention and support.
 
 The first paid signal should be a team willing to pay for persistent history + PR gating, not stars or downloads.
 
+## Current product status
+
+The deterministic regression foundation is now largely implemented:
+
+```text
+scenario execution           ✅
+configuration                ✅
+runtime navigation metrics   ✅
+baseline/candidate compare    ✅
+REGRESSION exit semantics    ✅
+machine-readable JSON report ✅
+suite-level regression gate  ✅
+reusable GitHub Action       ✅
+Markdown PR summary          ✅
+JUnit report                 ✅
+3D replay/viewer              🚧
+local baseline capture UX     ⏭
+external team validation      ⏭
+```
+
+The next work should improve usability and prove demand rather than inventing cloud infrastructure early.
+
 ## Product milestones
 
-### P0 — trustworthy regression engine
+### P0 — trustworthy regression engine ✅
 
-Required before selling anything:
+Implemented:
 
-- collect navigation metrics reliably
+- navigation metrics
 - baseline vs candidate comparison
 - configurable thresholds
 - distinct `REGRESSION` verdict
-- deterministic JSON report
-- tests for edge cases and corrupted/incomplete baselines
+- deterministic versioned JSON reports
+- edge-case validation and tests
+- suite-level comparison/gating
 
-### P1 — excellent GitHub experience
+P0 should still be hardened as new real-world cases appear, but it is no longer the main missing product layer.
 
-- GitHub Actions reusable example
-- Markdown PR summary artifact
+### P1 — excellent GitHub experience 🚧
+
+Implemented:
+
+- reusable GitHub Action
+- Markdown regression summary
 - JUnit output
-- easy baseline generation/update flow
+- strict JSON artifacts
+- suite-level PR/release gate
+
+Remaining high-value work:
+
+- easy baseline generation/update flow — tracked in issue #33
 - one-command onboarding for an existing Nav2 repository
+- replay/viewer integration so a developer can move from a failed gate to the exact behavior visually
 
 ### P2 — external validation
 
@@ -112,9 +147,14 @@ Only after P2:
 
 ## Near-term engineering priority
 
-The next feature after runtime metrics is M4 baseline comparison.
+Two tracks can proceed without coupling to each other:
 
-A candidate run should be compared scenario-by-scenario with a baseline using metrics such as:
+1. **Developer experience:** finish visual replay / `robotci view`, then baseline-vs-candidate visual comparison.
+2. **P1 onboarding:** implement a simple local baseline capture/update workflow so teams do not manually copy known-good artifacts.
+
+After those are usable, prioritize external validation over adding a generic backend.
+
+A candidate run should continue to be compared scenario-by-scenario with a baseline using deterministic metrics such as:
 
 - duration
 - path length
@@ -122,7 +162,7 @@ A candidate run should be compared scenario-by-scenario with a baseline using me
 - stuck events
 - recoveries
 
-The comparison layer must stay ROS-independent so it can be unit-tested on Windows and used by both local and hosted versions later.
+The comparison layer must stay ROS-independent so it can be unit-tested on Windows and reused by local and future hosted versions.
 
 ## What not to build yet
 
@@ -131,12 +171,17 @@ The comparison layer must stay ROS-independent so it can be unit-tested on Windo
 - Kubernetes control plane
 - multi-tenant dashboard before external validation
 - support for every ROS distro
-- AI-generated explanations before deterministic regression data is trustworthy
+- AI-generated verdicts
+- billing/auth before external teams demonstrate demand
+
+AI explanations may be added later, but only above the deterministic regression engine; they must not become the source of truth for PASS/FAIL/REGRESSION.
 
 ## North-star outcome
 
 A robotics engineer opens a pull request and, before touching a physical robot, sees:
 
 > 11/12 scenarios are stable. `warehouse_long_route` regressed: path +18%, duration +24%, two new stuck events. Merge blocked.
+
+Then the engineer opens the replay and jumps directly to the moment where candidate behavior diverged from the baseline.
 
 That is the moment RobotCI stops being a pet project and becomes a product.
