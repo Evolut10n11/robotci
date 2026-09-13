@@ -12,6 +12,7 @@ from robotci.regression import RegressionPolicy
 from robotci.suite_comparison import compare_suite_result_files
 from robotci.suite_reporting import (
     suite_regression_report_payload,
+    write_suite_regression_markdown,
     write_suite_regression_report,
 )
 
@@ -43,6 +44,13 @@ def compare_suite_command(
             "--output",
             "-o",
             help="Write the machine-readable suite regression report JSON to this path.",
+        ),
+    ] = None,
+    markdown_output: Annotated[
+        Path | None,
+        typer.Option(
+            "--markdown-output",
+            help="Write a human-readable Markdown regression summary to this path.",
         ),
     ] = None,
     max_duration_increase_pct: Annotated[
@@ -86,8 +94,8 @@ def compare_suite_command(
         candidate_path=candidate,
     )
 
-    if output is not None:
-        try:
+    try:
+        if output is not None:
             write_suite_regression_report(
                 output,
                 report=report,
@@ -95,9 +103,17 @@ def compare_suite_command(
                 baseline_path=baseline,
                 candidate_path=candidate,
             )
-        except OSError as exc:
-            console.print(f"[red]RobotCI suite comparison error:[/red] cannot write report: {exc}")
-            raise typer.Exit(code=3) from exc
+        if markdown_output is not None:
+            write_suite_regression_markdown(
+                markdown_output,
+                report=report,
+                policy=policy,
+                baseline_path=baseline,
+                candidate_path=candidate,
+            )
+    except OSError as exc:
+        console.print(f"[red]RobotCI suite comparison error:[/red] cannot write report: {exc}")
+        raise typer.Exit(code=3) from exc
 
     if json_output:
         console.print_json(data=payload)
@@ -118,6 +134,8 @@ def compare_suite_command(
         console.print(f"Suite regression verdict: [{style}]{report.status}[/{style}]")
         if output is not None:
             console.print(f"Report: {output}", soft_wrap=True)
+        if markdown_output is not None:
+            console.print(f"Markdown summary: {markdown_output}", soft_wrap=True)
 
     if report.status == "REGRESSION":
         raise typer.Exit(code=4)
