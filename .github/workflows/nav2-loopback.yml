@@ -4,7 +4,34 @@ on:
   pull_request:
     branches:
       - main
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+      - "LICENSE"
+      - ".gitignore"
+      - "AGENTS.md"
+      - ".agent/**"
+      - "web/**"
+      - "robotci/baseline_cli.py"
+      - "robotci/baselines.py"
+      - "robotci/init_cli.py"
+      - "robotci/scaffold.py"
+      - "robotci/comparison.py"
+      - "robotci/regression.py"
+      - "robotci/suite_cli.py"
+      - "robotci/suite_comparison.py"
+      - "robotci/suite_reporting.py"
+      - "tests/test_baseline*.py"
+      - "tests/test_init_cli.py"
+      - "tests/test_scaffold.py"
+      - "tests/test_comparison.py"
+      - "tests/test_regression.py"
+      - "tests/test_suite*.py"
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   loopback-launch:
