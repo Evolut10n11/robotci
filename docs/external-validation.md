@@ -38,6 +38,7 @@ The preferred first-session path is:
 robotci-init
 robotci validate
 robotci doctor
+python -m robotci.doctor_report --output .robotci/doctor.json
 robotci run
 robotci-baseline save pilot-main --suite .robotci/suite-result.json
 
@@ -45,6 +46,10 @@ robotci-baseline save pilot-main --suite .robotci/suite-result.json
 robotci run
 robotci-baseline gate pilot-main --candidate .robotci/suite-result.json
 ```
+
+The JSON diagnostics command uses the same readiness checks as `robotci doctor`, exits non-zero for blocking failures, and records a compact schema-versioned report. If setup is blocked, sharing `.robotci/doctor.json` is preferred to sending full shell logs because it contains readiness verdicts and error text without source code, maps, credentials, or simulation artifacts.
+
+Use `python -m robotci.doctor_report --require-ros` when a pilot explicitly requires native ROS2 Jazzy/Nav2 and Docker fallback must not count. Use `--runtime-optional` only for inventory/troubleshooting sessions where missing runtime support should be recorded without failing the command.
 
 Do not ask pilot teams to deploy to hardware merely to test RobotCI. The initial validation should remain simulation-only.
 
@@ -64,7 +69,7 @@ For each team, record the following facts rather than relying on impressions:
 | Repeated use | Did they run RobotCI again without assistance? |
 | Paid signal | Did they ask for history, shared baselines, hosted reports, policy management, self-hosting, or support? |
 
-Do not collect proprietary maps, robot source code, credentials, bag files, or full simulation artifacts unless a team explicitly chooses to share them. Compact metrics, error text, and redacted screenshots are sufficient for the pilot.
+Do not collect proprietary maps, robot source code, credentials, bag files, or full simulation artifacts unless a team explicitly chooses to share them. Compact metrics, error text, `.robotci/doctor.json`, and redacted screenshots are sufficient for the pilot.
 
 ## Interview questions
 
