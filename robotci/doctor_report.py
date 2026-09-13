@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import argparse
 import json
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from robotci.doctor import CheckResult, run_doctor_checks
 
@@ -43,12 +43,18 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     mode.add_argument(
         "--require-ros",
         action="store_true",
-        help="Require a native ROS2 Jazzy/Nav2 runtime; Docker fallback does not satisfy this mode.",
+        help=(
+            "Require a native ROS2 Jazzy/Nav2 runtime; Docker fallback does not satisfy "
+            "this mode."
+        ),
     )
     mode.add_argument(
         "--runtime-optional",
         action="store_true",
-        help="Report runtime diagnostics without failing when neither native ROS nor Docker is ready.",
+        help=(
+            "Report runtime diagnostics without failing when neither native ROS nor Docker "
+            "is ready."
+        ),
     )
     parser.add_argument(
         "--output",
