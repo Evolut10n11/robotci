@@ -5,7 +5,7 @@ import re
 import shutil
 import tempfile
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -92,8 +92,10 @@ def _validated_suite(suite_path: Path) -> tuple[dict[str, Any], list[tuple[str, 
         result_path = _safe_result_path(suite_dir, result_file)
         result = _load_json_object(result_path, label=f"result for scenario {scenario!r}")
         if result.get("scenario") != scenario:
+            result_scenario = result.get("scenario")
             raise BaselineError(
-                f"scenario identity mismatch: suite has {scenario!r}, result has {result.get('scenario')!r}"
+                f"scenario identity mismatch: suite has {scenario!r}, "
+                f"result has {result_scenario!r}"
             )
         if result.get("status") != "PASS":
             raise BaselineError(f"result for scenario {scenario!r} is not PASS")
@@ -121,7 +123,7 @@ def capture_baseline(
     if destination.exists() and not replace:
         raise BaselineError(f"baseline already exists: {name}")
 
-    captured_at = datetime.now(timezone.utc).isoformat()
+    captured_at = datetime.now(UTC).isoformat()
     manifest = {
         "schema_version": BASELINE_SCHEMA_VERSION,
         "name": name,
