@@ -1,0 +1,2 @@
+# Use Ollama whenever this repository is opened with `codex --oss`.
+oss_provider = "ollama"
