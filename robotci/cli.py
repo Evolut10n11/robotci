@@ -8,9 +8,11 @@ from rich.console import Console
 from rich.table import Table
 
 from robotci import __version__
+from robotci.comparison import ComparisonInputError, compare_scenario_result_files
 from robotci.config import ConfigError, load_config
 from robotci.doctor import run_doctor_checks
 from robotci.plan import build_execution_plan
+from robotci.regression import RegressionPolicy
 from robotci.runner import (
     DEFAULT_CONFIG_PATH,
     DEFAULT_RESULT_PATH,
@@ -176,6 +178,101 @@ def plan_command(
     console.print(f"Runtime request: [cyan]{plan.runtime}[/cyan]")
     console.print(table)
     console.print("[green]Plan resolved; no runtime started[/green]")
+
+
+@app.command("compare")
+def compare_command(
+    baseline: Annotated[
+        Path,
+        typer.Option(
+            "--baseline",
+            help="Known-good scenario result JSON.",
+        ),
+    ],
+    candidate: Annotated[
+        Path,
+        typer.Option(
+            "--candidate",
+            help="Candidate scenario result JSON.",
+        ),
+    ],
+    max_duration_increase_pct: Annotated[
+        float,
+        typer.Option(
+            "--max-duration-increase-pct",
+            min=0.0,
+            help="Maximum allowed duration increase in percent.",
+        ),
+    ] = 10.0,
+    max_path_length_increase_pct: Annotated[
+        float,
+        typer.Option(
+            "--max-path-length-increase-pct",
+            min=0.0,
+            help="Maximum allowed path-length increase in percent.",
+        ),
+    ] = 10.0,
+    max_stuck_events_increase: Annotated[
+        int,
+        typer.Option(
+            "--max-stuck-events-increase",
+            min=0,
+            help="Maximum allowed additional stuck events.",
+        ),
+    ] = 0,
+    max_recoveries_increase: Annotated[
+        int,
+        typer.Option(
+            "--max-recoveries-increase",
+            min=0,
+            help="Maximum allowed additional recoveries.",
+        ),
+    ] = 0,
+) -> None:
+    """Compare one candidate scenario result with a known-good baseline."""
+    try:
+        policy = RegressionPolicy(
+            max_duration_increase_pct=max_duration_increase_pct,
+            max_path_length_increase_pct=max_path_length_increase_pct,
+            max_stuck_events_increase=max_stuck_events_increase,
+            max_recoveries_increase=max_recoveries_increase,
+        )
+        report = compare_scenario_result_files(
+            baseline_path=baseline,
+            candidate_path=candidate,
+            policy=policy,
+        )
+    except (ComparisonInputError, ValueError) as exc:
+        console.print(f"[red]RobotCI comparison error:[/red] {exc}")
+        raise typer.Exit(code=3) from exc
+
+    console.print(f"Baseline: {baseline}", soft_wrap=True)
+    console.print(f"Candidate: {candidate}", soft_wrap=True)
+
+    if report.findings:
+        table = Table(title="Navigation regressions")
+        table.add_column("Metric")
+        table.add_column("Baseline", justify="right")
+        table.add_column("Candidate", justify="right")
+        table.add_column("Increase", justify="right")
+        table.add_column("Allowed", justify="right")
+
+        for finding in report.findings:
+            suffix = "%" if finding.unit == "percent" else ""
+            table.add_row(
+                finding.metric,
+                f"{finding.baseline:g}",
+                f"{finding.candidate:g}",
+                f"{finding.increase:g}{suffix}",
+                f"{finding.allowed_increase:g}{suffix}",
+            )
+        console.print(table)
+
+    style = "green" if report.status == "PASS" else "red"
+    console.print(f"Regression verdict: [{style}]{report.status}[/{style}]")
+
+    if report.status == "REGRESSION":
+        raise typer.Exit(code=4)
 
 
 @app.command("run")
