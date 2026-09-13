@@ -17,10 +17,19 @@ from robotci.baselines import (
     load_baseline_manifest,
     remove_baseline,
 )
+from robotci.comparison import ComparisonInputError
+from robotci.regression import RegressionPolicy
+from robotci.suite_comparison import compare_suite_result_files
+from robotci.suite_reporting import (
+    suite_regression_report_payload,
+    write_suite_regression_junit,
+    write_suite_regression_markdown,
+    write_suite_regression_report,
+)
 
 app = typer.Typer(
     name="robotci-baseline",
-    help="Capture and manage local known-good RobotCI suite baselines.",
+    help="Capture, inspect, and gate against local known-good RobotCI suite baselines.",
     no_args_is_help=True,
 )
 console = Console()
@@ -86,6 +95,147 @@ def save_baseline_command(
     console.print(f"Path: {info.path}", soft_wrap=True)
     console.print(f"Scenarios: {', '.join(info.scenarios)}")
     console.print(f"Captured: {info.captured_at}")
+
+
+@app.command("gate")
+def gate_baseline_command(
+    name: Annotated[str, typer.Argument(help="Saved baseline name.")],
+    candidate: Annotated[
+        Path,
+        typer.Option(
+            "--candidate",
+            help="Candidate suite-result.json to compare against the saved baseline.",
+            exists=True,
+            file_okay=True,
+            dir_okay=False,
+            readable=True,
+        ),
+    ],
+    store: Annotated[
+        Path,
+        typer.Option("--store", help="Baseline store directory."),
+    ] = DEFAULT_BASELINE_ROOT,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Print only the machine-readable suite report JSON."),
+    ] = False,
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Write the machine-readable suite regression report JSON to this path.",
+        ),
+    ] = None,
+    markdown_output: Annotated[
+        Path | None,
+        typer.Option(
+            "--markdown-output",
+            help="Write a human-readable Markdown regression summary to this path.",
+        ),
+    ] = None,
+    junit_output: Annotated[
+        Path | None,
+        typer.Option(
+            "--junit-output",
+            help="Write the suite regression verdict as a JUnit XML report.",
+        ),
+    ] = None,
+    max_duration_increase_pct: Annotated[
+        float,
+        typer.Option("--max-duration-increase-pct", min=0.0),
+    ] = 10.0,
+    max_path_length_increase_pct: Annotated[
+        float,
+        typer.Option("--max-path-length-increase-pct", min=0.0),
+    ] = 10.0,
+    max_stuck_events_increase: Annotated[
+        int,
+        typer.Option("--max-stuck-events-increase", min=0),
+    ] = 0,
+    max_recoveries_increase: Annotated[
+        int,
+        typer.Option("--max-recoveries-increase", min=0),
+    ] = 0,
+) -> None:
+    """Compare a candidate suite against one saved known-good baseline."""
+    try:
+        baseline = baseline_suite_path(name, store_root=store)
+        policy = RegressionPolicy(
+            max_duration_increase_pct=max_duration_increase_pct,
+            max_path_length_increase_pct=max_path_length_increase_pct,
+            max_stuck_events_increase=max_stuck_events_increase,
+            max_recoveries_increase=max_recoveries_increase,
+        )
+        report = compare_suite_result_files(
+            baseline_path=baseline,
+            candidate_path=candidate,
+            policy=policy,
+        )
+    except (BaselineError, ComparisonInputError, ValueError, OSError) as exc:
+        _fail(exc)
+
+    payload = suite_regression_report_payload(
+        report=report,
+        policy=policy,
+        baseline_path=baseline,
+        candidate_path=candidate,
+    )
+
+    try:
+        if output is not None:
+            write_suite_regression_report(
+                output,
+                report=report,
+                policy=policy,
+                baseline_path=baseline,
+                candidate_path=candidate,
+            )
+        if markdown_output is not None:
+            write_suite_regression_markdown(
+                markdown_output,
+                report=report,
+                policy=policy,
+                baseline_path=baseline,
+                candidate_path=candidate,
+            )
+        if junit_output is not None:
+            write_suite_regression_junit(
+                junit_output,
+                report=report,
+                baseline_path=baseline,
+                candidate_path=candidate,
+            )
+    except OSError as exc:
+        _fail(exc)
+
+    if json_output:
+        console.print_json(data=payload)
+    else:
+        table = Table(title=f"RobotCI baseline gate: {name}")
+        table.add_column("Scenario")
+        table.add_column("Verdict")
+        table.add_column("Findings", justify="right")
+        for item in report.scenarios:
+            style = "green" if item.report.status == "PASS" else "red"
+            table.add_row(
+                item.scenario,
+                f"[{style}]{item.report.status}[/{style}]",
+                str(len(item.report.findings)),
+            )
+        console.print(table)
+        style = "green" if report.status == "PASS" else "red"
+        console.print(f"Suite regression verdict: [{style}]{report.status}[/{style}]")
+        console.print(f"Baseline: {name} ({baseline})", soft_wrap=True)
+        if output is not None:
+            console.print(f"Report: {output}", soft_wrap=True)
+        if markdown_output is not None:
+            console.print(f"Markdown summary: {markdown_output}", soft_wrap=True)
+        if junit_output is not None:
+            console.print(f"JUnit: {junit_output}", soft_wrap=True)
+
+    if report.status == "REGRESSION":
+        raise typer.Exit(code=4)
 
 
 @app.command("list")
