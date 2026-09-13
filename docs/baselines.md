@@ -73,18 +73,38 @@ After changing robot code or configuration, run the same suite again:
 robotci run --runtime native
 ```
 
-Then compare the candidate against the captured baseline:
+Then gate the candidate directly by saved baseline name:
 
 ```bash
-robotci-suite-gate \
-  --baseline .robotci/baselines/main-nav/suite-result.json \
+robotci-baseline gate main-nav \
   --candidate .robotci/suite-result.json \
   --output .robotci/suite-regression.json \
   --markdown-output .robotci/suite-regression.md \
   --junit-output .robotci/suite-regression.xml
 ```
 
-The gate exits successfully when the candidate stays within policy and exits with code `4` when it detects a behavioral regression.
+The gate resolves `.robotci/baselines/main-nav/suite-result.json` automatically. It uses the same deterministic comparison engine and policy as `robotci-suite-gate`.
+
+The default policy allows up to 10% duration and path-length increase and no additional stuck events or recoveries. Override those thresholds explicitly when a repository needs another policy:
+
+```bash
+robotci-baseline gate main-nav \
+  --candidate .robotci/suite-result.json \
+  --max-duration-increase-pct 15 \
+  --max-path-length-increase-pct 12 \
+  --max-stuck-events-increase 0 \
+  --max-recoveries-increase 1
+```
+
+For automation, add `--json` to print the machine-readable suite report. The gate exits successfully when the candidate stays within policy and exits with code `4` when it detects a behavioral regression. Invalid baseline or candidate inputs exit with code `3`.
+
+The lower-level path-based command remains available when a suite is not stored in the baseline registry:
+
+```bash
+robotci-suite-gate \
+  --baseline path/to/baseline/suite-result.json \
+  --candidate .robotci/suite-result.json
+```
 
 ## 5. Intentionally update a baseline
 
