@@ -22,9 +22,10 @@ jobs:
       - name: Run YAML suite in Docker
         run: |
           mkdir -p artifacts
+          set -o pipefail
           docker run --rm \
             -v "$PWD/artifacts:/workspace/artifacts" \
-            robotci:ci
+            robotci:ci 2>&1 | tee artifacts/docker-runtime.log
 
       - name: Verify Docker suite result and runtime metrics
         run: |
@@ -76,6 +77,7 @@ jobs:
         with:
           name: docker-suite-results
           path: |
+            artifacts/docker-runtime.log
             artifacts/suite-result.json
             artifacts/results/*.json
           if-no-files-found: warn
