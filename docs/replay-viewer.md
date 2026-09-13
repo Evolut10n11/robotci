@@ -34,7 +34,12 @@ robotci run --scenario simple_route --output artifacts/run-42.json
 robotci view --replay artifacts/run-42.replay.json
 ```
 
-The behavior is the same for native and Docker runtimes. Docker runs copy the replay out of the container beside the requested host result. Suite runs produce one replay per scenario under the suite `results/` directory.
+The behavior is the same for native and Docker runtimes. Docker runs copy the replay out of the container beside the requested host result. Suite runs produce one replay per scenario under the suite `results/` directory, for example:
+
+```bash
+robotci run
+robotci view --replay .robotci/results/simple_route.replay.json
+```
 
 ## Replay v1
 
