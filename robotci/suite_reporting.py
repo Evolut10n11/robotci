@@ -77,6 +77,65 @@ def suite_regression_report_json(
     )
 
 
+def _format_delta(value: float, unit: str) -> str:
+    if math.isfinite(value):
+        suffix = f" {unit}" if unit else ""
+        return f"{value:+.2f}{suffix}"
+    return "unbounded"
+
+
+def suite_regression_report_markdown(
+    *,
+    report: SuiteRegressionReport,
+    policy: RegressionPolicy,
+    baseline_path: str | Path,
+    candidate_path: str | Path,
+) -> str:
+    icon = "✅" if report.status == "PASS" else "❌"
+    lines = [
+        "## RobotCI suite regression gate",
+        "",
+        f"{icon} **{report.status}** — compared `{candidate_path}` against `{baseline_path}`.",
+        "",
+        "| Scenario | Verdict | Findings |",
+        "| --- | --- | ---: |",
+    ]
+    for item in report.scenarios:
+        verdict_icon = "✅" if item.report.status == "PASS" else "❌"
+        lines.append(
+            f"| `{item.scenario}` | {verdict_icon} {item.report.status} | "
+            f"{len(item.report.findings)} |"
+        )
+
+    regression_items = [item for item in report.scenarios if item.report.findings]
+    if regression_items:
+        lines.extend(["", "### Regression details", ""])
+        for item in regression_items:
+            lines.append(f"#### `{item.scenario}`")
+            lines.append("")
+            for finding in item.report.findings:
+                delta = _format_delta(finding.increase, finding.unit)
+                allowed = _format_delta(finding.allowed_increase, finding.unit)
+                lines.append(
+                    f"- `{finding.metric}`: baseline `{finding.baseline:g}`, "
+                    f"candidate `{finding.candidate:g}`, change **{delta}** "
+                    f"(allowed {allowed})"
+                )
+            lines.append("")
+
+    lines.extend(
+        [
+            "### Policy",
+            "",
+            f"- duration: +{policy.max_duration_increase_pct:g}% max",
+            f"- path length: +{policy.max_path_length_increase_pct:g}% max",
+            f"- stuck events: +{policy.max_stuck_events_increase} max",
+            f"- recoveries: +{policy.max_recoveries_increase} max",
+        ]
+    )
+    return "\n".join(lines).rstrip() + "\n"
+
+
 def write_suite_regression_report(
     path: str | Path,
     *,
@@ -94,4 +153,26 @@ def write_suite_regression_report(
         candidate_path=candidate_path,
     )
     output_path.write_text(f"{payload}\n", encoding="utf-8")
+    return output_path
+
+
+def write_suite_regression_markdown(
+    path: str | Path,
+    *,
+    report: SuiteRegressionReport,
+    policy: RegressionPolicy,
+    baseline_path: str | Path,
+    candidate_path: str | Path,
+) -> Path:
+    output_path = Path(path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        suite_regression_report_markdown(
+            report=report,
+            policy=policy,
+            baseline_path=baseline_path,
+            candidate_path=candidate_path,
+        ),
+        encoding="utf-8",
+    )
     return output_path
