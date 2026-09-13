@@ -92,7 +92,10 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
             message=(
                 "ros2 command is available"
                 if ros2_available
-                else "ros2 command was not found; native ROS scenarios require Linux with ROS2 Jazzy"
+                else (
+                    "ros2 command was not found; native ROS scenarios require "
+                    "Linux with ROS2 Jazzy"
+                )
             ),
             blocking=strict_native_ros,
         )
