@@ -115,3 +115,11 @@ def compare_suite_command(
 
     if report.status == "REGRESSION":
         raise typer.Exit(code=4)
+
+
+def main() -> None:
+    typer.run(compare_suite_command)
+
+
+if __name__ == "__main__":
+    main()
