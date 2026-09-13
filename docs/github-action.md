@@ -2,6 +2,8 @@
 
 RobotCI can be used directly as a composite GitHub Action. The action compares a complete candidate `suite-result.json` with a known-good suite and fails the job when any scenario exceeds the configured deterministic regression policy.
 
+The action also writes a Markdown summary and publishes it to the GitHub Actions job summary, so reviewers can see the suite verdict and per-scenario regressions without opening a JSON artifact.
+
 ## Example
 
 ```yaml
@@ -26,22 +28,25 @@ jobs:
           baseline: artifacts/baseline/suite-result.json
           candidate: artifacts/candidate/suite-result.json
           report: artifacts/suite-regression-report.json
+          summary: artifacts/suite-regression-summary.md
           max-duration-increase-pct: "10"
           max-path-length-increase-pct: "10"
           max-stuck-events-increase: "0"
           max-recoveries-increase: "0"
 
-      - name: Upload regression report
+      - name: Upload regression artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: robotci-suite-regression-report
-          path: artifacts/suite-regression-report.json
+          path: |
+            artifacts/suite-regression-report.json
+            artifacts/suite-regression-summary.md
 ```
 
 The action installs RobotCI from the referenced action revision and runs `robotci-suite-gate`. Baseline and candidate suites must both be successful, contain the same scenario names, and keep the individual scenario result files referenced by their suite artifact. The gate aggregates the deterministic per-scenario comparisons into one `PASS` or `REGRESSION` verdict.
 
-A regression returns RobotCI exit code `4`, which fails the action step. Invalid or incomplete comparison artifacts return exit code `3`. The machine-readable JSON report is written before the regression exit, so it can still be uploaded with `if: always()` when a pull request is blocked.
+A regression returns RobotCI exit code `4`, which fails the action step. Invalid or incomplete comparison artifacts return exit code `3`. The JSON report and Markdown summary are written before the regression exit, so both remain available when a pull request is blocked. The Markdown file is also appended to `GITHUB_STEP_SUMMARY` automatically.
 
 For reproducible production use, pin the action to a release tag or commit SHA rather than `main`.
 
@@ -51,14 +56,16 @@ For reproducible production use, pin the action to a release tag or commit SHA r
 | --- | --- | --- |
 | `baseline` | required | Known-good `suite-result.json` |
 | `candidate` | required | Candidate `suite-result.json` |
-| `report` | `artifacts/suite-regression-report.json` | Generated suite report path |
+| `report` | `artifacts/suite-regression-report.json` | Generated JSON suite report path |
+| `summary` | `artifacts/suite-regression-summary.md` | Generated Markdown summary path |
 | `max-duration-increase-pct` | `10` | Allowed duration increase per scenario (%) |
 | `max-path-length-increase-pct` | `10` | Allowed path-length increase per scenario (%) |
 | `max-stuck-events-increase` | `0` | Allowed additional stuck events per scenario |
 | `max-recoveries-increase` | `0` | Allowed additional recoveries per scenario |
 
-## Output
+## Outputs
 
-`report` is the generated JSON report path. Schema version `1` uses `kind: "suite_regression"` and contains one entry per scenario with its verdict and findings.
+- `report` is the generated JSON report path. Schema version `1` uses `kind: "suite_regression"` and contains one entry per scenario with its verdict and findings.
+- `summary` is the generated Markdown summary path. It contains the overall verdict, scenario table, regression details and active thresholds.
 
 This action intentionally does not manage baseline storage. Teams can initially keep known-good suite artifacts in their own CI/storage workflow; persistent baseline registries are a later RobotCI product layer.
