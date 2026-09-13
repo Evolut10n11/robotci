@@ -13,6 +13,7 @@ from robotci.config import ConfigError, load_config
 from robotci.doctor import run_doctor_checks
 from robotci.plan import build_execution_plan
 from robotci.regression import RegressionPolicy
+from robotci.reporting import regression_report_payload, write_regression_report
 from robotci.runner import (
     DEFAULT_CONFIG_PATH,
     DEFAULT_RESULT_PATH,
@@ -196,6 +197,21 @@ def compare_command(
             help="Candidate scenario result JSON.",
         ),
     ],
+    json_output: Annotated[
+        bool,
+        typer.Option(
+            "--json",
+            help="Print only the machine-readable regression report JSON.",
+        ),
+    ] = False,
+    output: Annotated[
+        Path | None,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Write the machine-readable regression report JSON to this path.",
+        ),
+    ] = None,
     max_duration_increase_pct: Annotated[
         float,
         typer.Option(
@@ -246,30 +262,55 @@ def compare_command(
         console.print(f"[red]RobotCI comparison error:[/red] {exc}")
         raise typer.Exit(code=3) from exc
 
-    console.print(f"Baseline: {baseline}", soft_wrap=True)
-    console.print(f"Candidate: {candidate}", soft_wrap=True)
+    payload = regression_report_payload(
+        report=report,
+        policy=policy,
+        baseline_path=baseline,
+        candidate_path=candidate,
+    )
 
-    if report.findings:
-        table = Table(title="Navigation regressions")
-        table.add_column("Metric")
-        table.add_column("Baseline", justify="right")
-        table.add_column("Candidate", justify="right")
-        table.add_column("Increase", justify="right")
-        table.add_column("Allowed", justify="right")
-
-        for finding in report.findings:
-            suffix = "%" if finding.unit == "percent" else ""
-            table.add_row(
-                finding.metric,
-                f"{finding.baseline:g}",
-                f"{finding.candidate:g}",
-                f"{finding.increase:g}{suffix}",
-                f"{finding.allowed_increase:g}{suffix}",
+    if output is not None:
+        try:
+            write_regression_report(
+                output,
+                report=report,
+                policy=policy,
+                baseline_path=baseline,
+                candidate_path=candidate,
             )
-        console.print(table)
+        except OSError as exc:
+            console.print(f"[red]RobotCI comparison error:[/red] cannot write report: {exc}")
+            raise typer.Exit(code=3) from exc
 
-    style = "green" if report.status == "PASS" else "red"
-    console.print(f"Regression verdict: [{style}]{report.status}[/{style}]")
+    if json_output:
+        console.print_json(data=payload)
+    else:
+        console.print(f"Baseline: {baseline}", soft_wrap=True)
+        console.print(f"Candidate: {candidate}", soft_wrap=True)
+
+        if report.findings:
+            table = Table(title="Navigation regressions")
+            table.add_column("Metric")
+            table.add_column("Baseline", justify="right")
+            table.add_column("Candidate", justify="right")
+            table.add_column("Increase", justify="right")
+            table.add_column("Allowed", justify="right")
+
+            for finding in report.findings:
+                suffix = "%" if finding.unit == "percent" else ""
+                table.add_row(
+                    finding.metric,
+                    f"{finding.baseline:g}",
+                    f"{finding.candidate:g}",
+                    f"{finding.increase:g}{suffix}",
+                    f"{finding.allowed_increase:g}{suffix}",
+                )
+            console.print(table)
+
+        style = "green" if report.status == "PASS" else "red"
+        console.print(f"Regression verdict: [{style}]{report.status}[/{style}]")
+        if output is not None:
+            console.print(f"Report: {output}", soft_wrap=True)
 
     if report.status == "REGRESSION":
         raise typer.Exit(code=4)
