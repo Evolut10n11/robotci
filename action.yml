@@ -63,6 +63,7 @@ runs:
         ROBOTCI_MAX_STUCK: ${{ inputs.max-stuck-events-increase }}
         ROBOTCI_MAX_RECOVERIES: ${{ inputs.max-recoveries-increase }}
       run: |
+        echo "report=$ROBOTCI_REPORT" >> "$GITHUB_OUTPUT"
         robotci compare \
           --baseline "$ROBOTCI_BASELINE" \
           --candidate "$ROBOTCI_CANDIDATE" \
@@ -71,4 +72,3 @@ runs:
           --max-path-length-increase-pct "$ROBOTCI_MAX_PATH" \
           --max-stuck-events-increase "$ROBOTCI_MAX_STUCK" \
           --max-recoveries-increase "$ROBOTCI_MAX_RECOVERIES"
-        echo "report=$ROBOTCI_REPORT" >> "$GITHUB_OUTPUT"
