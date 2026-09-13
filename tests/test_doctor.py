@@ -107,7 +107,14 @@ def test_strict_ros_mode_is_not_satisfied_by_docker(monkeypatch) -> None:
 
     checks = _checks_by_name(run_doctor_checks(require_ros=True))
 
-    strict_names = {"ros2", "ROS_DISTRO", *set(("nav2_bringup", "nav2_loopback_sim", "nav2_simple_commander")), "runtime"}
+    strict_names = {
+        "ros2",
+        "ROS_DISTRO",
+        "nav2_bringup",
+        "nav2_loopback_sim",
+        "nav2_simple_commander",
+        "runtime",
+    }
     assert all(checks[name].blocking for name in strict_names)
     assert not checks["runtime"].ok
     assert checks["runtime"].message == "native ROS2 Jazzy/Nav2 runtime is incomplete"
