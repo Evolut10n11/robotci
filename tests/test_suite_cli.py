@@ -5,7 +5,7 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from robotci.suite_cli import compare_suite_command
+from robotci.suite_cli import app
 
 runner = CliRunner()
 
@@ -74,7 +74,7 @@ def test_suite_gate_writes_report_before_regression_exit(tmp_path: Path) -> None
     output = tmp_path / "artifacts" / "suite-regression.json"
 
     result = runner.invoke(
-        compare_suite_command,
+        app,
         [
             "--baseline",
             str(baseline),
@@ -98,7 +98,7 @@ def test_suite_gate_json_output_is_strict_for_zero_baseline(tmp_path: Path) -> N
     candidate = _write_suite(tmp_path / "candidate", duration=1.0, path_length=1.0)
 
     result = runner.invoke(
-        compare_suite_command,
+        app,
         [
             "--baseline",
             str(baseline),
