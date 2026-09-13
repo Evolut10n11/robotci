@@ -57,8 +57,7 @@ class ReplayRecorder:
     ) -> dict[str, Any]:
         """Build a self-contained Replay v1 payload."""
         last_t = float(self._samples[-1]["t"])
-        duration = max(0.001, float(duration_sec), last_t)
-        duration = round(duration, 3)
+        duration = round(max(0.001, float(duration_sec), last_t), 3)
 
         samples = list(self._samples)
         if len(samples) == 1:
@@ -70,14 +69,14 @@ class ReplayRecorder:
                     self.start.yaw,
                 )
             )
-        elif float(samples[-1]["t"]) > duration:
-            duration = float(samples[-1]["t"])
 
+        viewer_status = "PASS" if status == "PASS" else "FAIL"
         final_event = "GOAL" if status == "PASS" else "FAIL"
         return {
             "schema_version": 1,
             "scenario": self.scenario,
-            "status": status,
+            "status": viewer_status,
+            "result_status": status,
             "runtime": self.runtime,
             "duration_sec": duration,
             "robot": {"type": self.robot_type},
