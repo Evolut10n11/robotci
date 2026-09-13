@@ -39,6 +39,8 @@ The free CLI should remain strong enough to earn trust:
 - suite-level regression gating
 - JSON, Markdown, and JUnit reports
 - reusable GitHub Action / PR gate
+- local named-baseline capture and gating
+- one-command local onboarding
 - replay and visualization as the next major developer-facing layer
 
 A team must be able to prove RobotCI is useful before paying us.
@@ -70,7 +72,7 @@ The first paid signal should be a team willing to pay for persistent history + P
 
 ## Current product status
 
-The deterministic regression foundation is now largely implemented:
+The deterministic regression foundation and the first local usability layer are now largely implemented:
 
 ```text
 scenario execution           ✅
@@ -83,12 +85,15 @@ suite-level regression gate  ✅
 reusable GitHub Action       ✅
 Markdown PR summary          ✅
 JUnit report                 ✅
+local baseline capture UX     ✅
+named baseline candidate gate ✅
+one-command onboarding        ✅
+CI runtime path filtering     ✅
 3D replay/viewer              🚧
-local baseline capture UX     ⏭
-external team validation      ⏭
+external team validation      🚧
 ```
 
-The next work should improve usability and prove demand rather than inventing cloud infrastructure early.
+The next work should finish the developer-facing replay flow and prove demand with real teams rather than inventing cloud infrastructure early.
 
 ## Product milestones
 
@@ -115,14 +120,19 @@ Implemented:
 - JUnit output
 - strict JSON artifacts
 - suite-level PR/release gate
+- self-contained local baseline capture with explicit replace semantics
+- `robotci-baseline gate <name> --candidate ...`
+- `robotci-init` for a valid starter `robotci.yaml`
+- path-aware CI so docs, web, and baseline-only changes do not pay the full ROS/Nav2/Docker runtime cost
 
 Remaining high-value work:
 
-- easy baseline generation/update flow — tracked in issue #33
-- one-command onboarding for an existing Nav2 repository
 - replay/viewer integration so a developer can move from a failed gate to the exact behavior visually
+- baseline-vs-candidate visual comparison and divergence navigation after the basic viewer flow is stable
 
-### P2 — external validation
+### P2 — external validation 🚧
+
+P2 is active and tracked in issue #48. The execution/interview playbook lives in `docs/external-validation.md`.
 
 Find 5 external ROS2/Nav2 teams and ask them to run RobotCI on a real repository.
 
@@ -130,7 +140,8 @@ Success signal:
 
 - at least 3 complete a real navigation suite
 - at least 2 use baseline comparison on a real change
-- at least 1 asks for history, collaboration, hosted reports, or support strongly enough to discuss payment
+- at least 2 say they would use the gate again in normal development
+- at least 1 asks for history, collaboration, hosted reports, policies, self-hosting, or support strongly enough to discuss payment
 
 If those signals do not appear, change the product direction before building a cloud backend.
 
@@ -150,9 +161,9 @@ Only after P2:
 Two tracks can proceed without coupling to each other:
 
 1. **Developer experience:** finish visual replay / `robotci view`, then baseline-vs-candidate visual comparison.
-2. **P1 onboarding:** implement a simple local baseline capture/update workflow so teams do not manually copy known-good artifacts.
+2. **External validation:** run the five-team pilot and fix only evidence-backed onboarding, runtime-compatibility, diagnostics, or report problems that block real adoption.
 
-After those are usable, prioritize external validation over adding a generic backend.
+Do not add a generic backend merely because the open-source core is becoming feature-complete. The next non-viewer engineering work should come from real pilot friction unless it is a clear correctness or maintainability issue.
 
 A candidate run should continue to be compared scenario-by-scenario with a baseline using deterministic metrics such as:
 
