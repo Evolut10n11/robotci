@@ -15,9 +15,15 @@ from robotci.suite_reporting import (
     write_suite_regression_report,
 )
 
+app = typer.Typer(
+    name="robotci-suite-gate",
+    help="Compare complete RobotCI suites and fail on behavioral regressions.",
+    invoke_without_command=True,
+)
 console = Console()
 
 
+@app.callback()
 def compare_suite_command(
     baseline: Annotated[
         Path,
@@ -117,9 +123,5 @@ def compare_suite_command(
         raise typer.Exit(code=4)
 
 
-def main() -> None:
-    typer.run(compare_suite_command)
-
-
 if __name__ == "__main__":
-    main()
+    app()
