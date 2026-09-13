@@ -5,6 +5,7 @@ SCENARIO="${ROBOTCI_SCENARIO:-simple_route}"
 LOG_FILE="${ROBOTCI_LOG_FILE:-/tmp/nav2-${SCENARIO}.log}"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ATTEMPT_SCRIPT="${ROBOTCI_ATTEMPT_SCRIPT:-$SCRIPT_DIR/run_navigation_attempt.sh}"
+RETRY_DELAY_SEC="${ROBOTCI_RETRY_DELAY_SEC:-1}"
 
 is_known_loopback_map_race() {
   [ -f "$LOG_FILE" ] \
@@ -26,7 +27,7 @@ for attempt in 1 2; do
 
   echo "RobotCI runtime: recognized Nav2 Loopback empty-map startup race."
   echo "Retrying scenario $SCENARIO once after runtime cleanup..."
-  sleep 1
+  sleep "$RETRY_DELAY_SEC"
 done
 
 exit 3
