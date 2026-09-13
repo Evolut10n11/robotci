@@ -10,6 +10,7 @@ from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 
 from robotci.metrics import NavigationMetricsTracker
+from robotci.replay import ReplayRecorder, default_replay_path, write_replay
 from robotci.results import Pose2D, ScenarioResult, write_result
 
 EXIT_PASS = 0
@@ -45,9 +46,17 @@ def _feedback_key(feedback: object) -> FeedbackKey:
     )
 
 
+def _yaw_from_orientation(orientation: object) -> float:
+    """Convert a geometry_msgs quaternion into planar yaw."""
+    siny_cosp = 2.0 * (orientation.w * orientation.z + orientation.x * orientation.y)
+    cosy_cosp = 1.0 - 2.0 * (orientation.y * orientation.y + orientation.z * orientation.z)
+    return math.atan2(siny_cosp, cosy_cosp)
+
+
 def _record_feedback(
     navigator: BasicNavigator,
     tracker: NavigationMetricsTracker,
+    recorder: ReplayRecorder,
     now: float,
     last_feedback_key: FeedbackKey | None,
 ) -> FeedbackKey | None:
@@ -63,13 +72,20 @@ def _record_feedback(
         tracker.tick(now)
         return last_feedback_key
 
-    position = feedback.current_pose.pose.position
+    pose = feedback.current_pose.pose
+    position = pose.position
     tracker.update(
         x=float(position.x),
         y=float(position.y),
         now=now,
         distance_remaining_m=float(feedback.distance_remaining),
         recoveries=int(feedback.number_of_recoveries),
+    )
+    recorder.record(
+        x=float(position.x),
+        y=float(position.y),
+        yaw=_yaw_from_orientation(pose.orientation),
+        now=now,
     )
     return feedback_key
 
@@ -86,6 +102,12 @@ def run_navigation_scenario(
     tracker = NavigationMetricsTracker(
         start_x=start.x,
         start_y=start.y,
+        started_at=started_at,
+    )
+    recorder = ReplayRecorder(
+        scenario=scenario_name,
+        start=start,
+        goal=goal,
         started_at=started_at,
     )
     status = "INFRA_ERROR"
@@ -113,6 +135,7 @@ def run_navigation_scenario(
                 last_feedback_key = _record_feedback(
                     navigator,
                     tracker,
+                    recorder,
                     now,
                     last_feedback_key,
                 )
@@ -158,6 +181,13 @@ def run_navigation_scenario(
             metrics=metrics,
         )
         result_path = write_result(result, output)
+        replay = recorder.build(
+            status=status,
+            duration_sec=duration_sec,
+            metrics=metrics,
+            navigation_result=navigation_result,
+        )
+        replay_path = write_replay(replay, default_replay_path(result_path))
 
         print(f"RobotCI scenario: {scenario_name}")
         print(f"Status: {status}")
@@ -168,6 +198,7 @@ def run_navigation_scenario(
         print(f"Stuck events: {metrics.stuck_events}")
         print(f"Recoveries: {metrics.recoveries}")
         print(f"Result: {result_path}")
+        print(f"Replay: {replay_path}")
 
         if navigator is not None:
             navigator.destroy_node()
