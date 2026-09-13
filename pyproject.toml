@@ -26,6 +26,7 @@ dev = [
 
 [project.scripts]
 robotci = "robotci.cli:app"
+robotci-suite-gate = "robotci.suite_cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["robotci"]
