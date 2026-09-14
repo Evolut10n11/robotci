@@ -155,10 +155,10 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
     selected_runtime = _selected_runtime(strict_native_ros=strict_native_ros)
 
     if strict_native_ros:
-        runtime_ready = native_ready
+        runtime_ready = native_ready and selected_runtime == "native"
         runtime_message = (
             "native ROS2 Jazzy/Nav2 runtime is ready"
-            if native_ready
+            if runtime_ready
             else "native ROS2 Jazzy/Nav2 runtime is incomplete"
         )
     elif selected_runtime == "native":

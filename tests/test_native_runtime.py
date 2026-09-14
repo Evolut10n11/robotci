@@ -135,3 +135,17 @@ def test_failed_setup_is_rejected_even_when_parent_shell_looks_ready(fake_ros, m
     monkeypatch.setenv("ROS_DISTRO", "jazzy")
     setup.write_text("return 1\n", encoding="utf-8")
     assert runner._native_ros_available() is False
+
+
+def test_strict_doctor_cannot_override_a_failed_runtime_probe(fake_ros, monkeypatch):
+    bin_dir, setup = fake_ros
+    monkeypatch.setenv("PATH", str(bin_dir) + os.pathsep + os.environ["PATH"])
+    monkeypatch.setenv("ROS_DISTRO", "jazzy")
+    monkeypatch.setattr(doctor, "get_ros_package_prefix", lambda package: f"/fake/{package}")
+    setup.write_text("return 1\n", encoding="utf-8")
+    checks = {check.name: check for check in doctor.run_doctor_checks(require_ros=True)}
+    assert checks["ros2"].ok
+    assert checks["ROS_DISTRO"].ok
+    assert all(checks[package].ok for package in native_runtime.REQUIRED_ROS_PACKAGES)
+    assert checks["runtime"].value == "none"
+    assert not checks["runtime"].ok
