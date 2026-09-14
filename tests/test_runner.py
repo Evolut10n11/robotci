@@ -45,6 +45,18 @@ def _make_project_root(path: Path) -> None:
     scripts = path / "scripts"
     scripts.mkdir(parents=True, exist_ok=True)
     (path / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    (path / "compose.yaml").write_text(
+        """services:
+  robotci:
+    build:
+      context: .
+    image: robotci:dev
+    init: true
+    volumes:
+      - ./artifacts:/workspace/artifacts
+""",
+        encoding="utf-8",
+    )
     (scripts / "run_navigation_scenario.sh").write_text(
         "#!/usr/bin/env bash\n",
         encoding="utf-8",
@@ -311,7 +323,17 @@ def test_run_docker_mounts_config_and_copies_result(
     assert destination.read_text(encoding="utf-8") == '{"status": "PASS"}\n'
     command = captured["command"]
     assert isinstance(command, list)
-    assert command[:5] == ["docker", "compose", "run", "--rm", "--build"]
+    assert command[:9] == [
+        "docker",
+        "compose",
+        "--file",
+        str(tmp_path / "compose.yaml"),
+        "--project-name",
+        "robotci",
+        "run",
+        "--rm",
+        "--build",
+    ]
     assert "--volume" in command
     assert f"{config_path.resolve()}:/workspace/robotci.yaml:ro" in command
     assert "short_route" in command
