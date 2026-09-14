@@ -22,6 +22,13 @@ def test_runtime_diagnostics_are_non_blocking_when_runtime_is_optional(monkeypat
         "robotci.doctor.get_docker_status",
         lambda: (False, "docker command was not found"),
     )
+    monkeypatch.setattr(
+        "robotci.doctor.select_runtime",
+        lambda _requested: (_ for _ in ()).throw(
+            __import__("robotci.runner", fromlist=["RuntimeUnavailableError"])
+            .RuntimeUnavailableError("unavailable")
+        ),
+    )
 
     checks = run_doctor_checks(require_ros=False)
     runtime_checks = [check for check in checks if check.name != "platform"]
@@ -40,6 +47,7 @@ def test_default_runtime_uses_docker_fallback(monkeypatch) -> None:
         "robotci.doctor.get_docker_status",
         lambda: (True, "docker daemon is available"),
     )
+    monkeypatch.setattr("robotci.doctor.select_runtime", lambda _requested: "docker")
     monkeypatch.delenv("ROS_DISTRO", raising=False)
 
     checks = _checks_by_name(run_doctor_checks())
@@ -66,6 +74,7 @@ def test_default_runtime_uses_native_ros_when_ready(monkeypatch) -> None:
         "robotci.doctor.get_docker_status",
         lambda: (False, "docker command was not found"),
     )
+    monkeypatch.setattr("robotci.doctor.select_runtime", lambda _requested: "native")
     monkeypatch.setenv("ROS_DISTRO", "jazzy")
 
     checks = _checks_by_name(run_doctor_checks())
@@ -77,6 +86,8 @@ def test_default_runtime_uses_native_ros_when_ready(monkeypatch) -> None:
 
 
 def test_default_runtime_fails_when_no_runtime_is_available(monkeypatch) -> None:
+    from robotci.runner import RuntimeUnavailableError
+
     monkeypatch.setattr(
         "robotci.doctor.current_platform",
         lambda: PlatformInfo("Windows", core_supported=True, ros_runtime_supported=False),
@@ -85,6 +96,10 @@ def test_default_runtime_fails_when_no_runtime_is_available(monkeypatch) -> None
     monkeypatch.setattr(
         "robotci.doctor.get_docker_status",
         lambda: (False, "docker command was not found"),
+    )
+    monkeypatch.setattr(
+        "robotci.doctor.select_runtime",
+        lambda _requested: (_ for _ in ()).throw(RuntimeUnavailableError("unavailable")),
     )
     monkeypatch.delenv("ROS_DISTRO", raising=False)
 
@@ -96,7 +111,7 @@ def test_default_runtime_fails_when_no_runtime_is_available(monkeypatch) -> None
     assert "no usable runtime found" in checks["runtime"].message
 
 
-def test_strict_ros_mode_is_not_satisfied_by_docker(monkeypatch) -> None:
+def test_selected_runtime_matches_runner_when_ros_is_installed_but_unsourced(monkeypatch) -> None:
     monkeypatch.setattr(
         "robotci.doctor.current_platform",
         lambda: PlatformInfo("Linux", core_supported=True, ros_runtime_supported=True),
@@ -105,6 +120,34 @@ def test_strict_ros_mode_is_not_satisfied_by_docker(monkeypatch) -> None:
     monkeypatch.setattr(
         "robotci.doctor.get_docker_status",
         lambda: (True, "docker daemon is available"),
+    )
+    monkeypatch.setattr("robotci.doctor.select_runtime", lambda _requested: "native")
+    monkeypatch.delenv("ROS_DISTRO", raising=False)
+
+    checks = _checks_by_name(run_doctor_checks())
+
+    assert not checks["ros2"].ok
+    assert checks["docker"].ok
+    assert checks["runtime"].ok
+    assert checks["runtime"].value == "native"
+    assert checks["runtime"].message == "auto runtime will use native ROS2 Jazzy/Nav2"
+
+
+def test_strict_ros_mode_is_not_satisfied_by_docker(monkeypatch) -> None:
+    from robotci.runner import RuntimeUnavailableError
+
+    monkeypatch.setattr(
+        "robotci.doctor.current_platform",
+        lambda: PlatformInfo("Linux", core_supported=True, ros_runtime_supported=True),
+    )
+    monkeypatch.setattr("robotci.doctor.command_exists", lambda _command: False)
+    monkeypatch.setattr(
+        "robotci.doctor.get_docker_status",
+        lambda: (True, "docker daemon is available"),
+    )
+    monkeypatch.setattr(
+        "robotci.doctor.select_runtime",
+        lambda _requested: (_ for _ in ()).throw(RuntimeUnavailableError("unavailable")),
     )
     monkeypatch.delenv("ROS_DISTRO", raising=False)
 
