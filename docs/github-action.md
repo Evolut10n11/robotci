@@ -36,6 +36,7 @@ jobs:
           junit: artifacts/suite-regression-junit.xml
           max-duration-increase-pct: "10"
           max-path-length-increase-pct: "10"
+          max-distance-to-goal-increase-m: "0.1"
           max-stuck-events-increase: "0"
           max-recoveries-increase: "0"
 
@@ -69,12 +70,13 @@ For reproducible production use, pin the action to a release tag or commit SHA r
 | `junit` | `artifacts/suite-regression-junit.xml` | Generated JUnit XML report path |
 | `max-duration-increase-pct` | `10` | Allowed duration increase per scenario (%) |
 | `max-path-length-increase-pct` | `10` | Allowed path-length increase per scenario (%) |
+| `max-distance-to-goal-increase-m` | `0.1` | Allowed final distance-to-goal increase per scenario (m) |
 | `max-stuck-events-increase` | `0` | Allowed additional stuck events per scenario |
 | `max-recoveries-increase` | `0` | Allowed additional recoveries per scenario |
 
 ## Outputs
 
-- `report` is the generated JSON report path. Schema version `1` uses `kind: "suite_regression"` and contains one entry per scenario with its verdict and findings.
+- `report` is the generated JSON report path. Schema version `2` uses `kind: "suite_regression"`, records all five regression thresholds, and contains one entry per scenario with its verdict and findings.
 - `summary` is the generated Markdown summary path. It contains the overall verdict, scenario table, regression details and active thresholds.
 - `junit` is the generated JUnit XML path. It contains one testcase per scenario and maps RobotCI regressions to test failures.
 

@@ -11,12 +11,13 @@ from robotci.regression import RegressionPolicy, compare_navigation_metrics
 def _metrics(
     *,
     path_length_m: float = 10.0,
+    distance_to_goal_m: float = 0.05,
     stuck_events: int = 0,
     recoveries: int = 0,
 ) -> NavigationMetrics:
     return NavigationMetrics(
         path_length_m=path_length_m,
-        distance_to_goal_m=0.0,
+        distance_to_goal_m=distance_to_goal_m,
         stuck_events=stuck_events,
         feedback_samples=10,
         recoveries=recoveries,
@@ -50,6 +51,34 @@ def test_regression_report_flags_duration_and_path_degradation() -> None:
     ]
     assert report.findings[0].increase == 25.0
     assert report.findings[1].increase == 20.0
+
+
+def test_regression_report_flags_distance_to_goal_degradation() -> None:
+    report = compare_navigation_metrics(
+        baseline_duration_sec=10.0,
+        baseline=_metrics(distance_to_goal_m=0.05),
+        candidate_duration_sec=10.0,
+        candidate=_metrics(distance_to_goal_m=0.16),
+    )
+
+    assert report.status == "REGRESSION"
+    assert len(report.findings) == 1
+    finding = report.findings[0]
+    assert finding.metric == "distance_to_goal_m"
+    assert finding.increase == pytest.approx(0.11)
+    assert finding.allowed_increase == 0.1
+    assert finding.unit == "m"
+
+
+def test_distance_threshold_is_inclusive_despite_float_noise() -> None:
+    report = compare_navigation_metrics(
+        baseline_duration_sec=10.0,
+        baseline=_metrics(distance_to_goal_m=0.05),
+        candidate_duration_sec=10.0,
+        candidate=_metrics(distance_to_goal_m=0.15),
+    )
+
+    assert report.status == "PASS"
 
 
 def test_regression_report_flags_new_stuck_events_and_recoveries() -> None:
@@ -131,7 +160,11 @@ def test_policy_rejects_invalid_limits() -> None:
     with pytest.raises(ValueError):
         RegressionPolicy(max_path_length_increase_pct=math.inf)
     with pytest.raises(ValueError):
+        RegressionPolicy(max_distance_to_goal_increase_m=math.nan)
+    with pytest.raises(ValueError):
         RegressionPolicy(max_stuck_events_increase=-1)
+    with pytest.raises(ValueError):
+        RegressionPolicy(max_recoveries_increase=0.5)  # type: ignore[arg-type]
 
 
 def test_comparison_rejects_non_finite_or_negative_metrics() -> None:
@@ -148,4 +181,18 @@ def test_comparison_rejects_non_finite_or_negative_metrics() -> None:
             baseline=_metrics(path_length_m=-1.0),
             candidate_duration_sec=10.0,
             candidate=_metrics(),
+        )
+    with pytest.raises(ValueError, match="candidate.distance_to_goal_m"):
+        compare_navigation_metrics(
+            baseline_duration_sec=10.0,
+            baseline=_metrics(),
+            candidate_duration_sec=10.0,
+            candidate=_metrics(distance_to_goal_m=math.inf),
+        )
+    with pytest.raises(ValueError, match="candidate.recoveries"):
+        compare_navigation_metrics(
+            baseline_duration_sec=10.0,
+            baseline=_metrics(),
+            candidate_duration_sec=10.0,
+            candidate=_metrics(recoveries=-1),
         )

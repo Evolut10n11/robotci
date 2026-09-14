@@ -17,6 +17,7 @@ def _write_result(
     *,
     duration_sec: float = 10.0,
     path_length_m: float = 5.0,
+    distance_to_goal_m: float = 0.1,
 ) -> None:
     start = Pose2D(x=0.0, y=0.0, yaw=0.0)
     goal = Pose2D(x=1.0, y=0.0, yaw=0.0)
@@ -40,7 +41,7 @@ def _write_result(
                 ),
                 "metrics": {
                     "path_length_m": path_length_m,
-                    "distance_to_goal_m": 0.25,
+                    "distance_to_goal_m": distance_to_goal_m,
                     "stuck_events": 0,
                     "feedback_samples": 20,
                     "recoveries": 0,
@@ -81,12 +82,13 @@ def test_compare_json_prints_stable_machine_readable_report(tmp_path: Path) -> N
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout)
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["status"] == "PASS"
     assert payload["baseline"] == str(baseline)
     assert payload["candidate"] == str(candidate)
     assert payload["findings"] == []
     assert payload["policy"]["max_duration_increase_pct"] == 10.0
+    assert payload["policy"]["max_distance_to_goal_increase_m"] == 0.1
 
 
 def test_compare_output_writes_report_before_regression_exit(tmp_path: Path) -> None:

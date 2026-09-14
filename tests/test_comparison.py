@@ -21,6 +21,7 @@ def _payload(
     status: str = "PASS",
     duration_sec: float = 10.0,
     path_length_m: float = 5.0,
+    distance_to_goal_m: float = 0.05,
     stuck_events: int = 0,
     feedback_samples: int = 20,
     recoveries: int = 0,
@@ -47,7 +48,7 @@ def _payload(
         ),
         "metrics": {
             "path_length_m": path_length_m,
-            "distance_to_goal_m": 0.25,
+            "distance_to_goal_m": distance_to_goal_m,
             "stuck_events": stuck_events,
             "feedback_samples": feedback_samples,
             "recoveries": recoveries,
@@ -181,6 +182,18 @@ def test_compare_allows_controller_metadata_to_change() -> None:
     )
 
     assert report.status == "PASS"
+
+
+def test_compare_flags_distance_degradation_within_goal_tolerance() -> None:
+    report = compare_scenario_results(
+        baseline=parse_scenario_result(_payload(distance_to_goal_m=0.05)),
+        candidate=parse_scenario_result(_payload(distance_to_goal_m=0.2)),
+    )
+
+    assert report.status == "REGRESSION"
+    assert [finding.metric for finding in report.findings] == [
+        "distance_to_goal_m"
+    ]
 
 
 def test_compare_scenario_result_files_detects_regression(tmp_path) -> None:

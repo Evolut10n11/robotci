@@ -33,6 +33,10 @@ inputs:
     description: Maximum allowed path-length increase in percent for each scenario.
     required: false
     default: "10"
+  max-distance-to-goal-increase-m:
+    description: Maximum allowed increase in final distance to goal, in meters.
+    required: false
+    default: "0.1"
   max-stuck-events-increase:
     description: Maximum allowed additional stuck events per scenario.
     required: false
@@ -76,6 +80,7 @@ runs:
         ROBOTCI_JUNIT: ${{ inputs.junit }}
         ROBOTCI_MAX_DURATION: ${{ inputs.max-duration-increase-pct }}
         ROBOTCI_MAX_PATH: ${{ inputs.max-path-length-increase-pct }}
+        ROBOTCI_MAX_DISTANCE: ${{ inputs.max-distance-to-goal-increase-m }}
         ROBOTCI_MAX_STUCK: ${{ inputs.max-stuck-events-increase }}
         ROBOTCI_MAX_RECOVERIES: ${{ inputs.max-recoveries-increase }}
       run: |
@@ -92,6 +97,7 @@ runs:
           --junit-output "$ROBOTCI_JUNIT" \
           --max-duration-increase-pct "$ROBOTCI_MAX_DURATION" \
           --max-path-length-increase-pct "$ROBOTCI_MAX_PATH" \
+          --max-distance-to-goal-increase-m "$ROBOTCI_MAX_DISTANCE" \
           --max-stuck-events-increase "$ROBOTCI_MAX_STUCK" \
           --max-recoveries-increase "$ROBOTCI_MAX_RECOVERIES"
         status=$?

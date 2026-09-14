@@ -37,7 +37,7 @@ jobs:
 
           report_path = Path("${{ steps.passing.outputs.report }}")
           report = json.loads(report_path.read_text(encoding="utf-8"))
-          assert report["schema_version"] == 1
+          assert report["schema_version"] == 2
           assert report["kind"] == "suite_regression"
           assert report["status"] == "PASS"
           assert report["scenarios"][0]["status"] == "PASS"
@@ -81,17 +81,21 @@ jobs:
 
           report_path = Path("artifacts/regression-suite-report.json")
           report = json.loads(report_path.read_text(encoding="utf-8"))
-          assert report["schema_version"] == 1
+          assert report["schema_version"] == 2
           assert report["kind"] == "suite_regression"
           assert report["status"] == "REGRESSION"
           assert report["scenarios"][0]["status"] == "REGRESSION"
-          assert report["scenarios"][0]["findings"]
+          finding_metrics = {
+              item["metric"] for item in report["scenarios"][0]["findings"]
+          }
+          assert "distance_to_goal_m" in finding_metrics
 
           summary_path = Path("artifacts/regression-suite-summary.md")
           summary = summary_path.read_text(encoding="utf-8")
           assert "❌ **REGRESSION**" in summary
           assert "### Regression details" in summary
           assert "`duration_sec`" in summary
+          assert "`distance_to_goal_m`" in summary
 
           junit_path = Path("artifacts/regression-suite-junit.xml")
           junit = ET.parse(junit_path).getroot()
