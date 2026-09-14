@@ -524,14 +524,23 @@ def build_robotci_source_fingerprint(
         package_root or Path(__file__).resolve().parent
     ).resolve()
     runtime = (runtime_root or installed_package.parent).resolve()
-    runtime_package = runtime / "robotci"
-    package = (
-        runtime_package.resolve()
-        if runtime_package.is_dir()
+    runtime_package_candidate = runtime / "robotci"
+    runtime_package = (
+        runtime_package_candidate.resolve()
+        if runtime_package_candidate.is_dir()
         else installed_package
     )
+    package_roots = (
+        (("robotci", installed_package),)
+        if runtime_package == installed_package
+        else (
+            ("runner-package/robotci", installed_package),
+            ("runtime-package/robotci", runtime_package),
+        )
+    )
     sources = [
-        (f"robotci/{path.relative_to(package).as_posix()}", path)
+        (f"{label}/{path.relative_to(package).as_posix()}", path)
+        for label, package in package_roots
         for path in package.rglob("*.py")
     ]
     scripts = runtime / "scripts"

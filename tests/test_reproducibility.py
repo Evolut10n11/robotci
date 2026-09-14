@@ -434,7 +434,7 @@ def test_robotci_source_fingerprint_uses_separate_runtime_root(tmp_path: Path) -
     )
 
 
-def test_robotci_source_fingerprint_prefers_runtime_package(
+def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
     tmp_path: Path,
 ) -> None:
     installed_package = tmp_path / "site-packages" / "robotci"
@@ -463,8 +463,8 @@ def test_robotci_source_fingerprint_prefers_runtime_package(
         runtime_root=runtime,
     )
 
-    assert original == installed_changed
-    assert original != runtime_changed
+    assert original != installed_changed
+    assert installed_changed != runtime_changed
 
 
 def test_robotci_source_fingerprint_covers_external_attempt_script(
