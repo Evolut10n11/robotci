@@ -2,10 +2,15 @@ import sys
 
 from robotci.doctor import command_exists, run_doctor_checks
 from robotci.platform import PlatformInfo
+from robotci.runner import RuntimeUnavailableError
 
 
 def _checks_by_name(checks):
     return {check.name: check for check in checks}
+
+
+def _runtime_unavailable(_requested):
+    raise RuntimeUnavailableError("unavailable")
 
 
 def test_current_python_executable_exists() -> None:
@@ -22,13 +27,7 @@ def test_runtime_diagnostics_are_non_blocking_when_runtime_is_optional(monkeypat
         "robotci.doctor.get_docker_status",
         lambda: (False, "docker command was not found"),
     )
-    monkeypatch.setattr(
-        "robotci.doctor.select_runtime",
-        lambda _requested: (_ for _ in ()).throw(
-            __import__("robotci.runner", fromlist=["RuntimeUnavailableError"])
-            .RuntimeUnavailableError("unavailable")
-        ),
-    )
+    monkeypatch.setattr("robotci.doctor.select_runtime", _runtime_unavailable)
 
     checks = run_doctor_checks(require_ros=False)
     runtime_checks = [check for check in checks if check.name != "platform"]
@@ -86,8 +85,6 @@ def test_default_runtime_uses_native_ros_when_ready(monkeypatch) -> None:
 
 
 def test_default_runtime_fails_when_no_runtime_is_available(monkeypatch) -> None:
-    from robotci.runner import RuntimeUnavailableError
-
     monkeypatch.setattr(
         "robotci.doctor.current_platform",
         lambda: PlatformInfo("Windows", core_supported=True, ros_runtime_supported=False),
@@ -97,10 +94,7 @@ def test_default_runtime_fails_when_no_runtime_is_available(monkeypatch) -> None
         "robotci.doctor.get_docker_status",
         lambda: (False, "docker command was not found"),
     )
-    monkeypatch.setattr(
-        "robotci.doctor.select_runtime",
-        lambda _requested: (_ for _ in ()).throw(RuntimeUnavailableError("unavailable")),
-    )
+    monkeypatch.setattr("robotci.doctor.select_runtime", _runtime_unavailable)
     monkeypatch.delenv("ROS_DISTRO", raising=False)
 
     checks = _checks_by_name(run_doctor_checks())
@@ -134,8 +128,6 @@ def test_selected_runtime_matches_runner_when_ros_is_installed_but_unsourced(mon
 
 
 def test_strict_ros_mode_is_not_satisfied_by_docker(monkeypatch) -> None:
-    from robotci.runner import RuntimeUnavailableError
-
     monkeypatch.setattr(
         "robotci.doctor.current_platform",
         lambda: PlatformInfo("Linux", core_supported=True, ros_runtime_supported=True),
@@ -145,10 +137,7 @@ def test_strict_ros_mode_is_not_satisfied_by_docker(monkeypatch) -> None:
         "robotci.doctor.get_docker_status",
         lambda: (True, "docker daemon is available"),
     )
-    monkeypatch.setattr(
-        "robotci.doctor.select_runtime",
-        lambda _requested: (_ for _ in ()).throw(RuntimeUnavailableError("unavailable")),
-    )
+    monkeypatch.setattr("robotci.doctor.select_runtime", _runtime_unavailable)
     monkeypatch.delenv("ROS_DISTRO", raising=False)
 
     checks = _checks_by_name(run_doctor_checks(require_ros=True))
