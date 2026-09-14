@@ -13,6 +13,7 @@ from robotci.reproducibility import (
     ReproducibilityError,
     RuntimePackage,
     RuntimeVariable,
+    _installed_debian_packages,
     _resolve_attempt_script,
     build_robotci_source_fingerprint,
     build_runtime_environment,
@@ -251,6 +252,43 @@ def test_duplicate_runtime_packages_are_rejected() -> None:
             containerized=False,
             packages=(package, package),
         )
+
+
+def test_debian_package_inventory_covers_installed_dependency_closure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "robotci.reproducibility._DEBIAN_PACKAGES",
+        ("ros-jazzy-navigation2",),
+    )
+    output = (
+        "ii \\tros-jazzy-navigation2\\t1.0\\tros-jazzy-rclpy, "
+        "rmw-implementation\\t\\t\\n"
+        "ii \\tros-jazzy-rclpy\\t2.0\\tpython3:any\\t\\t\\n"
+        "ii \\trmw-fastrtps-cpp\\t3.0\\tlibfastdds\\t\\t"
+        "rmw-implementation\\n"
+        "ii \\tlibfastdds:amd64\\t4.0\\t\\tlibc6\\t\\n"
+        "ii \\tpython3\\t3.12\\tlibc6\\t\\t\\n"
+        "ii \\tlibc6:amd64\\t2.39\\t\\t\\t\\n"
+        "ii \\tunrelated\\t9.9\\t\\t\\t\\n"
+    )
+
+    def fake_run(command, **kwargs):
+        assert command[0:2] == ["dpkg-query", "-W"]
+        return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
+
+    monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
+
+    packages = _installed_debian_packages()
+
+    assert [(package.name, package.version) for package in packages] == [
+        ("libc6:amd64", "2.39"),
+        ("libfastdds:amd64", "4.0"),
+        ("python3", "3.12"),
+        ("rmw-fastrtps-cpp", "3.0"),
+        ("ros-jazzy-navigation2", "1.0"),
+        ("ros-jazzy-rclpy", "2.0"),
+    ]
 
 
 def test_robotci_source_fingerprint_uses_separate_runtime_root(tmp_path: Path) -> None:

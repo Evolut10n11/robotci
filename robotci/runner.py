@@ -147,7 +147,14 @@ def _run_native(
     environment = {
         name: value
         for name, value in os.environ.items()
-        if name not in {"BASH_ENV", "BASHOPTS", "ENV", "SHELLOPTS"}
+        if name
+        not in {
+            "BASH_ENV",
+            "BASHOPTS",
+            "ENV",
+            "PYTHONSAFEPATH",
+            "SHELLOPTS",
+        }
         and not name.startswith("BASH_FUNC_")
     }
     half_yaw = scenario.start.yaw / 2.0

@@ -369,9 +369,13 @@ def _read_os_release(path: Path = Path("/etc/os-release")) -> tuple[str, str]:
 
 
 def _installed_debian_packages() -> tuple[RuntimePackage, ...]:
+    query_format = (
+        "${db:Status-Abbrev}\\t${binary:Package}\\t${Version}\\t"
+        "${Depends}\\t${Pre-Depends}\\t${Provides}\\n"
+    )
     try:
         completed = subprocess.run(
-            ["dpkg-query", "-W", *_DEBIAN_PACKAGES],
+            ["dpkg-query", "-W", f"-f={query_format}"],
             capture_output=True,
             text=True,
             timeout=15,
@@ -383,19 +387,78 @@ def _installed_debian_packages() -> tuple[RuntimePackage, ...]:
         detail = completed.stderr.strip() or f"exit {completed.returncode}"
         raise ReproducibilityError(f"cannot inspect ROS package versions: {detail}")
 
-    found: dict[str, str] = {}
+    records: dict[str, tuple[str, str]] = {}
+    aliases: dict[str, set[str]] = {}
+    provided_by: dict[str, set[str]] = {}
+    provided_fields: dict[str, str] = {}
     for line in completed.stdout.splitlines():
-        fields = line.split(maxsplit=1)
-        if len(fields) == 2:
-            found[fields[0]] = fields[1]
-    missing = [name for name in _DEBIAN_PACKAGES if name not in found]
+        fields = line.split("\t")
+        if len(fields) != 6:
+            raise ReproducibilityError(
+                "cannot parse installed Debian package metadata"
+            )
+        status, name, version, depends, pre_depends, provides = fields
+        if not status.startswith("ii"):
+            continue
+        if not name or not version:
+            raise ReproducibilityError(
+                "installed Debian package metadata is incomplete"
+            )
+        records[name] = (version, ",".join(filter(None, (depends, pre_depends))))
+        provided_fields[name] = provides
+        aliases.setdefault(name, set()).add(name)
+        aliases.setdefault(name.split(":", 1)[0], set()).add(name)
+
+    def dependency_name(value: str) -> str:
+        token = value.strip().split(maxsplit=1)[0]
+        base, separator, qualifier = token.rpartition(":")
+        return base if separator and qualifier in {"any", "native"} else token
+
+    for package, provides in provided_fields.items():
+        for provided in provides.split(","):
+            if provided.strip():
+                provided_by.setdefault(
+                    dependency_name(provided),
+                    set(),
+                ).add(package)
+
+    pending: list[str] = []
+    missing = []
+    for root in _DEBIAN_PACKAGES:
+        matches = aliases.get(root, set())
+        if not matches:
+            missing.append(root)
+        pending.extend(matches)
     if missing:
         raise ReproducibilityError(
             "runtime is missing version metadata for: " + ", ".join(missing)
         )
+
+    closure: set[str] = set()
+    while pending:
+        package = pending.pop()
+        if package in closure:
+            continue
+        closure.add(package)
+        _, dependencies = records[package]
+        for group in dependencies.split(","):
+            if not group.strip():
+                continue
+            matches: set[str] = set()
+            for alternative in group.split("|"):
+                name = dependency_name(alternative)
+                matches.update(aliases.get(name, set()))
+                matches.update(provided_by.get(name, set()))
+            if not matches:
+                raise ReproducibilityError(
+                    f"cannot resolve installed dependency {group.strip()!r} "
+                    f"required by {package}"
+                )
+            pending.extend(matches)
+
     return tuple(
-        RuntimePackage(manager="deb", name=name, version=found[name])
-        for name in _DEBIAN_PACKAGES
+        RuntimePackage(manager="deb", name=name, version=records[name][0])
+        for name in sorted(closure)
     )
 
 

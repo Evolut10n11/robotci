@@ -12,7 +12,8 @@ an `execution` object with:
 - a canonical SHA-256 fingerprint of scenario order, poses, map, effective
   timeouts, and evidence policies;
 - the actual Ubuntu, architecture, Python, ROS distribution, container
-  isolation, Python-package, and ROS/Nav2 Debian-package versions;
+  isolation, Python-package versions, and the installed transitive dependency
+  closure of the ROS/Nav2 Debian packages;
 - a safe whitelist of inherited ROS/RMW discovery, middleware, overlay, loader,
   locale, and runtime-wrapper environment variables;
 - a source digest of the executable RobotCI Python and runtime shell files;
@@ -22,8 +23,8 @@ The runner captures metadata before the first attempt and verifies it again
 after the final attempt. It fails closed if the environment cannot be inspected
 or if any fingerprinted input changes during the suite. Docker metadata is
 collected inside one image built before the suite; every scenario uses that
-same image without rebuilding. Native execution strips Bash startup/function
-injection variables, honors the runner-selected Python across both shell
+same image without rebuilding. Native execution strips Bash startup/function injection variables and
+`PYTHONSAFEPATH`, honors the runner-selected Python across both shell
 layers, and fingerprints the checkout package when it shadows an installed
 distribution. A process running inside the image is recorded as the Docker
 runtime even though it invokes the native adapter internally.
