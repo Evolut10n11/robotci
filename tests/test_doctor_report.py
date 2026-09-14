@@ -4,7 +4,8 @@ from robotci.doctor import CheckResult
 from robotci.doctor_report import build_report, main
 
 
-def test_build_report_passes_with_only_non_blocking_failures() -> None:
+def test_build_report_passes_with_only_non_blocking_failures(monkeypatch) -> None:
+    monkeypatch.delenv("ROBOTCI_ATTEMPT_SCRIPT", raising=False)
     report = build_report(
         [
             CheckResult("platform", True, "supported"),
@@ -24,10 +25,33 @@ def test_build_report_passes_with_only_non_blocking_failures() -> None:
         "ok": True,
         "selected": "native",
         "message": "auto runtime will use native ROS2 Jazzy/Nav2",
+        "adapter_override": False,
     }
 
 
-def test_build_report_fails_on_blocking_failure() -> None:
+def test_build_report_reports_adapter_override_without_path(monkeypatch) -> None:
+    adapter_path = "/private/company/robotci_adapter.sh"
+    monkeypatch.setenv("ROBOTCI_ATTEMPT_SCRIPT", adapter_path)
+
+    report = build_report(
+        [
+            CheckResult(
+                "runtime",
+                True,
+                "auto runtime will use native ROS2 Jazzy/Nav2",
+                value="native",
+            )
+        ]
+    )
+    payload = json.dumps(report)
+
+    assert report["runtime"]["adapter_override"] is True
+    assert adapter_path not in payload
+    assert "robotci_adapter.sh" not in payload
+
+
+def test_build_report_fails_on_blocking_failure(monkeypatch) -> None:
+    monkeypatch.delenv("ROBOTCI_ATTEMPT_SCRIPT", raising=False)
     report = build_report(
         [
             CheckResult("platform", True, "supported"),
@@ -37,10 +61,12 @@ def test_build_report_fails_on_blocking_failure() -> None:
 
     assert report["status"] == "FAIL"
     assert report["runtime"]["selected"] == "none"
+    assert report["runtime"]["adapter_override"] is False
     assert report["checks"][1]["blocking"] is True
 
 
 def test_main_writes_json_and_returns_success(monkeypatch, tmp_path) -> None:
+    monkeypatch.delenv("ROBOTCI_ATTEMPT_SCRIPT", raising=False)
     monkeypatch.setattr(
         "robotci.doctor_report.run_doctor_checks",
         lambda require_ros=None: [
@@ -57,6 +83,7 @@ def test_main_writes_json_and_returns_success(monkeypatch, tmp_path) -> None:
     assert report["status"] == "PASS"
     assert report["runtime"]["selected"] == "docker"
     assert report["runtime"]["message"] == "auto runtime will use Docker"
+    assert report["runtime"]["adapter_override"] is False
 
 
 def test_main_forwards_strict_native_mode(monkeypatch, tmp_path) -> None:
