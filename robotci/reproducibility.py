@@ -789,7 +789,7 @@ def build_robotci_source_fingerprint(
                 )
         if not import_sources:
             continue
-        if candidate.is_symlink():
+        if candidate.is_symlink() and candidate not in import_sources:
             # Keep the lexical import entry in addition to the files reachable
             # through it. Python imports through the link name, while changing
             # the link target can change package/resource behavior.
@@ -832,7 +832,7 @@ def build_robotci_source_fingerprint(
                     import_sources = package_sources(candidate)
             if not import_sources:
                 continue
-            if candidate.is_symlink():
+            if candidate.is_symlink() and candidate not in import_sources:
                 # Package-managed import roots may expose packages as links
                 # (for example Ubuntu's lldb package). Fingerprint both the
                 # lexical link and every reachable package file.
