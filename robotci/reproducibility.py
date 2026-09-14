@@ -398,7 +398,7 @@ def _installed_debian_packages() -> tuple[RuntimePackage, ...]:
                 "cannot parse installed Debian package metadata"
             )
         status, name, version, depends, pre_depends, provides = fields
-        if not status.startswith("ii"):
+        if len(status) < 3 or status[1:] != "i ":
             continue
         if not name or not version:
             raise ReproducibilityError(

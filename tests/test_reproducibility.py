@@ -262,7 +262,7 @@ def test_debian_package_inventory_covers_installed_dependency_closure(
         ("ros-jazzy-navigation2",),
     )
     output = (
-        "ii \tros-jazzy-navigation2\t1.0\tros-jazzy-rclpy, "
+        "hi \tros-jazzy-navigation2\t1.0\tros-jazzy-rclpy, "
         "rmw-implementation\t\t\n"
         "ii \tros-jazzy-rclpy\t2.0\tpython3:any\t\t\n"
         "ii \trmw-fastrtps-cpp\t3.0\tlibfastdds\t\t"
