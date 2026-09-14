@@ -225,7 +225,13 @@ def test_suite_gate_honors_distance_threshold_override(tmp_path: Path) -> None:
 
     blocked = runner.invoke(
         app,
-        ["--baseline", str(baseline), "--candidate", str(candidate)],
+        [
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--json",
+        ],
     )
     allowed = runner.invoke(
         app,
@@ -240,7 +246,11 @@ def test_suite_gate_honors_distance_threshold_override(tmp_path: Path) -> None:
     )
 
     assert blocked.exit_code == 4
-    assert "distance_to_goal_m" in blocked.stdout
+    blocked_payload = json.loads(blocked.stdout)
+    assert [
+        finding["metric"]
+        for finding in blocked_payload["scenarios"][0]["findings"]
+    ] == ["distance_to_goal_m"]
     assert allowed.exit_code == 0
 
 
