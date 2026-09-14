@@ -27,6 +27,7 @@ from robotci.replay import default_replay_path
 from robotci.reproducibility import (
     ReproducibilityError,
     capture_suite_execution,
+    docker_compose_command_prefix,
     inherited_runtime_environment,
     runtime_python_dependency_roots,
 )
@@ -219,8 +220,7 @@ def _run_docker(
     config_mount = f"{config_path.resolve()}:/workspace/robotci.yaml:ro"
 
     command = [
-        "docker",
-        "compose",
+        *docker_compose_command_prefix(runtime_root),
         "run",
         "--rm",
     ]
