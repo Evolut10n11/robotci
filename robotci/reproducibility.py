@@ -336,37 +336,42 @@ def _installed_python_packages() -> tuple[RuntimePackage, ...]:
 
 def build_robotci_source_fingerprint(
     package_root: Path | None = None,
+    *,
+    runtime_root: Path | None = None,
 ) -> str:
     """Hash the executable RobotCI Python and shell sources used by the runtime."""
 
-    root = (package_root or Path(__file__).resolve().parent).resolve()
-    runtime_root = root.parent
-    paths = [*root.rglob("*.py")]
-    scripts = runtime_root / "scripts"
+    package = (package_root or Path(__file__).resolve().parent).resolve()
+    runtime = (runtime_root or package.parent).resolve()
+    sources = [
+        (f"robotci/{path.relative_to(package).as_posix()}", path)
+        for path in package.rglob("*.py")
+    ]
+    scripts = runtime / "scripts"
     if scripts.is_dir():
-        paths.extend(scripts.glob("*.sh"))
-    paths = sorted({path.resolve() for path in paths})
-    if not paths:
+        sources.extend(
+            (f"scripts/{path.relative_to(scripts).as_posix()}", path)
+            for path in scripts.glob("*.sh")
+        )
+    sources = sorted(sources, key=lambda item: item[0])
+    if not sources:
         raise ReproducibilityError("RobotCI runtime source files are unavailable")
 
     files: list[dict[str, str]] = []
-    for path in paths:
+    for relative, path in sources:
         try:
             digest = sha256(path.read_bytes()).hexdigest()
         except OSError as exc:
             raise ReproducibilityError(
                 f"cannot read RobotCI runtime source '{path}': {exc}"
             ) from exc
-        files.append(
-            {
-                "path": path.relative_to(runtime_root).as_posix(),
-                "sha256": digest,
-            }
-        )
+        files.append({"path": relative, "sha256": digest})
     return _fingerprint({"files": files})
 
 
-def collect_runtime_environment() -> RuntimeEnvironment:
+def collect_runtime_environment(
+    runtime_root: Path | None = None,
+) -> RuntimeEnvironment:
     """Capture the actual process environment used to execute the Nav2 suite."""
 
     os_id, os_version = _read_os_release()
@@ -384,7 +389,7 @@ def collect_runtime_environment() -> RuntimeEnvironment:
         architecture=platform.machine(),
         python_version=platform.python_version(),
         ros_distro=ros_distro,
-        robotci_build=build_robotci_source_fingerprint(),
+        robotci_build=build_robotci_source_fingerprint(runtime_root=runtime_root),
         containerized=Path("/.dockerenv").exists()
         or Path("/run/.containerenv").exists(),
         packages=(*_installed_python_packages(), *_installed_debian_packages()),
@@ -585,7 +590,7 @@ def capture_suite_execution(
     runtime_root: Path,
 ) -> SuiteExecutionIdentity:
     environment = (
-        collect_runtime_environment()
+        collect_runtime_environment(runtime_root)
         if runtime == "native"
         else _collect_docker_environment(runtime_root)
     )
@@ -600,7 +605,9 @@ def capture_suite_execution(
 
 
 def main() -> int:
-    payload = runtime_environment_payload(collect_runtime_environment())
+    payload = runtime_environment_payload(
+        collect_runtime_environment(Path.cwd())
+    )
     print(json.dumps(payload, allow_nan=False, separators=(",", ":"), sort_keys=True))
     return 0
 

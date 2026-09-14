@@ -185,19 +185,23 @@ def test_duplicate_runtime_packages_are_rejected() -> None:
         )
 
 
-def test_robotci_source_fingerprint_changes_with_executable_source(tmp_path: Path) -> None:
-    package = tmp_path / "robotci"
-    scripts = tmp_path / "scripts"
-    package.mkdir()
-    scripts.mkdir()
-    source = package / "runner.py"
-    source.write_text("VALUE = 1\n", encoding="utf-8")
-    (scripts / "run.sh").write_text("exit 0\n", encoding="utf-8")
+def test_robotci_source_fingerprint_uses_separate_runtime_root(tmp_path: Path) -> None:
+    package = tmp_path / "site-packages" / "robotci"
+    runtime = tmp_path / "workspace"
+    scripts = runtime / "scripts"
+    package.mkdir(parents=True)
+    scripts.mkdir(parents=True)
+    (package / "runner.py").write_text("VALUE = 1\n", encoding="utf-8")
+    script = scripts / "run.sh"
+    script.write_text("exit 0\n", encoding="utf-8")
 
-    original = build_robotci_source_fingerprint(package)
-    source.write_text("VALUE = 2\n", encoding="utf-8")
+    original = build_robotci_source_fingerprint(package, runtime_root=runtime)
+    script.write_text("exit 1\n", encoding="utf-8")
 
-    assert original != build_robotci_source_fingerprint(package)
+    assert original != build_robotci_source_fingerprint(
+        package,
+        runtime_root=runtime,
+    )
 
 
 def test_boolean_provenance_schema_versions_are_rejected() -> None:
