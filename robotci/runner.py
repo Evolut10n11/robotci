@@ -157,7 +157,7 @@ def _run_native(
             "SHELLOPTS",
         }
         and not name.startswith("BASH_FUNC_")
-        and (name == "PYTHONPATH" or not name.startswith("PYTHON"))
+        and not name.startswith("PYTHON")
     }
     half_yaw = scenario.start.yaw / 2.0
 

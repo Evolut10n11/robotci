@@ -204,6 +204,7 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     monkeypatch.setenv("BASH_ENV", str(tmp_path / "startup.sh"))
     monkeypatch.setenv("ENV", str(tmp_path / "posix-startup.sh"))
     monkeypatch.setenv("PYTHONHOME", str(tmp_path / "python-home"))
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path / "untrusted-python"))
     monkeypatch.setenv("PYTHONSAFEPATH", "1")
     monkeypatch.setenv("PYTHONWARNINGS", "error")
     monkeypatch.setenv("BASH_FUNC_injected%%", "() { return 0; }")
@@ -231,6 +232,7 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert "BASH_ENV" not in environment
     assert "ENV" not in environment
     assert "PYTHONHOME" not in environment
+    assert "PYTHONPATH" not in environment
     assert "PYTHONSAFEPATH" not in environment
     assert "PYTHONWARNINGS" not in environment
     assert environment["PYTHONHASHSEED"] == "0"

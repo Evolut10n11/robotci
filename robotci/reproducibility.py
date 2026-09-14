@@ -44,7 +44,6 @@ _RUNTIME_VARIABLE_NAMES = frozenset(
         "LANGUAGE",
         "LD_LIBRARY_PATH",
         "PATH",
-        "PYTHONPATH",
         "ROBOTCI_ATTEMPT_SCRIPT",
         "ROBOTCI_LOG_FILE",
         "ROBOTCI_RETRY_DELAY_SEC",
