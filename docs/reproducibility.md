@@ -15,7 +15,8 @@ an `execution` object with:
   isolation, Python-package versions, and the installed transitive dependency
   closure of the ROS/Nav2 Debian packages;
 - a safe whitelist of inherited ROS/RMW discovery, middleware, overlay, loader,
-  locale, and runtime-wrapper environment variables;
+  locale, and runtime-wrapper variables, stored only as value SHA-256 digests;
+- content digests for file-backed middleware configuration;
 - a source digest of the executable RobotCI Python and runtime shell files;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
 
@@ -26,8 +27,10 @@ collected inside one image built before the suite; every scenario uses that
 same image without rebuilding. Native execution strips Bash startup/function injection variables, rejects
 process-level `LD_AUDIT`/`LD_PRELOAD` injection, drops every inherited Python
 startup/control variable including `PYTHONPATH`, and sets a fixed hash seed,
-UTF-8, and no user site. The attempt sources the packaged ROS Jazzy setup while
-Python resolves RobotCI from the fingerprinted runtime checkout. It honors the
+UTF-8, and no user site. The cleanup helper uses Python isolated mode and adds
+the fingerprinted package only after interpreter startup, so checkout-level
+`sitecustomize.py` hooks cannot run. The attempt sources the packaged ROS Jazzy
+setup while Python resolves RobotCI from the fingerprinted runtime checkout. It honors the
 runner-selected Python across both shell layers and fingerprints the checkout
 package when it shadows an installed distribution. A process running inside the image is recorded as the Docker
 runtime even though it invokes the native adapter internally.

@@ -16,15 +16,17 @@ fi
 clear_attempt_artifacts() {
   # Use the same helper and Python as the runtime; duplicating pathlib suffix
   # rules in Bash can leave stale replay files for unusual output names.
-  PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -c '
+  "$PYTHON_BIN" -I -c '
 import sys
 from pathlib import Path
+
+sys.path.insert(0, sys.argv[1])
 from robotci.replay import default_replay_path
 
-result = Path(sys.argv[1])
-for artifact in (result, default_replay_path(result), Path(sys.argv[2])):
+result = Path(sys.argv[2])
+for artifact in (result, default_replay_path(result), Path(sys.argv[3])):
     artifact.unlink(missing_ok=True)
-' "$RESULT_FILE" "$LOG_FILE"
+' "$SCRIPT_DIR/.." "$RESULT_FILE" "$LOG_FILE"
 }
 
 terminate_active_attempt() {

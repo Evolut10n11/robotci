@@ -312,6 +312,39 @@ def test_runtime_scripts_respect_explicit_python(script_name: str) -> None:
 
 
 @pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
+def test_cleanup_python_ignores_sitecustomize_from_pythonpath(tmp_path: Path) -> None:
+    wrapper = Path(__file__).resolve().parents[1] / "scripts/run_navigation_scenario.sh"
+    adapter = tmp_path / "adapter.sh"
+    marker = tmp_path / "sitecustomize-ran"
+    (tmp_path / "sitecustomize.py").write_text(
+        "import os\nfrom pathlib import Path\n"
+        "Path(os.environ['STARTUP_MARKER']).write_text('ran', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    adapter.write_text("exit 0\n", encoding="utf-8")
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(tmp_path),
+        "STARTUP_MARKER": str(marker),
+        "ROBOTCI_ATTEMPT_SCRIPT": str(adapter),
+        "ROBOTCI_PYTHON": sys.executable,
+        "ROBOTCI_RESULT_FILE": str(tmp_path / "result.json"),
+        "ROBOTCI_LOG_FILE": str(tmp_path / "nav2.log"),
+    }
+
+    completed = subprocess.run(
+        ["bash", str(wrapper)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        timeout=10,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert not marker.exists()
+
+
+@pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
 @pytest.mark.parametrize("filename", [
     "result.json", "result", ".result", ".result.json", "..json", "...json",
     "..x.json", "result.", "...", "with spaces.json", "result.json\n",

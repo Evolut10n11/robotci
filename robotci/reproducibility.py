@@ -13,6 +13,7 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as distribution_version
 from pathlib import Path
 from typing import Literal, cast
+from urllib.parse import unquote, urlparse
 
 from robotci.config import RobotCIConfig
 
@@ -60,6 +61,17 @@ _RUNTIME_VARIABLE_PREFIXES = (
     "ZENOH_",
 )
 _UNSUPPORTED_LOADER_VARIABLES = ("LD_AUDIT", "LD_PRELOAD")
+_FILE_BACKED_RUNTIME_VARIABLES = frozenset(
+    {
+        "CYCLONEDDS_URI",
+        "FASTDDS_DEFAULT_PROFILES_FILE",
+        "FASTRTPS_DEFAULT_PROFILES_FILE",
+        "RMW_ZENOH_ROUTER_CONFIG_URI",
+    }
+)
+_FILE_BACKED_RUNTIME_SUFFIXES = ("_FILE", "_URI")
+
+
 
 
 class ReproducibilityError(ValueError):
@@ -228,10 +240,10 @@ def build_runtime_environment(
             raise ReproducibilityError(
                 f"duplicate runtime variable: {variable_name}"
             )
-        if not isinstance(variable.value, str):
-            raise ReproducibilityError(
-                f"runtime variable {variable_name!r} must have a string value"
-            )
+        _fingerprint_text(
+            variable.value,
+            f"runtime variable {variable_name!r} value",
+        )
         seen_variables.add(variable_name)
 
     definition = _environment_definition(
@@ -572,7 +584,67 @@ def _resolve_attempt_script(runtime: Path) -> tuple[Path, str]:
     return attempt_script, attempt_identity
 
 
-def _runtime_variables() -> tuple[RuntimeVariable, ...]:
+def _runtime_configuration_path(
+    name: str,
+    value: str,
+    runtime_root: Path,
+) -> Path | None:
+    file_backed = name in _FILE_BACKED_RUNTIME_VARIABLES or (
+        name.startswith(_RUNTIME_VARIABLE_PREFIXES)
+        and name.endswith(_FILE_BACKED_RUNTIME_SUFFIXES)
+    )
+    if not file_backed:
+        return None
+
+    stripped = value.strip()
+    if stripped.startswith(("<", "{", "[")):
+        return None
+
+    direct_path = Path(stripped)
+    if direct_path.is_absolute():
+        path = direct_path
+    else:
+        parsed = urlparse(stripped)
+        if parsed.scheme:
+            if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
+                raise ReproducibilityError(
+                    f"remote runtime configuration is unsupported for {name}"
+                )
+            path = Path(unquote(parsed.path))
+        else:
+            path = runtime_root / direct_path
+
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError as exc:
+        raise ReproducibilityError(
+            f"cannot resolve file-backed runtime variable {name}: {exc}"
+        ) from exc
+    if not resolved.is_file():
+        raise ReproducibilityError(
+            f"file-backed runtime variable {name} must reference a regular file"
+        )
+    return resolved
+
+
+def _runtime_variable_value_fingerprint(
+    name: str,
+    value: str,
+    runtime_root: Path,
+) -> str:
+    definition: dict[str, object] = {"value": value}
+    configuration = _runtime_configuration_path(name, value, runtime_root)
+    if configuration is not None:
+        try:
+            definition["file_sha256"] = sha256(configuration.read_bytes()).hexdigest()
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot read file-backed runtime variable {name}: {exc}"
+            ) from exc
+    return _fingerprint(definition)
+
+
+def _runtime_variables(runtime_root: Path) -> tuple[RuntimeVariable, ...]:
     names = sorted(
         name
         for name in os.environ
@@ -580,7 +652,14 @@ def _runtime_variables() -> tuple[RuntimeVariable, ...]:
         or name.startswith(_RUNTIME_VARIABLE_PREFIXES)
     )
     return tuple(
-        RuntimeVariable(name=name, value=os.environ[name])
+        RuntimeVariable(
+            name=name,
+            value=_runtime_variable_value_fingerprint(
+                name,
+                os.environ[name],
+                runtime_root,
+            ),
+        )
         for name in names
     )
 
@@ -629,7 +708,7 @@ def collect_runtime_environment(
         containerized=Path("/.dockerenv").exists()
         or Path("/run/.containerenv").exists(),
         packages=(*_installed_python_packages(), *_installed_debian_packages()),
-        runtime_variables=_runtime_variables(),
+        runtime_variables=_runtime_variables(runtime),
     )
 
 

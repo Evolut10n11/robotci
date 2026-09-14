@@ -15,6 +15,7 @@ from robotci.reproducibility import (
     RuntimeVariable,
     _installed_debian_packages,
     _resolve_attempt_script,
+    _runtime_variables,
     build_robotci_source_fingerprint,
     build_runtime_environment,
     build_suite_execution_identity,
@@ -112,14 +113,14 @@ def test_environment_fingerprint_is_independent_of_package_order() -> None:
 def test_environment_fingerprint_covers_runtime_variables() -> None:
     original = _environment(
         runtime_variables=(
-            RuntimeVariable(name="ROS_DOMAIN_ID", value="7"),
-            RuntimeVariable(name="RMW_IMPLEMENTATION", value="rmw_fastrtps_cpp"),
+            RuntimeVariable(name="ROS_DOMAIN_ID", value="sha256:" + "7" * 64),
+            RuntimeVariable(name="RMW_IMPLEMENTATION", value="sha256:" + "4" * 64),
         )
     )
     changed = _environment(
         runtime_variables=(
-            RuntimeVariable(name="ROS_DOMAIN_ID", value="8"),
-            RuntimeVariable(name="RMW_IMPLEMENTATION", value="rmw_fastrtps_cpp"),
+            RuntimeVariable(name="ROS_DOMAIN_ID", value="sha256:" + "8" * 64),
+            RuntimeVariable(name="RMW_IMPLEMENTATION", value="sha256:" + "4" * 64),
         )
     )
 
@@ -252,6 +253,43 @@ def test_runtime_environment_rejects_loader_injection(
         match="loader injection is unsupported",
     ):
         collect_runtime_environment(tmp_path)
+
+
+def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configuration = tmp_path / "cyclonedds.xml"
+    configuration.write_text("<CycloneDDS/>\n", encoding="utf-8")
+    monkeypatch.setenv("CYCLONEDDS_URI", str(configuration))
+    monkeypatch.setenv("ROS_API_TOKEN", "super-secret")
+
+    first = {item.name: item.value for item in _runtime_variables(tmp_path)}
+    serialized = json.dumps(first)
+
+    assert "super-secret" not in serialized
+    assert str(configuration) not in serialized
+    assert first["ROS_API_TOKEN"].startswith("sha256:")
+    assert len(first["ROS_API_TOKEN"]) == 71
+
+    configuration.write_text("<CycloneDDS><Domain/></CycloneDDS>\n", encoding="utf-8")
+    changed = {item.name: item.value for item in _runtime_variables(tmp_path)}
+
+    assert first["ROS_API_TOKEN"] == changed["ROS_API_TOKEN"]
+    assert first["CYCLONEDDS_URI"] != changed["CYCLONEDDS_URI"]
+
+
+def test_runtime_variables_reject_remote_configuration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("CYCLONEDDS_URI", "https://example.invalid/cyclonedds.xml")
+
+    with pytest.raises(
+        ReproducibilityError,
+        match="remote runtime configuration is unsupported",
+    ):
+        _runtime_variables(tmp_path)
 
 
 def test_duplicate_runtime_packages_are_rejected() -> None:
