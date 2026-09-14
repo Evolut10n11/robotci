@@ -202,6 +202,7 @@ def _run_native(
                     "PYTHONHASHSEED": "0",
                     "PYTHONNOUSERSITE": "1",
                     "PYTHONPATH": dependency_path,
+                    "ROBOTCI_PYTHONPATH": dependency_path,
                     "PYTHONPYCACHEPREFIX": pycache,
                     "PYTHONDONTWRITEBYTECODE": "1",
                     "PYTHONUTF8": "1",

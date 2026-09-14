@@ -13,10 +13,36 @@ if [ -z "${ROBOTCI_PYTHON:-}" ] && [ -x ".venv/bin/python" ]; then
   PYTHON_BIN=".venv/bin/python"
 fi
 
+# -S disables site startup hooks, so dependency paths must be supplied
+# explicitly. The runner provides an audited path; direct wrapper invocations
+# fall back to the interpreter's standard install locations without honoring an
+# inherited PYTHONPATH.
+RUNTIME_PYTHONPATH="${ROBOTCI_PYTHONPATH:-}"
+if [ -z "$RUNTIME_PYTHONPATH" ]; then
+  RUNTIME_PYTHONPATH="$(
+    "$PYTHON_BIN" -S -B -c '
+import sysconfig
+
+paths = sysconfig.get_paths()
+print(":".join(dict.fromkeys(
+    path for path in (paths.get("purelib"), paths.get("platlib")) if path
+)))
+'
+  )" || {
+    echo "RobotCI runtime error: cannot resolve Python dependency paths." >&2
+    exit 3
+  }
+fi
+if [ -z "$RUNTIME_PYTHONPATH" ]; then
+  echo "RobotCI runtime error: Python dependency paths are unavailable." >&2
+  exit 3
+fi
+export PYTHONPATH="$SCRIPT_DIR/..:$RUNTIME_PYTHONPATH"
+
 clear_attempt_artifacts() {
   # Use the same helper and Python as the runtime; duplicating pathlib suffix
   # rules in Bash can leave stale replay files for unusual output names.
-  PYTHONPATH="$SCRIPT_DIR/.." "$PYTHON_BIN" -S -B -c '
+  "$PYTHON_BIN" -S -B -c '
 import sys
 from pathlib import Path
 

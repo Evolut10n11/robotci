@@ -330,6 +330,10 @@ def test_cleanup_python_ignores_sitecustomize_from_pythonpath(tmp_path: Path) ->
         "Path(os.environ['STARTUP_MARKER']).write_text('ran', encoding='utf-8')\n",
         encoding="utf-8",
     )
+    (tmp_path / "yaml.py").write_text(
+        "raise RuntimeError('inherited PYTHONPATH was imported')\n",
+        encoding="utf-8",
+    )
     adapter.write_text("exit 0\n", encoding="utf-8")
     env = {
         **os.environ,

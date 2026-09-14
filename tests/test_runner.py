@@ -210,6 +210,7 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     monkeypatch.setenv("ENV", str(tmp_path / "posix-startup.sh"))
     monkeypatch.setenv("PYTHONHOME", str(tmp_path / "python-home"))
     monkeypatch.setenv("PYTHONPATH", str(tmp_path / "untrusted-python"))
+    monkeypatch.setenv("ROBOTCI_PYTHONPATH", str(tmp_path / "untrusted-robotci-python"))
     monkeypatch.setenv("PYTHONSAFEPATH", "1")
     monkeypatch.setenv("PYTHONWARNINGS", "error")
     monkeypatch.setenv("PATH", str(tmp_path / "untrusted-bin"))
@@ -253,6 +254,7 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert "ENV" not in environment
     assert "PYTHONHOME" not in environment
     assert environment["PYTHONPATH"] == "/trusted/python-packages"
+    assert environment["ROBOTCI_PYTHONPATH"] == "/trusted/python-packages"
     assert "untrusted-python" not in environment["PYTHONPATH"]
     assert "PYTHONSAFEPATH" not in environment
     assert "PYTHONWARNINGS" not in environment
