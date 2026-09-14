@@ -17,8 +17,10 @@ an `execution` object with:
   shell/runtime tools;
 - a safe whitelist of inherited ROS/RMW behavior, RCUTILS logging, middleware,
   locale, and runtime-wrapper variables, stored only as value SHA-256 digests;
-- content digests for file-backed middleware configuration and explicit,
-  permission-aware ROS security keystore walks that fail on unreadable nodes;
+- content digests for file-backed middleware configuration and the implicit
+  `DEFAULT_FASTDDS_PROFILES.xml` in the runtime working directory, including
+  the `SKIP_DEFAULT_XML` activation control, plus permission-aware ROS security
+  keystore walks that fail on unreadable nodes;
 - source, sourceless bytecode outside generated cache directories, and
   native-extension digests from both the outer RobotCI runner package and the
   subprocess package when their roots
