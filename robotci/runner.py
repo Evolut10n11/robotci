@@ -27,6 +27,7 @@ from robotci.replay import default_replay_path
 from robotci.reproducibility import (
     ReproducibilityError,
     capture_suite_execution,
+    inherited_runtime_environment,
     runtime_python_dependency_roots,
 )
 from robotci.result_schema import (
@@ -56,22 +57,6 @@ _EXIT_BY_STATUS = {
 _STATUS_BY_EXIT = {code: status for status, code in _EXIT_BY_STATUS.items()}
 
 _NATIVE_PATH = "/usr/sbin:/usr/bin:/sbin:/bin"
-_NATIVE_SETUP_VARIABLES = frozenset(
-    {
-        "AMENT_PREFIX_PATH",
-        "CMAKE_PREFIX_PATH",
-        "COLCON_PREFIX_PATH",
-        "LD_LIBRARY_PATH",
-        "PATH",
-        "ROS_DISTRO",
-        "ROS_ETC_DIR",
-        "ROS_PACKAGE_PATH",
-        "ROS_PYTHON_VERSION",
-        "ROS_VERSION",
-    }
-)
-
-
 class RuntimeUnavailableError(RuntimeError):
     """Raised when RobotCI cannot find a usable scenario runtime."""
 
@@ -172,22 +157,7 @@ def _run_native(
     timeout_sec: float,
 ) -> int:
     script = runtime_root / "scripts" / "run_navigation_scenario.sh"
-    environment = {
-        name: value
-        for name, value in os.environ.items()
-        if name
-        not in {
-            "BASH_ENV",
-            "BASHOPTS",
-            "ENV",
-            "LD_AUDIT",
-            "LD_PRELOAD",
-            "SHELLOPTS",
-            *_NATIVE_SETUP_VARIABLES,
-        }
-        and not name.startswith("BASH_FUNC_")
-        and not name.startswith("PYTHON")
-    }
+    environment = inherited_runtime_environment()
     half_yaw = scenario.start.yaw / 2.0
     dependency_path = os.pathsep.join(_native_python_dependency_paths())
 
