@@ -398,6 +398,64 @@ def test_run_suite_uses_configured_scenarios_and_timeouts(
     ]
 
 
+def test_run_suite_rejects_runtime_environment_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path)
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+    drifted_execution = build_suite_execution_identity(
+        runtime="native",
+        plan_fingerprint=_TEST_EXECUTION.plan_fingerprint,
+        environment=build_runtime_environment(
+            os_id="ubuntu",
+            os_version="24.04",
+            architecture="x86_64",
+            python_version="3.12.4",
+            ros_distro="jazzy",
+            robotci_build="sha256:" + "3" * 64,
+            containerized=False,
+            packages=(
+                RuntimePackage(manager="python", name="robotci", version="0.0.1"),
+            ),
+        ),
+    )
+    captures = iter((_TEST_EXECUTION, drifted_execution))
+    monkeypatch.setattr(
+        runner,
+        "capture_suite_execution",
+        lambda **kwargs: next(captures),
+    )
+
+    def fake_run_native(
+        project_root: Path,
+        scenario: ScenarioConfig,
+        output: Path,
+        timeout_sec: float,
+    ) -> int:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(_runtime_result_payload(scenario)),
+            encoding="utf-8",
+        )
+        return 0
+
+    monkeypatch.setattr(runner, "_run_native", fake_run_native)
+    suite_path = tmp_path / "suite-result.json"
+
+    with pytest.raises(
+        runner.RuntimeUnavailableError,
+        match="runtime environment changed during suite execution",
+    ):
+        runner.run_suite(
+            output=suite_path,
+            project_root=tmp_path,
+        )
+
+    assert not suite_path.exists()
+
+
 def test_run_suite_keeps_outputs_in_external_project(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

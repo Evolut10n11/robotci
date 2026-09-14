@@ -186,6 +186,8 @@ def _run_docker(
     output: Path,
     timeout_sec: float,
     config_path: Path,
+    *,
+    build_image: bool = True,
 ) -> int:
     container_result = f"/workspace/artifacts/{scenario.name}/result.json"
     host_result = runtime_root / "artifacts" / scenario.name / "result.json"
@@ -199,23 +201,28 @@ def _run_docker(
         "compose",
         "run",
         "--rm",
-        "--build",
-        "--volume",
-        config_mount,
-        "robotci",
-        "robotci",
-        "run",
-        "--runtime",
-        "native",
-        "--config",
-        "/workspace/robotci.yaml",
-        "--scenario",
-        scenario.name,
-        "--output",
-        container_result,
-        "--timeout-sec",
-        str(timeout_sec),
     ]
+    if build_image:
+        command.append("--build")
+    command.extend(
+        [
+            "--volume",
+            config_mount,
+            "robotci",
+            "robotci",
+            "run",
+            "--runtime",
+            "native",
+            "--config",
+            "/workspace/robotci.yaml",
+            "--scenario",
+            scenario.name,
+            "--output",
+            container_result,
+            "--timeout-sec",
+            str(timeout_sec),
+        ]
+    )
 
     try:
         completed = subprocess.run(command, cwd=runtime_root, check=False)
@@ -423,6 +430,19 @@ def run_suite(
 
     scenario_dir = suite_path.parent / "results"
     started_at = time.monotonic()
+    try:
+        execution = capture_suite_execution(
+            config=config,
+            timeout_sec=timeout_sec,
+            runtime=selected,
+            runtime_root=runtime_root,
+            build_docker_image=selected == "docker",
+        )
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(
+            f"cannot capture reproducible runtime environment: {exc}"
+        ) from exc
+
     scenario_results: list[SuiteScenarioResult] = []
     final_exit_code = 0
 
@@ -442,6 +462,7 @@ def run_suite(
                 result_path,
                 effective_timeout,
                 context.config_path,
+                build_image=False,
             )
 
         normalized_exit, status, duration = _finalize_result(
@@ -458,7 +479,7 @@ def run_suite(
         )
 
     try:
-        execution = capture_suite_execution(
+        verified_execution = capture_suite_execution(
             config=config,
             timeout_sec=timeout_sec,
             runtime=selected,
@@ -466,8 +487,12 @@ def run_suite(
         )
     except ReproducibilityError as exc:
         raise RuntimeUnavailableError(
-            f"cannot capture reproducible runtime environment: {exc}"
+            f"cannot verify reproducible runtime environment: {exc}"
         ) from exc
+    if verified_execution.fingerprint != execution.fingerprint:
+        raise RuntimeUnavailableError(
+            "runtime environment changed during suite execution"
+        )
 
     suite_status = cast(ScenarioStatus, _STATUS_BY_EXIT[final_exit_code])
     suite = SuiteResult(

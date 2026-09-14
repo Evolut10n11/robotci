@@ -604,25 +604,35 @@ def validate_suite_execution(
     return execution
 
 
-def _collect_docker_environment(runtime_root: Path) -> RuntimeEnvironment:
+def _collect_docker_environment(
+    runtime_root: Path,
+    *,
+    build_image: bool = False,
+) -> RuntimeEnvironment:
     command = [
         "docker",
         "compose",
         "run",
         "--rm",
         "--no-deps",
-        "robotci",
-        "python",
-        "-m",
-        "robotci.reproducibility",
     ]
+    if build_image:
+        command.append("--build")
+    command.extend(
+        [
+            "robotci",
+            "python",
+            "-m",
+            "robotci.reproducibility",
+        ]
+    )
     try:
         completed = subprocess.run(
             command,
             cwd=runtime_root,
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=300 if build_image else 60,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -649,11 +659,15 @@ def capture_suite_execution(
     timeout_sec: float | None,
     runtime: ExecutionRuntime,
     runtime_root: Path,
+    build_docker_image: bool = False,
 ) -> SuiteExecutionIdentity:
     environment = (
         collect_runtime_environment(runtime_root)
         if runtime == "native"
-        else _collect_docker_environment(runtime_root)
+        else _collect_docker_environment(
+            runtime_root,
+            build_image=build_docker_image,
+        )
     )
     return build_suite_execution_identity(
         runtime=runtime,

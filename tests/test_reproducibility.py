@@ -170,6 +170,47 @@ def test_capture_suite_execution_reads_environment_from_docker(
     assert execution.environment == environment
 
 
+def test_capture_suite_execution_can_build_docker_image(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    environment = _environment(containerized=True)
+
+    def fake_run(command, **kwargs):
+        assert command == [
+            "docker",
+            "compose",
+            "run",
+            "--rm",
+            "--no-deps",
+            "--build",
+            "robotci",
+            "python",
+            "-m",
+            "robotci.reproducibility",
+        ]
+        assert kwargs["timeout"] == 300
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(asdict(environment)),
+            stderr="",
+        )
+
+    monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
+
+    execution = capture_suite_execution(
+        config=_config(),
+        timeout_sec=None,
+        runtime="docker",
+        runtime_root=tmp_path,
+        build_docker_image=True,
+    )
+
+    assert execution.runtime == "docker"
+    assert execution.environment == environment
+
+
 def test_duplicate_runtime_packages_are_rejected() -> None:
     package = RuntimePackage(manager="python", name="robotci", version="0.0.1")
 
