@@ -22,6 +22,9 @@ RobotCI writes the suite summary and referenced scenario results under `.robotci
 ```
 
 Review the result before promoting it. A baseline can only be captured from a `PASS` suite whose referenced scenario results also exist and are `PASS`.
+Each referenced result must also contain a valid task fingerprint. Baseline and
+candidate fingerprints must match, which prevents a changed start, goal, frame,
+or map from being reported as a controller regression result.
 
 ## 2. Capture the baseline
 

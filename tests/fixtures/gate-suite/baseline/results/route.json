@@ -1,5 +1,10 @@
 {
   "duration_sec": 10.0,
+  "goal": {
+    "x": 1.0,
+    "y": 0.0,
+    "yaw": 0.0
+  },
   "metrics": {
     "distance_to_goal_m": 0.1,
     "feedback_samples": 20,
@@ -8,5 +13,17 @@
     "stuck_events": 0
   },
   "scenario": "route",
-  "status": "PASS"
+  "schema_version": 1,
+  "start": {
+    "x": 0.0,
+    "y": 0.0,
+    "yaw": 0.0
+  },
+  "status": "PASS",
+  "task": {
+    "fingerprint": "sha256:4e2c9ed79a316f0e1c971ea54c3a3ac8da764bb4c39f5c2c613ca092aaa96806",
+    "frame_id": "map",
+    "map_id": "nav2-loopback",
+    "schema_version": 1
+  }
 }

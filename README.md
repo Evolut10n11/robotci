@@ -122,6 +122,7 @@ runtime: auto
 
 scenarios:
   - name: short_route
+    map_id: nav2-loopback
     start:
       x: 0.0
       y: 0.0
@@ -133,6 +134,7 @@ scenarios:
     timeout_sec: 60
 
   - name: medium_route
+    map_id: nav2-loopback
     start:
       x: 0.0
       y: 0.0
@@ -144,6 +146,7 @@ scenarios:
     timeout_sec: 90
 
   - name: simple_route
+    map_id: nav2-loopback
     start:
       x: 0.0
       y: 0.0
@@ -171,6 +174,12 @@ robotci validate --config path/to/robotci.yaml
 ```
 
 Validation rejects malformed YAML, unsupported config versions, duplicate or unsafe scenario names, invalid coordinates, invalid runtimes, and non-positive timeouts before any robotics runtime starts.
+
+Set `map_id` to a stable map name or, preferably, a content digest. RobotCI includes
+the scenario name, start, goal, coordinate frame, and `map_id` in the task
+fingerprint. Controller and planner implementations are intentionally excluded so
+their behavior can be compared on the same task. Results without a real map
+identity cannot be used as regression baselines.
 
 ## Running scenarios
 
@@ -229,12 +238,19 @@ Individual scenario results include the configured start and goal, verdict, dura
   },
   "navigation_result": "SUCCEEDED",
   "scenario": "short_route",
+  "schema_version": 1,
   "start": {
     "x": 0.0,
     "y": 0.0,
     "yaw": 0.0
   },
-  "status": "PASS"
+  "status": "PASS",
+  "task": {
+    "fingerprint": "sha256:116dc24253afb5f8ddfb89d119a48f814e01fdf7aaf14f6f737f40fa8a3757f1",
+    "frame_id": "map",
+    "map_id": "nav2-loopback",
+    "schema_version": 1
+  }
 }
 ```
 

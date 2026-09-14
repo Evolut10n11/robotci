@@ -26,6 +26,7 @@ START_QW="${ROBOTCI_START_QW:-1.0}"
 GOAL_X="${ROBOTCI_GOAL_X:-17.86}"
 GOAL_Y="${ROBOTCI_GOAL_Y:--0.77}"
 GOAL_YAW="${ROBOTCI_GOAL_YAW:-0.0}"
+MAP_ID="${ROBOTCI_MAP_ID:-unspecified}"
 LOG_FILE="${ROBOTCI_LOG_FILE:-/tmp/nav2-${SCENARIO}.log}"
 RESULT_FILE="${ROBOTCI_RESULT_FILE:-artifacts/${SCENARIO}/result.json}"
 TIMEOUT_SEC="${ROBOTCI_TIMEOUT_SEC:-120}"
@@ -243,6 +244,7 @@ set +e
   --goal-x "$GOAL_X" \
   --goal-y "$GOAL_Y" \
   --goal-yaw "$GOAL_YAW" \
+  --map-id "$MAP_ID" \
   --output "$RESULT_FILE" \
   --timeout-sec "$TIMEOUT_SEC"
 SCENARIO_EXIT=$?

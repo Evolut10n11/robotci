@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 from typer.testing import CliRunner
 
 from robotci.cli import app
+from robotci.results import Pose2D, build_scenario_task
 
 runner = CliRunner()
 
@@ -20,12 +22,25 @@ def _write_result(
     stuck_events: int = 0,
     recoveries: int = 0,
 ) -> None:
+    start = Pose2D(x=0.0, y=0.0, yaw=0.0)
+    goal = Pose2D(x=1.0, y=0.0, yaw=0.0)
     path.write_text(
         json.dumps(
             {
+                "schema_version": 1,
                 "scenario": scenario,
                 "status": status,
                 "duration_sec": duration_sec,
+                "start": asdict(start),
+                "goal": asdict(goal),
+                "task": asdict(
+                    build_scenario_task(
+                        scenario=scenario,
+                        start=start,
+                        goal=goal,
+                        map_id="nav2-loopback",
+                    )
+                ),
                 "metrics": {
                     "path_length_m": path_length_m,
                     "distance_to_goal_m": 0.25,

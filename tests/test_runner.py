@@ -111,6 +111,7 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
         start=PoseConfig(x=1.0, y=2.0, yaw=0.5),
         goal=PoseConfig(x=4.0, y=-0.17, yaw=0.25),
         timeout_sec=42.5,
+        map_id="warehouse-v1",
     )
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
@@ -135,6 +136,7 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert environment["ROBOTCI_GOAL_X"] == "4.0"
     assert environment["ROBOTCI_GOAL_Y"] == "-0.17"
     assert environment["ROBOTCI_GOAL_YAW"] == "0.25"
+    assert environment["ROBOTCI_MAP_ID"] == "warehouse-v1"
     assert environment["ROBOTCI_RESULT_FILE"] == str(output.resolve())
     assert environment["ROBOTCI_TIMEOUT_SEC"] == "42.5"
 

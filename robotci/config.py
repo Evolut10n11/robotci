@@ -28,6 +28,7 @@ class ScenarioConfig:
     start: PoseConfig
     goal: PoseConfig
     timeout_sec: float
+    map_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -90,11 +91,20 @@ def _parse_scenario(value: object, index: int) -> ScenarioConfig:
     if timeout_sec <= 0:
         raise ConfigError(f"{prefix}.timeout_sec must be greater than zero")
 
+    map_id = data.get("map_id")
+    if map_id is not None:
+        if not isinstance(map_id, str) or not map_id.strip():
+            raise ConfigError(f"{prefix}.map_id must be a non-empty string")
+        map_id = map_id.strip()
+        if len(map_id) > 256:
+            raise ConfigError(f"{prefix}.map_id must be at most 256 characters")
+
     return ScenarioConfig(
         name=clean_name,
         start=_parse_pose(data["start"], f"{prefix}.start"),
         goal=_parse_pose(data["goal"], f"{prefix}.goal"),
         timeout_sec=timeout_sec,
+        map_id=map_id,
     )
 
 

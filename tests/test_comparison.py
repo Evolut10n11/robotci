@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 
 import pytest
 
@@ -11,6 +12,7 @@ from robotci.comparison import (
     load_scenario_result,
     parse_scenario_result,
 )
+from robotci.results import Pose2D, build_scenario_task
 
 
 def _payload(
@@ -22,11 +24,26 @@ def _payload(
     stuck_events: int = 0,
     feedback_samples: int = 20,
     recoveries: int = 0,
+    goal_x: float = 1.0,
+    map_id: str = "nav2-loopback",
 ) -> dict[str, object]:
+    start = Pose2D(x=0.0, y=0.0, yaw=0.0)
+    goal = Pose2D(x=goal_x, y=2.0, yaw=0.0)
     return {
+        "schema_version": 1,
         "scenario": scenario,
         "status": status,
         "duration_sec": duration_sec,
+        "start": asdict(start),
+        "goal": asdict(goal),
+        "task": asdict(
+            build_scenario_task(
+                scenario=scenario,
+                start=start,
+                goal=goal,
+                map_id=map_id,
+            )
+        ),
         "metrics": {
             "path_length_m": path_length_m,
             "distance_to_goal_m": 0.25,
@@ -44,6 +61,7 @@ def test_parse_scenario_result_reads_comparison_fields() -> None:
     assert snapshot.duration_sec == 10.0
     assert snapshot.metrics.path_length_m == 5.0
     assert snapshot.metrics.feedback_samples == 20
+    assert snapshot.task.map_id == "nav2-loopback"
 
 
 def test_parse_scenario_result_requires_pass_status() -> None:
@@ -75,6 +93,51 @@ def test_compare_scenario_results_requires_matching_scenarios() -> None:
 
     with pytest.raises(ComparisonInputError, match="same scenario"):
         compare_scenario_results(baseline=baseline, candidate=candidate)
+
+
+def test_compare_rejects_changed_goal_even_when_metrics_match() -> None:
+    baseline = parse_scenario_result(_payload())
+    candidate = parse_scenario_result(_payload(goal_x=10.0))
+
+    with pytest.raises(ComparisonInputError, match="different tasks"):
+        compare_scenario_results(baseline=baseline, candidate=candidate)
+
+
+def test_compare_rejects_changed_map_even_when_metrics_match() -> None:
+    baseline = parse_scenario_result(_payload(map_id="warehouse-v1"))
+    candidate = parse_scenario_result(_payload(map_id="warehouse-v2"))
+
+    with pytest.raises(ComparisonInputError, match="different tasks"):
+        compare_scenario_results(baseline=baseline, candidate=candidate)
+
+
+def test_parse_rejects_tampered_task_fingerprint() -> None:
+    payload = _payload()
+    task = payload["task"]
+    assert isinstance(task, dict)
+    task["fingerprint"] = "sha256:" + "0" * 64
+
+    with pytest.raises(ComparisonInputError, match="fingerprint does not match"):
+        parse_scenario_result(payload)
+
+
+def test_parse_requires_map_identity_for_comparison() -> None:
+    with pytest.raises(ComparisonInputError, match="must identify the map"):
+        parse_scenario_result(_payload(map_id="unspecified"))
+
+
+def test_compare_allows_controller_metadata_to_change() -> None:
+    baseline_payload = _payload()
+    candidate_payload = _payload()
+    baseline_payload["controller_id"] = "regulated-pure-pursuit"
+    candidate_payload["controller_id"] = "mppi"
+
+    report = compare_scenario_results(
+        baseline=parse_scenario_result(baseline_payload),
+        candidate=parse_scenario_result(candidate_payload),
+    )
+
+    assert report.status == "PASS"
 
 
 def test_compare_scenario_result_files_detects_regression(tmp_path) -> None:

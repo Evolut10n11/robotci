@@ -151,6 +151,7 @@ def _run_native(
             "ROBOTCI_GOAL_X": str(scenario.goal.x),
             "ROBOTCI_GOAL_Y": str(scenario.goal.y),
             "ROBOTCI_GOAL_YAW": str(scenario.goal.yaw),
+            "ROBOTCI_MAP_ID": scenario.map_id or "unspecified",
             "ROBOTCI_RESULT_FILE": str(output.resolve()),
             "ROBOTCI_TIMEOUT_SEC": str(timeout_sec),
             "ROBOTCI_PYTHON": sys.executable,

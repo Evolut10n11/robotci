@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import json
+import math
+from dataclasses import asdict
+
+import pytest
 
 from robotci.metrics import NavigationMetrics
 from robotci.results import (
@@ -8,18 +12,27 @@ from robotci.results import (
     ScenarioResult,
     SuiteResult,
     SuiteScenarioResult,
+    build_scenario_task,
     write_result,
     write_suite_result,
 )
 
 
 def test_write_result_creates_portable_json(tmp_path) -> None:
+    start = Pose2D(x=0.0, y=0.0, yaw=0.0)
+    goal = Pose2D(x=17.86, y=-0.77, yaw=0.0)
+    task = build_scenario_task(
+        scenario="simple_route",
+        start=start,
+        goal=goal,
+        map_id="nav2-loopback",
+    )
     result = ScenarioResult(
         scenario="simple_route",
         status="PASS",
         duration_sec=12.345,
-        start=Pose2D(x=0.0, y=0.0, yaw=0.0),
-        goal=Pose2D(x=17.86, y=-0.77, yaw=0.0),
+        start=start,
+        goal=goal,
         navigation_result="SUCCEEDED",
         metrics=NavigationMetrics(
             path_length_m=18.024,
@@ -28,6 +41,7 @@ def test_write_result_creates_portable_json(tmp_path) -> None:
             feedback_samples=95,
             recoveries=0,
         ),
+        task=task,
     )
 
     output = tmp_path / "nested" / "result.json"
@@ -49,8 +63,10 @@ def test_write_result_creates_portable_json(tmp_path) -> None:
         },
         "navigation_result": "SUCCEEDED",
         "scenario": "simple_route",
+        "schema_version": 1,
         "start": {"x": 0.0, "y": 0.0, "yaw": 0.0},
         "status": "PASS",
+        "task": asdict(task),
     }
 
 
@@ -77,3 +93,30 @@ def test_write_suite_result_serializes_scenario_summaries(tmp_path) -> None:
     assert payload["runtime"] == "native"
     assert payload["scenarios"][0]["scenario"] == "short_route"
     assert payload["scenarios"][0]["result_file"] == "results/short_route.json"
+
+
+def test_task_fingerprint_normalizes_equivalent_numeric_values() -> None:
+    integer_task = build_scenario_task(
+        scenario="route",
+        start=Pose2D(x=0, y=-0.0, yaw=0),
+        goal=Pose2D(x=1, y=2, yaw=0),
+        map_id="warehouse-v1",
+    )
+    float_task = build_scenario_task(
+        scenario="route",
+        start=Pose2D(x=0.0, y=0.0, yaw=0.0),
+        goal=Pose2D(x=1.0, y=2.0, yaw=0.0),
+        map_id="warehouse-v1",
+    )
+
+    assert integer_task.fingerprint == float_task.fingerprint
+
+
+def test_task_fingerprint_rejects_non_finite_pose() -> None:
+    with pytest.raises(ValueError, match="finite numbers"):
+        build_scenario_task(
+            scenario="route",
+            start=Pose2D(x=math.nan, y=0.0, yaw=0.0),
+            goal=Pose2D(x=1.0, y=2.0, yaw=0.0),
+            map_id="warehouse-v1",
+        )

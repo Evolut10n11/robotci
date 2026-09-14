@@ -28,6 +28,7 @@ def test_initialize_project_creates_valid_starter_config(tmp_path: Path) -> None
     assert scenario.goal.x == 1.0
     assert scenario.goal.y == 0.0
     assert scenario.timeout_sec == 60.0
+    assert scenario.map_id == "nav2-loopback"
     assert list(tmp_path.glob(".robotci-init-*.yaml")) == []
 
 

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
 
 from robotci.comparison import ComparisonInputError
+from robotci.results import Pose2D, build_scenario_task
 from robotci.suite_comparison import compare_suite_result_files
 
 
@@ -15,14 +17,29 @@ def _write_result(
     scenario: str,
     duration_sec: float = 10.0,
     path_length_m: float = 5.0,
+    goal_x: float = 1.0,
+    map_id: str = "nav2-loopback",
 ) -> None:
+    start = Pose2D(x=0.0, y=0.0, yaw=0.0)
+    goal = Pose2D(x=goal_x, y=0.0, yaw=0.0)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(
             {
+                "schema_version": 1,
                 "scenario": scenario,
                 "status": "PASS",
                 "duration_sec": duration_sec,
+                "start": asdict(start),
+                "goal": asdict(goal),
+                "task": asdict(
+                    build_scenario_task(
+                        scenario=scenario,
+                        start=start,
+                        goal=goal,
+                        map_id=map_id,
+                    )
+                ),
                 "metrics": {
                     "path_length_m": path_length_m,
                     "distance_to_goal_m": 0.1,
@@ -110,4 +127,17 @@ def test_suite_entry_must_point_to_its_declared_scenario(tmp_path: Path) -> None
     )
 
     with pytest.raises(ComparisonInputError, match="points to result for 'wrong_name'"):
+        compare_suite_result_files(baseline_path=baseline, candidate_path=candidate)
+
+
+def test_suite_comparison_rejects_changed_task_definition(tmp_path: Path) -> None:
+    baseline = _make_suite(tmp_path / "baseline", {"a": (10.0, 5.0)})
+    candidate = _make_suite(tmp_path / "candidate", {"a": (10.0, 5.0)})
+    _write_result(
+        candidate.parent / "results" / "a.json",
+        scenario="a",
+        goal_x=2.0,
+    )
+
+    with pytest.raises(ComparisonInputError, match="different tasks"):
         compare_suite_result_files(baseline_path=baseline, candidate_path=candidate)
