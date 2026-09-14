@@ -26,7 +26,9 @@ def build_report(checks: list[CheckResult]) -> dict[str, object]:
             "ok": runtime.ok,
             "selected": runtime.value,
             "message": runtime.message,
-            "adapter_override": _adapter_override_enabled(),
+            "adapter_override": (
+                runtime.value == "native" and _adapter_override_enabled()
+            ),
         }
         if runtime is not None
         else None,
