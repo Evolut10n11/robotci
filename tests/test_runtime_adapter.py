@@ -9,8 +9,8 @@ import pytest
 
 
 @pytest.mark.skipif(
-    shutil.which("bash") is None,
-    reason="bash is required for runtime adapter test",
+    os.name == "nt" or shutil.which("bash") is None,
+    reason="a POSIX bash runtime is required for runtime adapter test",
 )
 def test_run_navigation_scenario_honors_attempt_script_override(tmp_path: Path) -> None:
     repository_root = Path(__file__).resolve().parents[1]
