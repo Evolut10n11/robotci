@@ -47,6 +47,7 @@ def test_default_runtime_uses_docker_fallback(monkeypatch) -> None:
     assert checks["docker"].ok
     assert checks["runtime"].ok
     assert checks["runtime"].blocking
+    assert checks["runtime"].value == "docker"
     assert checks["runtime"].message == "auto runtime will use Docker"
     assert not checks["ros2"].blocking
 
@@ -70,6 +71,7 @@ def test_default_runtime_uses_native_ros_when_ready(monkeypatch) -> None:
     checks = _checks_by_name(run_doctor_checks())
 
     assert checks["runtime"].ok
+    assert checks["runtime"].value == "native"
     assert checks["runtime"].message == "auto runtime will use native ROS2 Jazzy/Nav2"
     assert not checks["docker"].ok
 
@@ -90,6 +92,7 @@ def test_default_runtime_fails_when_no_runtime_is_available(monkeypatch) -> None
 
     assert not checks["runtime"].ok
     assert checks["runtime"].blocking
+    assert checks["runtime"].value == "none"
     assert "no usable runtime found" in checks["runtime"].message
 
 
@@ -117,6 +120,7 @@ def test_strict_ros_mode_is_not_satisfied_by_docker(monkeypatch) -> None:
     }
     assert all(checks[name].blocking for name in strict_names)
     assert not checks["runtime"].ok
+    assert checks["runtime"].value == "none"
     assert checks["runtime"].message == "native ROS2 Jazzy/Nav2 runtime is incomplete"
     assert checks["docker"].ok
     assert not checks["docker"].blocking
