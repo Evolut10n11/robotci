@@ -49,6 +49,23 @@ def _config(*, timeout_sec: float = 10.0, tolerance: float = 0.25) -> RobotCICon
     )
 
 
+_AUDITED_COMPOSE = """services:
+  robotci:
+    build:
+      context: .
+    image: robotci:dev
+    init: true
+    volumes:
+      - ./artifacts:/workspace/artifacts
+"""
+
+
+def _write_compose(runtime_root: Path) -> Path:
+    path = runtime_root / "compose.yaml"
+    path.write_text(_AUDITED_COMPOSE, encoding="utf-8")
+    return path
+
+
 def _environment(
     *,
     python_version: str = "3.12.3",
@@ -184,11 +201,16 @@ def test_capture_suite_execution_reads_environment_from_docker(
     tmp_path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     environment = _environment(containerized=True)
+    compose_path = _write_compose(tmp_path)
 
     def fake_run(command, **kwargs):
         assert command == [
             "docker",
             "compose",
+            "--file",
+            str(compose_path),
+            "--project-name",
+            "robotci",
             "run",
             "--rm",
             "--no-deps",
@@ -215,7 +237,9 @@ def test_capture_suite_execution_reads_environment_from_docker(
     )
 
     assert execution.runtime == "docker"
-    assert execution.environment == environment
+    assert execution.environment.containerized is True
+    assert execution.environment.packages == environment.packages
+    assert execution.environment.robotci_build != environment.robotci_build
 
 
 def test_capture_suite_execution_can_build_docker_image(
@@ -223,11 +247,16 @@ def test_capture_suite_execution_can_build_docker_image(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     environment = _environment(containerized=True)
+    compose_path = _write_compose(tmp_path)
 
     def fake_run(command, **kwargs):
         assert command == [
             "docker",
             "compose",
+            "--file",
+            str(compose_path),
+            "--project-name",
+            "robotci",
             "run",
             "--rm",
             "--no-deps",
@@ -256,7 +285,74 @@ def test_capture_suite_execution_can_build_docker_image(
     )
 
     assert execution.runtime == "docker"
-    assert execution.environment == environment
+    assert execution.environment.containerized is True
+    assert execution.environment.packages == environment.packages
+    assert execution.environment.robotci_build != environment.robotci_build
+
+
+def test_docker_execution_identity_covers_audited_compose_bytes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    environment = _environment(containerized=True)
+    compose_path = _write_compose(tmp_path)
+
+    def fake_run(command, **kwargs):
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=json.dumps(asdict(environment)),
+            stderr="",
+        )
+
+    monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
+
+    first = capture_suite_execution(
+        config=_config(),
+        timeout_sec=None,
+        runtime="docker",
+        runtime_root=tmp_path,
+    )
+    compose_path.write_text(_AUDITED_COMPOSE + "# audited revision\n", encoding="utf-8")
+    second = capture_suite_execution(
+        config=_config(),
+        timeout_sec=None,
+        runtime="docker",
+        runtime_root=tmp_path,
+    )
+
+    assert first.environment.fingerprint != second.environment.fingerprint
+    assert first.fingerprint != second.fingerprint
+
+
+def test_docker_execution_rejects_unaudited_compose_model(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    compose_path = _write_compose(tmp_path)
+    compose_path.write_text(
+        _AUDITED_COMPOSE.replace(
+            "    init: true\n",
+            "    init: true\n    network_mode: host\n",
+        ),
+        encoding="utf-8",
+    )
+
+    def unexpected_run(*args, **kwargs):
+        raise AssertionError("Docker must not run with an unaudited Compose model")
+
+    monkeypatch.setattr("robotci.reproducibility.subprocess.run", unexpected_run)
+
+    with pytest.raises(
+        ReproducibilityError,
+        match="does not match the audited RobotCI service model",
+    ):
+        capture_suite_execution(
+            config=_config(),
+            timeout_sec=None,
+            runtime="docker",
+            runtime_root=tmp_path,
+        )
 
 
 @pytest.mark.parametrize("variable", ["LD_AUDIT", "LD_PRELOAD"])
