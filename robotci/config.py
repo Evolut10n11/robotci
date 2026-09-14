@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,45 @@ _SCENARIO_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 class ConfigError(ValueError):
     """Raised when robotci.yaml is missing or invalid."""
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    """Safe YAML loader that rejects duplicate mapping keys."""
+
+
+def _construct_unique_mapping(
+    loader: _UniqueKeyLoader,
+    node: yaml.MappingNode,
+    deep: bool = False,
+) -> dict[object, object]:
+    loader.flatten_mapping(node)
+    mapping: dict[object, object] = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        try:
+            duplicate = key in mapping
+        except TypeError as exc:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                "found an unhashable mapping key",
+                key_node.start_mark,
+            ) from exc
+        if duplicate:
+            raise yaml.constructor.ConstructorError(
+                "while constructing a mapping",
+                node.start_mark,
+                f"found duplicate key {key!r}",
+                key_node.start_mark,
+            )
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
 
 
 @dataclass(frozen=True)
@@ -44,14 +84,32 @@ def _require_mapping(value: object, name: str) -> dict[str, object]:
     return value
 
 
+def _reject_unknown_keys(
+    data: dict[str, object],
+    *,
+    allowed: set[str],
+    name: str,
+) -> None:
+    unknown = sorted(repr(key) for key in data if key not in allowed)
+    if unknown:
+        raise ConfigError(f"{name} contains unknown keys: {', '.join(unknown)}")
+
+
 def _require_number(value: object, name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ConfigError(f"{name} must be a number")
-    return float(value)
+    try:
+        number = float(value)
+    except OverflowError as exc:
+        raise ConfigError(f"{name} must be finite") from exc
+    if not math.isfinite(number):
+        raise ConfigError(f"{name} must be finite")
+    return number
 
 
 def _parse_pose(value: object, name: str) -> PoseConfig:
     data = _require_mapping(value, name)
+    _reject_unknown_keys(data, allowed={"x", "y", "yaw"}, name=name)
 
     if "x" not in data:
         raise ConfigError(f"{name}.x is required")
@@ -68,6 +126,11 @@ def _parse_pose(value: object, name: str) -> PoseConfig:
 def _parse_scenario(value: object, index: int) -> ScenarioConfig:
     prefix = f"scenarios[{index}]"
     data = _require_mapping(value, prefix)
+    _reject_unknown_keys(
+        data,
+        allowed={"name", "map_id", "start", "goal", "timeout_sec"},
+        name=prefix,
+    )
 
     name = data.get("name")
     if not isinstance(name, str) or not name.strip():
@@ -115,20 +178,28 @@ def load_config(path: str | Path = "robotci.yaml") -> RobotCIConfig:
         raise ConfigError(f"RobotCI config not found: {config_path}")
 
     try:
-        raw = yaml.safe_load(config_path.read_text(encoding="utf-8-sig"))
+        raw = yaml.load(  # The custom loader inherits yaml.SafeLoader.
+            config_path.read_text(encoding="utf-8-sig"),
+            Loader=_UniqueKeyLoader,
+        )
     except yaml.YAMLError as exc:
         raise ConfigError(f"Invalid YAML in {config_path}: {exc}") from exc
     except OSError as exc:
         raise ConfigError(f"Failed to read {config_path}: {exc}") from exc
 
     data = _require_mapping(raw, "config")
+    _reject_unknown_keys(
+        data,
+        allowed={"version", "runtime", "scenarios"},
+        name="config",
+    )
 
     version = data.get("version")
-    if isinstance(version, bool) or version != 1:
+    if isinstance(version, bool) or not isinstance(version, int) or version != 1:
         raise ConfigError("config.version must be 1")
 
     runtime = data.get("runtime", "auto")
-    if runtime not in {"auto", "native", "docker"}:
+    if not isinstance(runtime, str) or runtime not in {"auto", "native", "docker"}:
         raise ConfigError("config.runtime must be one of: auto, native, docker")
 
     raw_scenarios = data.get("scenarios")
