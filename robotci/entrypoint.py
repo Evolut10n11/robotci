@@ -1,84 +1,89 @@
 from __future__ import annotations
 
+import os
+import sys
+import sysconfig
+import tempfile
+import time
 from pathlib import Path
-from typing import Annotated
+from typing import NoReturn
 
-import typer
-
-from robotci.cli import app, console
-from robotci.viewer import (
-    DEFAULT_VIEWER_HOST,
-    DEFAULT_VIEWER_PORT,
-    ViewerError,
-    demo_replay,
-    load_replay,
-    serve_viewer,
-)
+_LOADER_INJECTION_VARIABLES = ("LD_AUDIT", "LD_PRELOAD")
 
 
-@app.command("view")
-def view_command(
-    replay: Annotated[
-        Path | None,
-        typer.Option(
-            "--replay",
-            "-r",
-            help="Replay v1 JSON artifact to display.",
-        ),
-    ] = None,
-    demo: Annotated[
-        bool,
-        typer.Option(
-            "--demo",
-            help="Open a deterministic built-in replay.",
-        ),
-    ] = False,
-    host: Annotated[
-        str,
-        typer.Option(
-            "--host",
-            help="Local interface used by the viewer server.",
-        ),
-    ] = DEFAULT_VIEWER_HOST,
-    port: Annotated[
-        int,
-        typer.Option(
-            "--port",
-            min=0,
-            max=65535,
-            help="Local viewer port. Use 0 to choose a free port automatically.",
-        ),
-    ] = DEFAULT_VIEWER_PORT,
-    no_open: Annotated[
-        bool,
-        typer.Option(
-            "--no-open",
-            help="Do not open the browser automatically.",
-        ),
-    ] = False,
-) -> None:
-    """Open the local 3D Replay v1 viewer."""
-    if demo and replay is not None:
-        console.print("[red]RobotCI viewer error:[/red] use either --demo or --replay, not both")
-        raise typer.Exit(code=3)
-    if not demo and replay is None:
-        console.print("[red]RobotCI viewer error:[/red] pass --demo or --replay <file.json>")
-        raise typer.Exit(code=3)
+def _controlled_python_path() -> str:
+    package_parent = str(Path(__file__).resolve().parent.parent)
+    install_paths = sysconfig.get_paths()
+    candidates = (
+        package_parent,
+        install_paths.get("purelib", ""),
+        install_paths.get("platlib", ""),
+    )
+    return os.pathsep.join(dict.fromkeys(path for path in candidates if path))
+
+
+def _isolated_environment() -> dict[str, str]:
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if not name.startswith("PYTHON")
+    }
+    cache_prefix = (
+        Path(tempfile.gettempdir())
+        / f"robotci-pycache-{os.getpid()}-{time.monotonic_ns()}"
+    )
+    python_path = _controlled_python_path()
+    if not python_path:
+        raise RuntimeError("Python dependency paths are unavailable")
+    environment.update(
+        {
+            "PYTHONHASHSEED": "0",
+            "PYTHONNOUSERSITE": "1",
+            "PYTHONPATH": python_path,
+            "PYTHONPYCACHEPREFIX": str(cache_prefix),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONUTF8": "1",
+        }
+    )
+    return environment
+
+
+def app() -> NoReturn:
+    """Relaunch the CLI before importing application or runtime modules."""
+
+    injected = [
+        name for name in _LOADER_INJECTION_VARIABLES if os.environ.get(name)
+    ]
+    if injected:
+        print(
+            "RobotCI runtime error: loader injection is unsupported: "
+            + ", ".join(injected),
+            file=sys.stderr,
+        )
+        raise SystemExit(3)
 
     try:
-        payload = demo_replay() if demo else load_replay(replay)  # type: ignore[arg-type]
-        console.print(f"Replay: [cyan]{payload['scenario']}[/cyan]")
-        console.print(f"Viewer: http://{host}:{port}/")
-        console.print("Press Ctrl+C to stop the local viewer.")
-        serve_viewer(
-            payload,
-            host=host,
-            port=port,
-            open_browser=not no_open,
+        environment = _isolated_environment()
+        os.execve(
+            sys.executable,
+            [
+                sys.executable,
+                "-S",
+                "-B",
+                "-P",
+                "-m",
+                "robotci.application",
+                *sys.argv[1:],
+            ],
+            environment,
         )
-    except (ViewerError, OSError) as exc:
-        console.print(f"[red]RobotCI viewer error:[/red] {exc}")
-        raise typer.Exit(code=3) from exc
+    except OSError as exc:
+        print(
+            f"RobotCI runtime error: cannot start isolated CLI: {exc}",
+            file=sys.stderr,
+        )
+        raise SystemExit(3) from exc
+    raise RuntimeError("isolated CLI process unexpectedly returned")
 
 
 if __name__ == "__main__":

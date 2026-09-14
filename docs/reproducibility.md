@@ -19,8 +19,9 @@ an `execution` object with:
   locale, and runtime-wrapper variables, stored only as value SHA-256 digests;
 - content digests for file-backed middleware configuration and explicit,
   permission-aware ROS security keystore walks that fail on unreadable nodes;
-- source, sourceless bytecode, and native-extension digests from both the
-  outer RobotCI runner package and the subprocess package when their roots
+- source, sourceless bytecode outside generated cache directories, and
+  native-extension digests from both the outer RobotCI runner package and the
+  subprocess package when their roots
   differ, plus runtime shell files and any
   top-level source, sourceless bytecode, native-extension module, or complete
   package tree that can shadow ROS imports;
@@ -34,13 +35,14 @@ same image without rebuilding. Native execution strips Bash startup/function inj
 process-level `LD_AUDIT`/`LD_PRELOAD` injection, drops inherited executable,
 library, ROS overlay, setup identity, and Python search paths, and sets a
 package-managed system `PATH` without mutable local directories, a fixed hash
-seed, UTF-8, no user site, and a fresh private bytecode-cache prefix. Both
-Python layers use `-S -B`, so site/`.pth` startup hooks do not run and the
-suite cannot mutate local `__pycache__` files; explicit dependency paths and
-the required `/opt/ros/jazzy/setup.bash` rebuild the import environment. The
-cleanup helper adds
-the fingerprinted package only after interpreter startup, so checkout-level
-`sitecustomize.py` hooks cannot run. The attempt sources the packaged ROS Jazzy
+seed, UTF-8, no user site, and a fresh private bytecode-cache prefix. Before
+application modules load, the public CLI relaunches itself with a sanitized
+Python environment and `-S -B -P`; system/user site hooks, inherited Python
+controls, checkout-local generated caches, and the current working directory
+cannot affect orchestration. Both runtime Python layers also use `-S -B -P`,
+so site/`.pth` startup hooks do not run and the suite cannot mutate or execute
+local `__pycache__` files. Explicit dependency paths and the required
+`/opt/ros/jazzy/setup.bash` rebuild the import environment. The attempt sources the packaged ROS Jazzy
 setup while Python resolves RobotCI from the fingerprinted runtime checkout. It honors the
 runner-selected Python across both shell layers and fingerprints the checkout
 package when it shadows an installed distribution. A process running inside the image is recorded as the Docker

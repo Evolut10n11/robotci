@@ -435,6 +435,22 @@ def test_robotci_source_fingerprint_uses_separate_runtime_root(tmp_path: Path) -
     )
 
 
+def test_robotci_source_fingerprint_ignores_generated_bytecode_cache(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "robotci"
+    cache = package / "__pycache__"
+    cache.mkdir(parents=True)
+    (package / "runner.py").write_text("VALUE = 1\n", encoding="utf-8")
+    generated = cache / "runner.cpython-312.pyc"
+    generated.write_bytes(b"checkout-specific-cache-1")
+
+    original = build_robotci_source_fingerprint(package)
+    generated.write_bytes(b"checkout-specific-cache-2")
+
+    assert build_robotci_source_fingerprint(package) == original
+
+
 def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
     tmp_path: Path,
 ) -> None:
