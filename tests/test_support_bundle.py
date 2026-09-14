@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from robotci.config import ConfigError
 from robotci.doctor import CheckResult
 from robotci.support_bundle import build_support_bundle, main
 
@@ -45,6 +46,7 @@ def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monk
         "status": "PASS",
         "runtime": "auto",
         "scenario_count": 1,
+        "error_code": None,
         "error": None,
     }
     assert "confidential_route" not in payload
@@ -98,10 +100,40 @@ def test_bundle_redacts_invalid_config_details(tmp_path: Path, monkeypatch) -> N
 
     assert bundle["status"] == "FAIL"
     assert bundle["config"]["status"] == "FAIL"
+    assert bundle["config"]["error_code"] == "config_invalid"
     assert bundle["config"]["error"] == (
         "RobotCI config is invalid; run 'robotci validate' locally for details"
     )
     assert "secret-project" not in payload
+
+
+def test_bundle_classifies_unreadable_config_without_leaking_details(
+    tmp_path: Path, monkeypatch
+) -> None:
+    config = tmp_path / "private-company-repo" / "robotci.yaml"
+    config.parent.mkdir()
+    _write_config(config)
+    monkeypatch.setattr("robotci.support_bundle.run_doctor_checks", lambda **_: _passing_checks())
+
+    def unreadable_config(_path: Path):
+        try:
+            raise OSError("permission denied at /private-company-repo/robotci.yaml")
+        except OSError as exc:
+            raise ConfigError("failed to read secret path") from exc
+
+    monkeypatch.setattr("robotci.support_bundle.load_config", unreadable_config)
+
+    bundle = build_support_bundle(config_path=config)
+    payload = json.dumps(bundle)
+
+    assert bundle["status"] == "FAIL"
+    assert bundle["config"]["error_code"] == "config_unreadable"
+    assert bundle["config"]["error"] == (
+        "RobotCI config could not be read; check file access locally and retry"
+    )
+    assert "private-company-repo" not in payload
+    assert "permission denied" not in payload
+    assert "secret path" not in payload
 
 
 def test_bundle_redacts_missing_config_path(tmp_path: Path, monkeypatch) -> None:
@@ -112,6 +144,10 @@ def test_bundle_redacts_missing_config_path(tmp_path: Path, monkeypatch) -> None
     payload = json.dumps(bundle)
 
     assert bundle["status"] == "FAIL"
+    assert bundle["config"]["error_code"] == "config_not_found"
+    assert bundle["config"]["error"] == (
+        "RobotCI config is invalid; run 'robotci validate' locally for details"
+    )
     assert "private-company-repo" not in payload
     assert str(config) not in payload
 

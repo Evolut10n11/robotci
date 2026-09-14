@@ -63,8 +63,16 @@ The JSON bundle is schema-versioned and contains only compact setup information:
 - RobotCI version;
 - operating-system family and Python version;
 - the same runtime-readiness checks used by `robotci doctor`, with ROS package installation paths redacted;
-- config validity, selected runtime, and scenario count;
+- config validity, selected runtime, scenario count, and a safe config failure code;
 - an overall PASS/FAIL verdict.
+
+When config validation fails, `config.error_code` is one of:
+
+- `config_not_found` — the requested config file does not exist;
+- `config_unreadable` — the file exists but could not be read because of an access or I/O failure;
+- `config_invalid` — the file was read successfully but does not satisfy RobotCI config validation.
+
+A valid config reports `error_code: null`. These codes are intended for CI/support routing and do not contain local paths, operating-system error text, or parser details.
 
 ## What it intentionally does not contain
 
