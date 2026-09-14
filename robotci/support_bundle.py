@@ -125,6 +125,11 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "Destination JSON file (default: .robotci/support-bundle.json); use '-' for stdout."
         ),
     )
+    parser.add_argument(
+        "--compact",
+        action="store_true",
+        help="Write single-line JSON for CI logs, issue forms, or support tooling.",
+    )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
         "--require-ros",
@@ -148,7 +153,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         require_ros = False
 
     bundle = build_support_bundle(config_path=args.config, require_ros=require_ros)
-    payload = json.dumps(bundle, indent=2, sort_keys=True) + "\n"
+    if args.compact:
+        payload = json.dumps(bundle, sort_keys=True, separators=(",", ":")) + "\n"
+    else:
+        payload = json.dumps(bundle, indent=2, sort_keys=True) + "\n"
 
     if str(args.output) == "-":
         print(payload, end="")

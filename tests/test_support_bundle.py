@@ -207,3 +207,17 @@ def test_output_dash_writes_bundle_to_stdout(tmp_path: Path, monkeypatch, capsys
     assert payload["status"] == "PASS"
     assert payload["config"]["scenario_count"] == 1
     assert not (tmp_path / "-").exists()
+
+
+def test_compact_output_is_single_line_json(tmp_path: Path, monkeypatch, capsys) -> None:
+    config = tmp_path / "robotci.yaml"
+    _write_config(config)
+    monkeypatch.setattr("robotci.support_bundle.run_doctor_checks", lambda **_: _passing_checks())
+
+    exit_code = main(["--config", str(config), "--output", "-", "--compact"])
+
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert captured.out.count("\n") == 1
+    assert ": " not in captured.out
+    assert json.loads(captured.out)["status"] == "PASS"
