@@ -24,7 +24,8 @@ an `execution` object with:
   subprocess package when their roots
   differ, plus runtime shell files and any
   top-level source, sourceless bytecode, native-extension module, or complete
-  package tree that can shadow ROS imports, including every import candidate
+  regular or PEP 420 namespace package tree that can shadow ROS imports,
+  including every import candidate
   exposed from explicit distribution roots and every Python root prepended by
   the clean, packaged ROS Jazzy setup;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
@@ -39,7 +40,8 @@ library, ROS overlay, setup identity, and Python search paths, and sets a
 package-managed system `PATH` without mutable local directories, a fixed hash
 seed, UTF-8, no user site, and a fresh private bytecode-cache prefix. Before
 application modules load, the public CLI relaunches itself with a sanitized
-Python environment and `-S -B -P`; system/user site hooks, inherited Python
+Python environment and `-S -B -P`. POSIX uses process replacement so signals
+and ROS cleanup semantics are preserved; system/user site hooks, inherited Python
 controls, checkout-local generated caches, and the current working directory
 cannot affect orchestration. Both runtime Python layers also use `-S -B -P`,
 so site/`.pth` startup hooks do not run and the suite cannot mutate or execute

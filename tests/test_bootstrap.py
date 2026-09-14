@@ -10,6 +10,10 @@ import pytest
 from robotci import bootstrap
 
 
+class _ExecCalled(Exception):
+    pass
+
+
 def test_entrypoint_relaunches_with_isolated_python(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -52,6 +56,7 @@ def test_entrypoint_relaunches_with_isolated_python(
     )
     monkeypatch.setattr(bootstrap.os, "getpid", lambda: 123)
     monkeypatch.setattr(bootstrap.time, "monotonic_ns", lambda: 456)
+    monkeypatch.setattr(bootstrap, "_REPLACE_PROCESS", False)
     monkeypatch.setattr(bootstrap.subprocess, "run", fake_run)
 
     with pytest.raises(SystemExit) as exc_info:
@@ -90,6 +95,54 @@ def test_entrypoint_relaunches_with_isolated_python(
     assert "/untrusted" not in environment["PYTHONPATH"]
     assert "PYTHONHOME" not in environment
     assert "PYTHONWARNINGS" not in environment
+
+
+def test_entrypoint_replaces_process_on_posix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+    environment = {"CONTROLLED": "1"}
+
+    def fake_execve(
+        executable: str,
+        command: list[str],
+        child_environment: dict[str, str],
+    ) -> None:
+        captured.update(
+            executable=executable,
+            command=command,
+            environment=child_environment,
+        )
+        raise _ExecCalled
+
+    def unexpected_run(*args: object, **kwargs: object) -> None:
+        raise AssertionError("POSIX bootstrap must replace its process")
+
+    monkeypatch.delenv("LD_AUDIT", raising=False)
+    monkeypatch.delenv("LD_PRELOAD", raising=False)
+    monkeypatch.setattr(bootstrap, "_REPLACE_PROCESS", True)
+    monkeypatch.setattr(bootstrap, "_isolated_environment", lambda: environment)
+    monkeypatch.setattr(sys, "argv", ["robotci", "run"])
+    monkeypatch.setattr(sys, "executable", "/trusted/python")
+    monkeypatch.setattr(bootstrap.os, "execve", fake_execve)
+    monkeypatch.setattr(bootstrap.subprocess, "run", unexpected_run)
+
+    with pytest.raises(_ExecCalled):
+        bootstrap.main()
+
+    assert captured == {
+        "executable": "/trusted/python",
+        "command": [
+            "/trusted/python",
+            "-S",
+            "-B",
+            "-P",
+            "-m",
+            "robotci.entrypoint",
+            "run",
+        ],
+        "environment": environment,
+    }
 
 
 def test_entrypoint_rejects_loader_injection_before_relaunch(

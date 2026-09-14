@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import NoReturn
 
 _LOADER_INJECTION_VARIABLES = ("LD_AUDIT", "LD_PRELOAD")
+_REPLACE_PROCESS = os.name != "nt"
 _PYTHON_DISTRIBUTIONS = ("robotci", "PyYAML", "rich", "typer")
 
 
@@ -79,6 +80,9 @@ def main() -> NoReturn:
             "robotci.entrypoint",
             *sys.argv[1:],
         ]
+        if _REPLACE_PROCESS:
+            os.execve(sys.executable, command, environment)
+            raise RuntimeError("isolated CLI process unexpectedly returned")
         completed = subprocess.run(
             command,
             env=environment,

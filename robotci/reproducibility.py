@@ -727,9 +727,12 @@ def build_robotci_source_fingerprint(
         import_sources: list[Path] = []
         if candidate.is_file() and is_import_file(candidate):
             import_sources = [candidate]
-        elif candidate.is_dir() and any(
-            (candidate / f"__init__{suffix}").is_file()
-            for suffix in _IMPORT_SUFFIXES
+        elif candidate.is_dir() and (
+            candidate.name.isidentifier()
+            or any(
+                (candidate / f"__init__{suffix}").is_file()
+                for suffix in _IMPORT_SUFFIXES
+            )
         ):
             import_sources = package_sources(candidate)
         if not import_sources:
@@ -767,9 +770,12 @@ def build_robotci_source_fingerprint(
             import_sources = []
             if candidate.is_file() and is_import_file(candidate):
                 import_sources = [candidate]
-            elif candidate.is_dir() and any(
-                (candidate / f"__init__{suffix}").is_file()
-                for suffix in _IMPORT_SUFFIXES
+            elif candidate.is_dir() and (
+                candidate.name.isidentifier()
+                or any(
+                    (candidate / f"__init__{suffix}").is_file()
+                    for suffix in _IMPORT_SUFFIXES
+                )
             ):
                 import_sources = package_sources(candidate)
             if not import_sources:
