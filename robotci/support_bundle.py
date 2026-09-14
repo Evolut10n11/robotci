@@ -82,7 +82,9 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--output",
         type=Path,
         default=Path(".robotci") / "support-bundle.json",
-        help="Destination JSON file (default: .robotci/support-bundle.json).",
+        help=(
+            "Destination JSON file (default: .robotci/support-bundle.json); use '-' for stdout."
+        ),
     )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument(
@@ -108,9 +110,14 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     bundle = build_support_bundle(config_path=args.config, require_ros=require_ros)
     payload = json.dumps(bundle, indent=2, sort_keys=True) + "\n"
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(payload, encoding="utf-8")
-    print(args.output)
+
+    if str(args.output) == "-":
+        print(payload, end="")
+    else:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(payload, encoding="utf-8")
+        print(args.output)
+
     return 0 if bundle["status"] == "PASS" else 1
 
 
