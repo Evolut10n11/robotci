@@ -23,6 +23,7 @@ from robotci.evidence import NavigationEvidencePolicy
 from robotci.native_runtime import probe_native_ros
 from robotci.project import DEFAULT_CONFIG_PATH, resolve_project_context
 from robotci.replay import default_replay_path
+from robotci.reproducibility import ReproducibilityError, capture_suite_execution
 from robotci.result_schema import (
     ResultSchemaError,
     ValidatedScenarioResult,
@@ -456,12 +457,25 @@ def run_suite(
             )
         )
 
+    try:
+        execution = capture_suite_execution(
+            config=config,
+            timeout_sec=timeout_sec,
+            runtime=selected,
+            runtime_root=runtime_root,
+        )
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(
+            f"cannot capture reproducible runtime environment: {exc}"
+        ) from exc
+
     suite_status = cast(ScenarioStatus, _STATUS_BY_EXIT[final_exit_code])
     suite = SuiteResult(
         status=suite_status,
-        runtime=selected,
+        runtime=execution.runtime,
         duration_sec=round(time.monotonic() - started_at, 3),
         scenarios=tuple(scenario_results),
+        execution=execution,
     )
     suite_path = write_suite_result(suite, suite_path)
     return final_exit_code, selected, suite_path

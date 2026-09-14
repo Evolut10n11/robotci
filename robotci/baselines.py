@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from robotci.comparison import ComparisonInputError, load_scenario_result
+from robotci.reproducibility import ReproducibilityError, validate_suite_execution
 
 BASELINE_SCHEMA_VERSION = 1
 DEFAULT_BASELINE_ROOT = Path(".robotci") / "baselines"
@@ -64,6 +65,10 @@ def _safe_result_path(suite_dir: Path, result_file: str) -> Path:
 
 def _validated_suite(suite_path: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
     suite = _load_json_object(suite_path, label="suite result")
+    try:
+        validate_suite_execution(suite)
+    except ReproducibilityError as exc:
+        raise BaselineError(str(exc)) from exc
     if suite.get("status") != "PASS":
         raise BaselineError("only PASS suites can be captured as known-good baselines")
 

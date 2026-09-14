@@ -12,8 +12,28 @@ import pytest
 
 from robotci import runner
 from robotci.replay import default_replay_path
+from robotci.reproducibility import (
+    RuntimePackage,
+    build_runtime_environment,
+    build_suite_execution_identity,
+)
 from robotci.result_schema import validate_result_payload
 from robotci.results import Pose2D, build_scenario_task
+
+
+_TEST_EXECUTION = build_suite_execution_identity(
+    runtime="native",
+    plan_fingerprint="sha256:" + "1" * 64,
+    environment=build_runtime_environment(
+        os_id="ubuntu",
+        os_version="24.04",
+        architecture="x86_64",
+        python_version="3.12.3",
+        ros_distro="jazzy",
+        containerized=False,
+        packages=(RuntimePackage(manager="python", name="robotci", version="0.0.1"),),
+    ),
+)
 
 
 @pytest.fixture
@@ -28,6 +48,11 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         encoding="utf-8",
     )
     monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+    monkeypatch.setattr(
+        runner,
+        "capture_suite_execution",
+        lambda **kwargs: _TEST_EXECUTION,
+    )
     return tmp_path
 
 

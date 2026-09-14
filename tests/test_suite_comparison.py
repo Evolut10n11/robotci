@@ -7,9 +7,29 @@ from pathlib import Path
 import pytest
 
 from robotci.comparison import ComparisonInputError
+from robotci.reproducibility import (
+    RuntimePackage,
+    build_runtime_environment,
+    build_suite_execution_identity,
+)
 from robotci.results import Pose2D, build_scenario_task
 from robotci.suite_comparison import compare_suite_result_files
 
+
+_TEST_ENVIRONMENT = build_runtime_environment(
+    os_id="ubuntu",
+    os_version="24.04",
+    architecture="x86_64",
+    python_version="3.12.3",
+    ros_distro="jazzy",
+    containerized=False,
+    packages=(RuntimePackage(manager="python", name="robotci", version="0.0.1"),),
+)
+_TEST_EXECUTION = build_suite_execution_identity(
+    runtime="native",
+    plan_fingerprint="sha256:" + "1" * 64,
+    environment=_TEST_ENVIRONMENT,
+)
 
 def _write_result(
     path: Path,
@@ -69,8 +89,10 @@ def _write_suite(path: Path, scenarios: list[str]) -> None:
     path.write_text(
         json.dumps(
             {
+                "schema_version": 1,
                 "status": "PASS",
                 "runtime": "native",
+                "execution": asdict(_TEST_EXECUTION),
                 "duration_sec": 20.0,
                 "scenarios": [
                     {
@@ -189,4 +211,41 @@ def test_suite_comparison_rejects_changed_task_definition(tmp_path: Path) -> Non
     )
 
     with pytest.raises(ComparisonInputError, match="different tasks"):
+        compare_suite_result_files(baseline_path=baseline, candidate_path=candidate)
+
+
+def test_suite_comparison_rejects_different_runtime_environment(tmp_path: Path) -> None:
+    baseline = _make_suite(tmp_path / "baseline", {"a": (10.0, 5.0)})
+    candidate = _make_suite(tmp_path / "candidate", {"a": (10.0, 5.0)})
+    changed_environment = build_runtime_environment(
+        os_id="ubuntu",
+        os_version="24.04",
+        architecture="x86_64",
+        python_version="3.12.4",
+        ros_distro="jazzy",
+        containerized=False,
+        packages=(RuntimePackage(manager="python", name="robotci", version="0.0.1"),),
+    )
+    changed_execution = build_suite_execution_identity(
+        runtime="native",
+        plan_fingerprint=_TEST_EXECUTION.plan_fingerprint,
+        environment=changed_environment,
+    )
+    payload = json.loads(candidate.read_text(encoding="utf-8"))
+    payload["execution"] = asdict(changed_execution)
+    candidate.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ComparisonInputError, match="runtime environment differs"):
+        compare_suite_result_files(baseline_path=baseline, candidate_path=candidate)
+
+
+def test_suite_comparison_rejects_legacy_suite_without_execution(tmp_path: Path) -> None:
+    baseline = _make_suite(tmp_path / "baseline", {"a": (10.0, 5.0)})
+    candidate = _make_suite(tmp_path / "candidate", {"a": (10.0, 5.0)})
+    payload = json.loads(candidate.read_text(encoding="utf-8"))
+    payload.pop("schema_version")
+    payload.pop("execution")
+    candidate.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ComparisonInputError, match="schema_version must be 1"):
         compare_suite_result_files(baseline_path=baseline, candidate_path=candidate)

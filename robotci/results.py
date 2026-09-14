@@ -9,6 +9,11 @@ from typing import Literal
 
 from robotci.evidence import NavigationEvidencePolicy
 from robotci.metrics import NavigationMetrics, NavigationTelemetryQuality
+from robotci.reproducibility import (
+    SUITE_RESULT_SCHEMA_VERSION,
+    SuiteExecutionIdentity,
+    validate_suite_execution,
+)
 
 ScenarioStatus = Literal["PASS", "FAIL", "TIMEOUT", "INFRA_ERROR"]
 RESULT_SCHEMA_VERSION = 2
@@ -104,6 +109,8 @@ class SuiteResult:
     runtime: str
     duration_sec: float
     scenarios: tuple[SuiteScenarioResult, ...]
+    execution: SuiteExecutionIdentity
+    schema_version: int = SUITE_RESULT_SCHEMA_VERSION
 
 
 def _write_json(payload: dict[str, object], path: str | Path) -> Path:
@@ -128,4 +135,6 @@ def write_result(result: ScenarioResult, path: str | Path) -> Path:
 
 
 def write_suite_result(result: SuiteResult, path: str | Path) -> Path:
-    return _write_json(asdict(result), path)
+    payload = asdict(result)
+    validate_suite_execution(payload)
+    return _write_json(payload, path)

@@ -9,7 +9,36 @@ import pytest
 
 from robotci import runner
 from robotci.config import PoseConfig, ScenarioConfig
+from robotci.reproducibility import (
+    RuntimePackage,
+    build_runtime_environment,
+    build_suite_execution_identity,
+)
 from robotci.results import Pose2D, build_scenario_task
+
+
+_TEST_EXECUTION = build_suite_execution_identity(
+    runtime="native",
+    plan_fingerprint="sha256:" + "1" * 64,
+    environment=build_runtime_environment(
+        os_id="ubuntu",
+        os_version="24.04",
+        architecture="x86_64",
+        python_version="3.12.3",
+        ros_distro="jazzy",
+        containerized=False,
+        packages=(RuntimePackage(manager="python", name="robotci", version="0.0.1"),),
+    ),
+)
+
+
+@pytest.fixture(autouse=True)
+def _stable_suite_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        runner,
+        "capture_suite_execution",
+        lambda **kwargs: _TEST_EXECUTION,
+    )
 
 
 def _make_project_root(path: Path) -> None:
@@ -354,7 +383,9 @@ def test_run_suite_uses_configured_scenarios_and_timeouts(
     payload = json.loads(result_path.read_text(encoding="utf-8"))
     assert exit_code == 0
     assert selected == "native"
+    assert payload["schema_version"] == 1
     assert payload["status"] == "PASS"
+    assert payload["execution"]["fingerprint"] == _TEST_EXECUTION.fingerprint
     assert [item["scenario"] for item in payload["scenarios"]] == [
         "short_route",
         "medium_route",

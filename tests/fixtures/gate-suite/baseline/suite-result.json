@@ -1,13 +1,38 @@
 {
-  "duration_sec": 10.0,
+  "duration_sec": 10,
   "runtime": "native",
   "scenarios": [
     {
-      "duration_sec": 10.0,
+      "duration_sec": 10,
       "result_file": "results/route.json",
       "scenario": "route",
       "status": "PASS"
     }
   ],
-  "status": "PASS"
+  "status": "PASS",
+  "schema_version": 1,
+  "execution": {
+    "schema_version": 1,
+    "runtime": "native",
+    "runtime_contract": "ros2-nav2-jazzy-loopback-v1",
+    "plan_fingerprint": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "environment": {
+      "schema_version": 1,
+      "os_id": "ubuntu",
+      "os_version": "24.04",
+      "architecture": "x86_64",
+      "python_version": "3.12.3",
+      "ros_distro": "jazzy",
+      "containerized": false,
+      "packages": [
+        {
+          "manager": "python",
+          "name": "robotci",
+          "version": "0.0.1"
+        }
+      ],
+      "fingerprint": "sha256:5d7091e0f8d4c1ef99e473b0c3a91d6e020135016cd3b2049d23b9648384e67f"
+    },
+    "fingerprint": "sha256:bc8c893d856f0739fda6db4edc5f20e4d4773feec04405b7f2e4a67d3278d727"
+  }
 }
