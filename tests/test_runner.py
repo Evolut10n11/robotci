@@ -213,6 +213,10 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     monkeypatch.setenv("CMAKE_PREFIX_PATH", str(tmp_path / "untrusted-cmake"))
     monkeypatch.setenv("COLCON_PREFIX_PATH", str(tmp_path / "untrusted-colcon"))
     monkeypatch.setenv("ROS_PACKAGE_PATH", str(tmp_path / "untrusted-ros-packages"))
+    monkeypatch.setenv("ROS_DISTRO", "humble")
+    monkeypatch.setenv("ROS_ETC_DIR", "/opt/ros/humble/etc/ros")
+    monkeypatch.setenv("ROS_PYTHON_VERSION", "2")
+    monkeypatch.setenv("ROS_VERSION", "2")
     monkeypatch.setenv("BASH_FUNC_injected%%", "() { return 0; }")
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
 
@@ -250,6 +254,10 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert "CMAKE_PREFIX_PATH" not in environment
     assert "COLCON_PREFIX_PATH" not in environment
     assert "ROS_PACKAGE_PATH" not in environment
+    assert "ROS_DISTRO" not in environment
+    assert "ROS_ETC_DIR" not in environment
+    assert "ROS_PYTHON_VERSION" not in environment
+    assert "ROS_VERSION" not in environment
     assert "BASH_FUNC_injected%%" not in environment
 
 

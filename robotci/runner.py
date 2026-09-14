@@ -50,15 +50,19 @@ _EXIT_BY_STATUS = {
 }
 _STATUS_BY_EXIT = {code: status for status, code in _EXIT_BY_STATUS.items()}
 
-_NATIVE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-_NATIVE_SEARCH_PATH_VARIABLES = frozenset(
+_NATIVE_PATH = "/usr/sbin:/usr/bin:/sbin:/bin"
+_NATIVE_SETUP_VARIABLES = frozenset(
     {
         "AMENT_PREFIX_PATH",
         "CMAKE_PREFIX_PATH",
         "COLCON_PREFIX_PATH",
         "LD_LIBRARY_PATH",
         "PATH",
+        "ROS_DISTRO",
+        "ROS_ETC_DIR",
         "ROS_PACKAGE_PATH",
+        "ROS_PYTHON_VERSION",
+        "ROS_VERSION",
     }
 )
 
@@ -167,7 +171,7 @@ def _run_native(
             "LD_AUDIT",
             "LD_PRELOAD",
             "SHELLOPTS",
-            *_NATIVE_SEARCH_PATH_VARIABLES,
+            *_NATIVE_SETUP_VARIABLES,
         }
         and not name.startswith("BASH_FUNC_")
         and not name.startswith("PYTHON")

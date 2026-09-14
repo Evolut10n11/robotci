@@ -16,6 +16,7 @@ from typing import Literal, cast
 from urllib.parse import unquote, urlparse
 
 from robotci.config import RobotCIConfig
+from robotci.native_runtime import ROS_SETUP
 
 SUITE_RESULT_SCHEMA_VERSION = 1
 ENVIRONMENT_SCHEMA_VERSION = 1
@@ -56,6 +57,15 @@ _RUNTIME_VARIABLE_PREFIXES = (
     "ZENOH_",
 )
 _UNSUPPORTED_LOADER_VARIABLES = ("LD_AUDIT", "LD_PRELOAD")
+_CONTROLLED_RUNTIME_VARIABLES = frozenset(
+    {
+        "ROS_DISTRO",
+        "ROS_ETC_DIR",
+        "ROS_PACKAGE_PATH",
+        "ROS_PYTHON_VERSION",
+        "ROS_VERSION",
+    }
+)
 _FILE_BACKED_RUNTIME_VARIABLES = frozenset(
     {
         "CYCLONEDDS_URI",
@@ -643,8 +653,11 @@ def _runtime_variables(runtime_root: Path) -> tuple[RuntimeVariable, ...]:
     names = sorted(
         name
         for name in os.environ
-        if name in _RUNTIME_VARIABLE_NAMES
-        or name.startswith(_RUNTIME_VARIABLE_PREFIXES)
+        if (
+            name in _RUNTIME_VARIABLE_NAMES
+            or name.startswith(_RUNTIME_VARIABLE_PREFIXES)
+        )
+        and name not in _CONTROLLED_RUNTIME_VARIABLES
     )
     return tuple(
         RuntimeVariable(
@@ -681,13 +694,11 @@ def collect_runtime_environment(
     ).resolve()
     attempt_script, attempt_script_identity = _resolve_attempt_script(runtime)
 
-    ros_distro = os.environ.get("ROS_DISTRO", "")
-    if not ros_distro and Path("/opt/ros/jazzy").is_dir():
-        ros_distro = "jazzy"
-    if ros_distro != "jazzy":
+    if not ROS_SETUP.is_file():
         raise ReproducibilityError(
-            f"runtime ROS distribution must be jazzy, got {ros_distro or 'unset'}"
+            f"runtime ROS setup is unavailable: {ROS_SETUP}"
         )
+    ros_distro = "jazzy"
 
     return build_runtime_environment(
         os_id=os_id,

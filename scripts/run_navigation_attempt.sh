@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -Eeo pipefail
 
-if [ -f /opt/ros/jazzy/setup.bash ]; then
-  # shellcheck disable=SC1091
-  source /opt/ros/jazzy/setup.bash
+if [ ! -f /opt/ros/jazzy/setup.bash ]; then
+  echo "RobotCI runtime error: /opt/ros/jazzy/setup.bash was not found."
+  exit 3
 fi
+# shellcheck disable=SC1091
+source /opt/ros/jazzy/setup.bash
 
 if ! command -v ros2 >/dev/null 2>&1; then
   echo "RobotCI runtime error: ros2 was not found."

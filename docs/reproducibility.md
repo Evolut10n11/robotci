@@ -26,9 +26,11 @@ or if any fingerprinted input changes during the suite. Docker metadata is
 collected inside one image built before the suite; every scenario uses that
 same image without rebuilding. Native execution strips Bash startup/function injection variables, rejects
 process-level `LD_AUDIT`/`LD_PRELOAD` injection, drops inherited executable,
-library, ROS overlay, and Python search paths, and sets a controlled system
-`PATH`, fixed hash seed, UTF-8, and no user site. The packaged ROS Jazzy setup
-then rebuilds the ROS paths. The cleanup helper uses Python isolated mode and adds
+library, ROS overlay, setup identity, and Python search paths, and sets a
+package-managed system `PATH` without mutable local directories, a fixed hash
+seed, UTF-8, and no user site. The required `/opt/ros/jazzy/setup.bash` then
+rebuilds every setup-owned ROS path and identity. The cleanup helper uses Python
+isolated mode and adds
 the fingerprinted package only after interpreter startup, so checkout-level
 `sitecustomize.py` hooks cannot run. The attempt sources the packaged ROS Jazzy
 setup while Python resolves RobotCI from the fingerprinted runtime checkout. It honors the
