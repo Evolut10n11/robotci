@@ -20,6 +20,7 @@ from robotci.reproducibility import (
     build_suite_execution_identity,
     build_suite_plan_fingerprint,
     capture_suite_execution,
+    collect_runtime_environment,
     parse_runtime_environment,
     parse_suite_execution,
     validate_suite_execution,
@@ -236,6 +237,21 @@ def test_capture_suite_execution_can_build_docker_image(
 
     assert execution.runtime == "docker"
     assert execution.environment == environment
+
+
+@pytest.mark.parametrize("variable", ["LD_AUDIT", "LD_PRELOAD"])
+def test_runtime_environment_rejects_loader_injection(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    variable: str,
+) -> None:
+    monkeypatch.setenv(variable, str(tmp_path / "injected.so"))
+
+    with pytest.raises(
+        ReproducibilityError,
+        match="loader injection is unsupported",
+    ):
+        collect_runtime_environment(tmp_path)
 
 
 def test_duplicate_runtime_packages_are_rejected() -> None:

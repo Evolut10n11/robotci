@@ -60,6 +60,7 @@ _RUNTIME_VARIABLE_PREFIXES = (
     "ROS_",
     "ZENOH_",
 )
+_UNSUPPORTED_LOADER_VARIABLES = ("LD_AUDIT", "LD_PRELOAD")
 
 
 class ReproducibilityError(ValueError):
@@ -589,6 +590,17 @@ def collect_runtime_environment(
     runtime_root: Path | None = None,
 ) -> RuntimeEnvironment:
     """Capture the actual process environment used to execute the Nav2 suite."""
+
+    loader_injection = [
+        name
+        for name in _UNSUPPORTED_LOADER_VARIABLES
+        if os.environ.get(name)
+    ]
+    if loader_injection:
+        raise ReproducibilityError(
+            "loader injection is unsupported for reproducible execution: "
+            + ", ".join(loader_injection)
+        )
 
     os_id, os_version = _read_os_release()
     runtime = (
