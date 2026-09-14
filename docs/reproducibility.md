@@ -25,7 +25,8 @@ an `execution` object with:
   differ, plus runtime shell files and any
   top-level source, sourceless bytecode, native-extension module, or complete
   package tree that can shadow ROS imports, including every import candidate
-  exposed from the explicit Python dependency roots;
+  exposed from explicit distribution roots and every Python root prepended by
+  the clean, packaged ROS Jazzy setup;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
 
 The runner captures metadata before the first attempt and verifies it again

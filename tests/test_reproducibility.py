@@ -17,6 +17,7 @@ from robotci.reproducibility import (
     RuntimeVariable,
     _installed_debian_packages,
     _resolve_attempt_script,
+    _ros_setup_python_roots,
     _runtime_variables,
     build_robotci_source_fingerprint,
     build_runtime_environment,
@@ -414,6 +415,32 @@ def test_debian_package_inventory_includes_selected_rmw(
         ("bash", "5.2"),
         ("ros-jazzy-rmw-cyclonedds-cpp", "2.2"),
     ]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="ROS setup roots are POSIX paths")
+def test_ros_setup_python_roots_are_derived_from_clean_shell(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = tmp_path / "ros-python"
+    second = tmp_path / "ros-vendor"
+    first.mkdir()
+    second.mkdir()
+
+    def fake_run(command, **kwargs):
+        assert command[0:2] == ["bash", "-c"]
+        assert command[-1] == "/opt/ros/jazzy/setup.bash"
+        assert kwargs["env"] == {"PATH": "/usr/sbin:/usr/bin:/sbin:/bin"}
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=f"{first}:{second}:{first}",
+            stderr="",
+        )
+
+    monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
+
+    assert _ros_setup_python_roots() == (first.resolve(), second.resolve())
 
 
 def test_robotci_source_fingerprint_uses_separate_runtime_root(tmp_path: Path) -> None:

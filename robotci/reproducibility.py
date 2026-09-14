@@ -24,6 +24,13 @@ ENVIRONMENT_SCHEMA_VERSION = 1
 EXECUTION_SCHEMA_VERSION = 1
 RUNTIME_CONTRACT = "ros2-nav2-jazzy-loopback-v1"
 
+_SYSTEM_PATH = "/usr/sbin:/usr/bin:/sbin:/bin"
+_ROS_PYTHONPATH_QUERY = r"""
+set -eo pipefail
+source "$1" >/dev/null 2>&1
+printf '%s' "${PYTHONPATH:-}"
+"""
+
 ExecutionRuntime = Literal["native", "docker"]
 PackageManager = Literal["python", "deb"]
 
@@ -497,6 +504,60 @@ def _installed_debian_packages() -> tuple[RuntimePackage, ...]:
     )
 
 
+def _ros_setup_python_roots() -> tuple[Path, ...]:
+    try:
+        completed = subprocess.run(
+            [
+                "bash",
+                "-c",
+                _ROS_PYTHONPATH_QUERY,
+                "robotci-ros-pythonpath",
+                str(ROS_SETUP),
+            ],
+            env={"PATH": _SYSTEM_PATH},
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ReproducibilityError(
+            f"cannot inspect ROS Python import roots: {exc}"
+        ) from exc
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or f"exit {completed.returncode}"
+        raise ReproducibilityError(
+            f"cannot inspect ROS Python import roots: {detail}"
+        )
+
+    roots: list[Path] = []
+    for value in completed.stdout.split(":"):
+        if not value:
+            continue
+        candidate = Path(value)
+        if not candidate.is_absolute():
+            raise ReproducibilityError(
+                "ROS setup returned a relative Python import root"
+            )
+        try:
+            root = candidate.resolve(strict=True)
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot resolve ROS Python import root '{candidate}': {exc}"
+            ) from exc
+        if not root.is_dir():
+            raise ReproducibilityError(
+                f"ROS Python import root is not a directory: {root}"
+            )
+        if root not in roots:
+            roots.append(root)
+    if not roots:
+        raise ReproducibilityError(
+            "ROS setup did not provide a Python import root"
+        )
+    return tuple(roots)
+
+
 def runtime_python_dependency_roots() -> tuple[Path, ...]:
     """Return every broad import root exported to isolated RobotCI processes."""
 
@@ -510,6 +571,9 @@ def runtime_python_dependency_roots() -> tuple[Path, ...]:
                 f"runtime is missing Python distribution metadata for {name}"
             ) from exc
         root = Path(package.locate_file("")).resolve()
+        if root not in roots:
+            roots.append(root)
+    for root in _ros_setup_python_roots():
         if root not in roots:
             roots.append(root)
     return tuple(roots)
@@ -698,7 +762,7 @@ def build_robotci_source_fingerprint(
                 f"cannot inspect Python dependency root '{import_root}': {exc}"
             ) from exc
         for candidate in root_children:
-            if candidate.name in {"__pycache__", "robotci"}:
+            if candidate.name == "__pycache__":
                 continue
             import_sources = []
             if candidate.is_file() and is_import_file(candidate):
