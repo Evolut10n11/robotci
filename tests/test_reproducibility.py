@@ -12,6 +12,7 @@ from robotci.reproducibility import (
     RUNTIME_CONTRACT,
     ReproducibilityError,
     RuntimePackage,
+    RuntimeVariable,
     _resolve_attempt_script,
     build_robotci_source_fingerprint,
     build_runtime_environment,
@@ -42,7 +43,12 @@ def _config(*, timeout_sec: float = 10.0, tolerance: float = 0.25) -> RobotCICon
     )
 
 
-def _environment(*, python_version: str = "3.12.3", containerized: bool = False):
+def _environment(
+    *,
+    python_version: str = "3.12.3",
+    containerized: bool = False,
+    runtime_variables: tuple[RuntimeVariable, ...] = (),
+):
     return build_runtime_environment(
         os_id="ubuntu",
         os_version="24.04",
@@ -55,6 +61,7 @@ def _environment(*, python_version: str = "3.12.3", containerized: bool = False)
             RuntimePackage(manager="python", name="robotci", version="0.0.1"),
             RuntimePackage(manager="deb", name="ros-jazzy-navigation2", version="1.3.8"),
         ),
+        runtime_variables=runtime_variables,
     )
 
 
@@ -98,6 +105,25 @@ def test_environment_fingerprint_is_independent_of_package_order() -> None:
     )
 
     assert environment == reversed_environment
+
+
+def test_environment_fingerprint_covers_runtime_variables() -> None:
+    original = _environment(
+        runtime_variables=(
+            RuntimeVariable(name="ROS_DOMAIN_ID", value="7"),
+            RuntimeVariable(name="RMW_IMPLEMENTATION", value="rmw_fastrtps_cpp"),
+        )
+    )
+    changed = _environment(
+        runtime_variables=(
+            RuntimeVariable(name="ROS_DOMAIN_ID", value="8"),
+            RuntimeVariable(name="RMW_IMPLEMENTATION", value="rmw_fastrtps_cpp"),
+        )
+    )
+
+    assert original.fingerprint != changed.fingerprint
+    assert original.runtime_variables[0].name == "RMW_IMPLEMENTATION"
+    assert original.runtime_variables[1].name == "ROS_DOMAIN_ID"
 
 
 def test_environment_parser_rejects_tampered_contents() -> None:

@@ -13,13 +13,17 @@ an `execution` object with:
   timeouts, and evidence policies;
 - the actual Ubuntu, architecture, Python, ROS distribution, container
   isolation, Python-package, and ROS/Nav2 Debian-package versions;
+- a safe whitelist of inherited ROS/RMW discovery, middleware, overlay, loader,
+  locale, and runtime-wrapper environment variables;
 - a source digest of the executable RobotCI Python and runtime shell files;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
 
-The runner captures metadata after the runtime attempts and fails closed if the
-environment cannot be inspected. Docker metadata is collected inside the built
-image, not from the host. A process running inside the image is recorded as the
-Docker runtime even though it invokes the native adapter internally.
+The runner captures metadata before the first attempt and verifies it again
+after the final attempt. It fails closed if the environment cannot be inspected
+or if any fingerprinted input changes during the suite. Docker metadata is
+collected inside one image built before the suite; every scenario uses that
+same image without rebuilding. A process running inside the image is recorded
+as the Docker runtime even though it invokes the native adapter internally.
 
 Baseline capture validates the complete contract before copying artifacts.
 Suite regression comparison requires exact execution fingerprints before it

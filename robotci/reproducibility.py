@@ -34,6 +34,33 @@ _DEBIAN_PACKAGES = (
     "ros-jazzy-nav2-minimal-tb4-description",
 )
 _FINGERPRINT_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_RUNTIME_VARIABLE_NAMES = frozenset(
+    {
+        "AMENT_PREFIX_PATH",
+        "BASH_ENV",
+        "CMAKE_PREFIX_PATH",
+        "COLCON_PREFIX_PATH",
+        "HOME",
+        "LANG",
+        "LANGUAGE",
+        "LD_LIBRARY_PATH",
+        "PATH",
+        "PYTHONPATH",
+        "ROBOTCI_ATTEMPT_SCRIPT",
+        "ROBOTCI_LOG_FILE",
+        "ROBOTCI_RETRY_DELAY_SEC",
+        "TMPDIR",
+    }
+)
+_RUNTIME_VARIABLE_PREFIXES = (
+    "CYCLONEDDS_",
+    "FASTDDS_",
+    "FASTRTPS_",
+    "LC_",
+    "RMW_",
+    "ROS_",
+    "ZENOH_",
+)
 
 
 class ReproducibilityError(ValueError):
@@ -48,6 +75,12 @@ class RuntimePackage:
 
 
 @dataclass(frozen=True)
+class RuntimeVariable:
+    name: str
+    value: str
+
+
+@dataclass(frozen=True)
 class RuntimeEnvironment:
     schema_version: int
     os_id: str
@@ -58,6 +91,7 @@ class RuntimeEnvironment:
     robotci_build: str
     containerized: bool
     packages: tuple[RuntimePackage, ...]
+    runtime_variables: tuple[RuntimeVariable, ...]
     fingerprint: str
 
 
@@ -126,6 +160,7 @@ def _environment_definition(
     robotci_build: str,
     containerized: bool,
     packages: Sequence[RuntimePackage],
+    runtime_variables: Sequence[RuntimeVariable],
 ) -> dict[str, object]:
     return {
         "schema_version": ENVIRONMENT_SCHEMA_VERSION,
@@ -137,6 +172,9 @@ def _environment_definition(
         "robotci_build": robotci_build,
         "containerized": containerized,
         "packages": [asdict(package) for package in packages],
+        "runtime_variables": [
+            asdict(variable) for variable in runtime_variables
+        ],
     }
 
 
@@ -150,6 +188,7 @@ def build_runtime_environment(
     robotci_build: str,
     containerized: bool,
     packages: Sequence[RuntimePackage],
+    runtime_variables: Sequence[RuntimeVariable] = (),
 ) -> RuntimeEnvironment:
     values = {
         "os_id": os_id,
@@ -180,16 +219,34 @@ def build_runtime_environment(
             )
         seen.add(key)
 
+    normalized_variables = tuple(
+        sorted(runtime_variables, key=lambda item: item.name)
+    )
+    seen_variables: set[str] = set()
+    for variable in normalized_variables:
+        variable_name = _text(variable.name, "runtime_variable.name")
+        if variable_name in seen_variables:
+            raise ReproducibilityError(
+                f"duplicate runtime variable: {variable_name}"
+            )
+        if not isinstance(variable.value, str):
+            raise ReproducibilityError(
+                f"runtime variable {variable_name!r} must have a string value"
+            )
+        seen_variables.add(variable_name)
+
     definition = _environment_definition(
         **normalized_values,
         containerized=containerized,
         packages=normalized_packages,
+        runtime_variables=normalized_variables,
     )
     return RuntimeEnvironment(
         schema_version=ENVIRONMENT_SCHEMA_VERSION,
         **normalized_values,
         containerized=containerized,
         packages=normalized_packages,
+        runtime_variables=normalized_variables,
         fingerprint=_fingerprint(definition),
     )
 
@@ -216,6 +273,7 @@ def parse_runtime_environment(
             "robotci_build",
             "containerized",
             "packages",
+            "runtime_variables",
             "fingerprint",
         },
         name=name,
@@ -251,6 +309,28 @@ def parse_runtime_environment(
             )
         )
 
+    raw_variables = payload.get("runtime_variables")
+    if not isinstance(raw_variables, list | tuple):
+        raise ReproducibilityError(f"{name}.runtime_variables must be an array")
+    runtime_variables: list[RuntimeVariable] = []
+    for index, raw_variable in enumerate(raw_variables):
+        variable_name = f"{name}.runtime_variables[{index}]"
+        item = _mapping(raw_variable, variable_name)
+        _reject_unknown_keys(
+            item,
+            allowed={"name", "value"},
+            name=variable_name,
+        )
+        raw_value = item.get("value")
+        if not isinstance(raw_value, str):
+            raise ReproducibilityError(f"{variable_name}.value must be a string")
+        runtime_variables.append(
+            RuntimeVariable(
+                name=_text(item.get("name"), f"{variable_name}.name"),
+                value=raw_value,
+            )
+        )
+
     environment = build_runtime_environment(
         os_id=_text(payload.get("os_id"), f"{name}.os_id"),
         os_version=_text(payload.get("os_version"), f"{name}.os_version"),
@@ -263,6 +343,7 @@ def parse_runtime_environment(
         ),
         containerized=payload.get("containerized"),
         packages=packages,
+        runtime_variables=runtime_variables,
     )
     supplied = _fingerprint_text(payload.get("fingerprint"), f"{name}.fingerprint")
     if supplied != environment.fingerprint:
@@ -421,6 +502,19 @@ def _resolve_attempt_script(runtime: Path) -> tuple[Path, str]:
     return attempt_script, attempt_identity
 
 
+def _runtime_variables() -> tuple[RuntimeVariable, ...]:
+    names = sorted(
+        name
+        for name in os.environ
+        if name in _RUNTIME_VARIABLE_NAMES
+        or name.startswith(_RUNTIME_VARIABLE_PREFIXES)
+    )
+    return tuple(
+        RuntimeVariable(name=name, value=os.environ[name])
+        for name in names
+    )
+
+
 def collect_runtime_environment(
     runtime_root: Path | None = None,
 ) -> RuntimeEnvironment:
@@ -454,6 +548,7 @@ def collect_runtime_environment(
         containerized=Path("/.dockerenv").exists()
         or Path("/run/.containerenv").exists(),
         packages=(*_installed_python_packages(), *_installed_debian_packages()),
+        runtime_variables=_runtime_variables(),
     )
 
 

@@ -360,6 +360,43 @@ def test_wrapper_stops_when_cleanup_python_is_unavailable(tmp_path: Path) -> Non
 
 
 @pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
+def test_wrapper_respects_explicit_python_over_project_venv(tmp_path: Path) -> None:
+    wrapper = Path(__file__).resolve().parents[1] / "scripts/run_navigation_scenario.sh"
+    project_python = tmp_path / ".venv/bin/python"
+    project_python.parent.mkdir(parents=True)
+    project_python.write_text(
+        '#!/usr/bin/env bash\ntouch "$PROJECT_PYTHON_USED"\n',
+        encoding="utf-8",
+    )
+    project_python.chmod(0o755)
+    adapter = tmp_path / "adapter.sh"
+    adapter.write_text('touch "$ADAPTER_STARTED"\n', encoding="utf-8")
+    project_python_used = tmp_path / "project-python-used"
+    adapter_started = tmp_path / "adapter-started"
+    env = {
+        **os.environ,
+        "ROBOTCI_ATTEMPT_SCRIPT": str(adapter),
+        "ROBOTCI_PYTHON": str(tmp_path / "missing-python"),
+        "ROBOTCI_RESULT_FILE": str(tmp_path / "result.json"),
+        "ROBOTCI_LOG_FILE": str(tmp_path / "nav2.log"),
+        "PROJECT_PYTHON_USED": str(project_python_used),
+        "ADAPTER_STARTED": str(adapter_started),
+    }
+
+    completed = subprocess.run(
+        ["bash", str(wrapper)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        timeout=10,
+    )
+
+    assert completed.returncode == 3
+    assert not project_python_used.exists()
+    assert not adapter_started.exists()
+
+
+@pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
 def test_stale_race_log_cannot_trigger_retry(tmp_path: Path) -> None:
     wrapper = Path(__file__).resolve().parents[1] / "scripts/run_navigation_scenario.sh"
     adapter = tmp_path / "adapter.sh"
