@@ -92,8 +92,6 @@ def validate_command(
     table.add_column("Start")
     table.add_column("Goal")
     table.add_column("Timeout")
-    table.add_column("Goal tolerance")
-    table.add_column("Min feedback")
 
     for scenario in loaded.scenarios:
         start = f"({scenario.start.x}, {scenario.start.y}, {scenario.start.yaw})"
@@ -103,13 +101,17 @@ def validate_command(
             start,
             goal,
             f"{scenario.timeout_sec:g}s",
-            f"{scenario.goal_tolerance_m:g}m",
-            str(scenario.min_feedback_samples),
         )
 
     console.print(f"Config: {context.config_path}", soft_wrap=True)
     console.print(f"Runtime: [cyan]{loaded.runtime}[/cyan]")
     console.print(table)
+    for scenario in loaded.scenarios:
+        console.print(
+            f"PASS evidence {scenario.name}: goal <= "
+            f"{scenario.goal_tolerance_m:g}m; feedback >= "
+            f"{scenario.min_feedback_samples}"
+        )
     console.print("[green]Configuration valid[/green]")
 
 
@@ -181,8 +183,6 @@ def plan_command(
     table.add_column("Start")
     table.add_column("Goal")
     table.add_column("Timeout")
-    table.add_column("Goal tolerance")
-    table.add_column("Min feedback")
 
     for planned in plan.scenarios:
         start = f"({planned.start.x}, {planned.start.y}, {planned.start.yaw})"
@@ -193,13 +193,17 @@ def plan_command(
             start,
             goal,
             f"{planned.timeout_sec:g}s",
-            f"{planned.goal_tolerance_m:g}m",
-            str(planned.min_feedback_samples),
         )
 
     console.print(f"Config: {plan.config_path}", soft_wrap=True)
     console.print(f"Runtime request: [cyan]{plan.runtime}[/cyan]")
     console.print(table)
+    for planned in plan.scenarios:
+        console.print(
+            f"PASS evidence {planned.name}: goal <= "
+            f"{planned.goal_tolerance_m:g}m; feedback >= "
+            f"{planned.min_feedback_samples}"
+        )
     console.print("[green]Plan resolved; no runtime started[/green]")
 
 

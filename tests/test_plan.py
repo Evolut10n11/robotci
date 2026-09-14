@@ -154,6 +154,7 @@ def test_plan_command_prints_human_readable_dry_run(tmp_path: Path) -> None:
     assert "smoke" in result.stdout
     assert "office-v1" in result.stdout
     assert "15s" in result.stdout
+    assert "goal <= 0.25m; feedback >= 1" in result.stdout
     assert "no runtime started" in result.stdout
 
 
