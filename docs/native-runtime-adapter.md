@@ -4,14 +4,16 @@ RobotCI's built-in native runtime uses the Nav2 Loopback stack, but external pil
 
 ## Contract
 
-Set `ROBOTCI_ATTEMPT_SCRIPT` to an executable-compatible shell script before running RobotCI with the native runtime:
+Set `ROBOTCI_ATTEMPT_SCRIPT` to an executable-compatible shell script before running RobotCI with the native runtime. Resolve the target configuration to an absolute path from the pilot checkout so RobotCI cannot silently fall back to its own package checkout:
 
 ```bash
 export ROBOTCI_ATTEMPT_SCRIPT="$PWD/robotci_adapter.sh"
-robotci run --runtime native --config robotci.yaml
+robotci run --runtime native --config "$PWD/robotci.yaml"
 ```
 
-RobotCI invokes the adapter with `bash` once per scenario. The adapter receives the same scenario contract as the built-in Nav2 Loopback attempt:
+RobotCI invokes the adapter with `bash` for each scenario. Normally there is one invocation. If an invocation returns `3` (`INFRA_ERROR`) and the runtime log contains RobotCI's two known Nav2 Loopback empty-map race markers, the wrapper may retry the same scenario once. External adapters must therefore make setup/cleanup safe to repeat. When the adapter does not use the built-in Loopback log, clear stale `/tmp/nav2-<scenario>.log` files before a pilot run or point `ROBOTCI_LOG_FILE` at a fresh log file so old Loopback markers cannot trigger an accidental retry.
+
+The adapter receives the same scenario contract as the built-in Nav2 Loopback attempt:
 
 - `ROBOTCI_SCENARIO`
 - `ROBOTCI_START_X`, `ROBOTCI_START_Y`, `ROBOTCI_START_YAW`
@@ -21,7 +23,7 @@ RobotCI invokes the adapter with `bash` once per scenario. The adapter receives 
 - `ROBOTCI_TIMEOUT_SEC`
 - `ROBOTCI_PYTHON`
 
-The adapter is responsible for starting or connecting to the target simulator/Nav2 stack, executing the scenario, writing the normal RobotCI scenario result JSON to `ROBOTCI_RESULT_FILE`, and cleaning up processes that it starts.
+The adapter is responsible for starting or connecting to the target simulator/Nav2 stack, placing or localizing the simulated robot at the configured start pose, executing the scenario, writing the normal RobotCI scenario result JSON to `ROBOTCI_RESULT_FILE`, and cleaning up processes that it starts.
 
 Return codes keep the existing RobotCI contract:
 
@@ -53,8 +55,17 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Perform repository-specific readiness checks here, then execute RobotCI's
-# normalized Nav2 scenario probe against the running graph.
+# Perform repository-specific readiness checks here.
+#
+# Before the probe starts, the simulator/localization state must match the
+# configured RobotCI start pose. If the target supports /initialpose, publish it
+# explicitly. Targets that require a simulator reset/teleport service should do
+# that first and only continue after the robot really occupies this pose.
+timeout 20s ros2 topic pub --once \
+  /initialpose geometry_msgs/msg/PoseWithCovarianceStamped \
+  "{header: {frame_id: map}, pose: {pose: {position: {x: $ROBOTCI_START_X, y: $ROBOTCI_START_Y, z: 0.0}, orientation: {x: 0.0, y: 0.0, z: $ROBOTCI_START_QZ, w: $ROBOTCI_START_QW}}}}"
+
+# Execute RobotCI's normalized Nav2 scenario probe against the running graph.
 "${ROBOTCI_PYTHON:-python3}" -m robotci.ros.navigation_scenario \
   --scenario "$ROBOTCI_SCENARIO" \
   --start-x "$ROBOTCI_START_X" \
@@ -67,13 +78,13 @@ trap cleanup EXIT
   --timeout-sec "$ROBOTCI_TIMEOUT_SEC"
 ```
 
-A real adapter should wait for the target stack's readiness signals before invoking the scenario probe. It should not require proprietary maps, credentials, production access, or a physical robot for pilot validation.
+A real adapter should wait for the target stack's readiness signals before applying the start pose and invoking the scenario probe. Do not treat the `--start-*` arguments passed to `navigation_scenario` as a simulator reset: they seed RobotCI's metric/result contract, while the adapter itself must make the target robot state match them. The adapter should not require proprietary maps, credentials, production access, or a physical robot for pilot validation.
 
 ## External pilot use
 
 For the first external pilot targets, prefer one small adapter script in the target checkout over adding target-specific behavior to RobotCI core. If two or more independent repositories require the same setup pattern, that repeated evidence is the signal to promote it into a first-class runtime adapter API.
 
-For Clearpath's public Nav2 demos, the first pilot adapter should launch the Jazzy `a200` warehouse simulation/navigation stack, wait for `/navigate_to_pose`, then invoke the normalized scenario probe. Keep the adapter in the pilot workspace until the compatibility pattern is proven reusable.
+For Clearpath's public Nav2 demos, the first pilot adapter should launch the Jazzy `a200` warehouse simulation/navigation stack, wait for `/navigate_to_pose`, explicitly reset/localize the robot at RobotCI's configured start pose, then invoke the normalized scenario probe. Keep the adapter in the pilot workspace until the compatibility pattern is proven reusable.
 
 ## Limitations
 
