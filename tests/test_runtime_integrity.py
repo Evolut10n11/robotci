@@ -5,12 +5,14 @@ import os
 import shutil
 import subprocess
 import sys
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
 
 from robotci import runner
 from robotci.replay import default_replay_path
+from robotci.results import Pose2D, build_scenario_task
 
 
 @pytest.fixture
@@ -29,7 +31,24 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def _payload(status: str = "PASS") -> dict[str, object]:
-    return {"scenario": "route", "status": status, "duration_sec": 1.5}
+    start = Pose2D(x=0.0, y=0.0, yaw=0.0)
+    goal = Pose2D(x=1.0, y=0.0, yaw=0.0)
+    return {
+        "schema_version": 1,
+        "scenario": "route",
+        "status": status,
+        "duration_sec": 1.5,
+        "start": asdict(start),
+        "goal": asdict(goal),
+        "task": asdict(
+            build_scenario_task(
+                scenario="route",
+                start=start,
+                goal=goal,
+                map_id="unspecified",
+            )
+        ),
+    }
 
 
 def _write(path: Path, payload: dict[str, object]) -> None:

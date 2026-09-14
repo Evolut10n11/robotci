@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,7 @@ runtime: docker
 
 scenarios:
   - name: test_route
+    map_id: warehouse-map@sha256:abc123
     start:
       x: 0.0
       y: 0.0
@@ -43,6 +45,7 @@ scenarios:
     assert scenario.goal.y == -0.17
     assert scenario.goal.yaw == 0.5
     assert scenario.timeout_sec == 45.0
+    assert scenario.map_id == "warehouse-map@sha256:abc123"
 
 
 def test_load_config_accepts_utf8_bom(tmp_path: Path) -> None:
@@ -142,6 +145,27 @@ scenarios:
     )
 
     with pytest.raises(ConfigError, match="timeout_sec must be greater than zero"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize("map_id", ["", "   ", 42, True])
+def test_load_config_rejects_invalid_map_id(tmp_path: Path, map_id: object) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "version: 1",
+                "scenarios:",
+                "  - name: route",
+                f"    map_id: {json.dumps(map_id)}",
+                "    start: {x: 0, y: 0}",
+                "    goal: {x: 1, y: 1}",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="map_id must be a non-empty string"):
         load_config(config_path)
 
 

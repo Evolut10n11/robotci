@@ -19,6 +19,7 @@ The adapter receives the same scenario contract as the built-in Nav2 Loopback at
 - `ROBOTCI_START_X`, `ROBOTCI_START_Y`, `ROBOTCI_START_YAW`
 - `ROBOTCI_START_QZ`, `ROBOTCI_START_QW`
 - `ROBOTCI_GOAL_X`, `ROBOTCI_GOAL_Y`, `ROBOTCI_GOAL_YAW`
+- `ROBOTCI_MAP_ID`
 - `ROBOTCI_RESULT_FILE`
 - `ROBOTCI_TIMEOUT_SEC`
 - `ROBOTCI_PYTHON`
@@ -74,11 +75,17 @@ timeout 20s ros2 topic pub --once \
   --goal-x "$ROBOTCI_GOAL_X" \
   --goal-y "$ROBOTCI_GOAL_Y" \
   --goal-yaw "$ROBOTCI_GOAL_YAW" \
+  --map-id "$ROBOTCI_MAP_ID" \
   --output "$ROBOTCI_RESULT_FILE" \
   --timeout-sec "$ROBOTCI_TIMEOUT_SEC"
 ```
 
 A real adapter should wait for the target stack's readiness signals before applying the start pose and invoking the scenario probe. Do not treat the `--start-*` arguments passed to `navigation_scenario` as a simulator reset: they seed RobotCI's metric/result contract, while the adapter itself must make the target robot state match them. The adapter should not require proprietary maps, credentials, production access, or a physical robot for pilot validation.
+
+Set each scenario's `map_id` to a stable map name or content digest. The value is
+part of RobotCI's task fingerprint together with the scenario, start, goal, and
+coordinate frame. A controller or planner change remains comparable because its
+implementation identity is deliberately outside the task fingerprint.
 
 ## External pilot use
 

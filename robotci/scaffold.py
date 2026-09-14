@@ -12,6 +12,7 @@ runtime: auto
 
 scenarios:
   - name: smoke_route
+    map_id: nav2-loopback
     start:
       x: 0.0
       y: 0.0

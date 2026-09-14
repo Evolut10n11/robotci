@@ -4,6 +4,7 @@ runtime: auto
 
 scenarios:
   - name: short_route
+    map_id: nav2-loopback
     start:
       x: 0.0
       y: 0.0
@@ -15,6 +16,7 @@ scenarios:
     timeout_sec: 60
 
   - name: medium_route
+    map_id: nav2-loopback
     start:
       x: 0.0
       y: 0.0
@@ -26,6 +28,7 @@ scenarios:
     timeout_sec: 150
 
   - name: simple_route
+    map_id: nav2-loopback
     start:
       x: 0.0
       y: 0.0

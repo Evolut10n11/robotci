@@ -9,6 +9,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from robotci.comparison import ComparisonInputError, load_scenario_result
+
 BASELINE_SCHEMA_VERSION = 1
 DEFAULT_BASELINE_ROOT = Path(".robotci") / "baselines"
 _NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
@@ -90,15 +92,19 @@ def _validated_suite(suite_path: Path) -> tuple[dict[str, Any], list[tuple[str, 
             raise BaselineError(f"scenario {scenario!r} has no result_file")
 
         result_path = _safe_result_path(suite_dir, result_file)
-        result = _load_json_object(result_path, label=f"result for scenario {scenario!r}")
-        if result.get("scenario") != scenario:
-            result_scenario = result.get("scenario")
+        if not result_path.is_file():
+            raise BaselineError(f"result for scenario {scenario!r} does not exist: {result_path}")
+        try:
+            result = load_scenario_result(result_path)
+        except ComparisonInputError as exc:
+            raise BaselineError(
+                f"result for scenario {scenario!r} is not baseline-compatible: {exc}"
+            ) from exc
+        if result.scenario != scenario:
             raise BaselineError(
                 f"scenario identity mismatch: suite has {scenario!r}, "
-                f"result has {result_scenario!r}"
+                f"result has {result.scenario!r}"
             )
-        if result.get("status") != "PASS":
-            raise BaselineError(f"result for scenario {scenario!r} is not PASS")
         validated.append((result_file, result_path))
 
     return suite, validated

@@ -11,6 +11,7 @@ from robotci.project import resolve_project_context
 @dataclass(frozen=True)
 class PlannedScenario:
     name: str
+    map_id: str | None
     start: PoseConfig
     goal: PoseConfig
     timeout_sec: float
@@ -18,6 +19,7 @@ class PlannedScenario:
     def as_dict(self) -> dict[str, object]:
         return {
             "name": self.name,
+            "map_id": self.map_id,
             "start": {
                 "x": self.start.x,
                 "y": self.start.y,
@@ -72,6 +74,7 @@ def build_execution_plan(
     planned = tuple(
         PlannedScenario(
             name=definition.name,
+            map_id=definition.map_id,
             start=definition.start,
             goal=definition.goal,
             timeout_sec=(

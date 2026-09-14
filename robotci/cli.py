@@ -168,6 +168,7 @@ def plan_command(
 
     table = Table(title="RobotCI execution plan")
     table.add_column("Scenario")
+    table.add_column("Map")
     table.add_column("Start")
     table.add_column("Goal")
     table.add_column("Timeout")
@@ -175,7 +176,13 @@ def plan_command(
     for planned in plan.scenarios:
         start = f"({planned.start.x}, {planned.start.y}, {planned.start.yaw})"
         goal = f"({planned.goal.x}, {planned.goal.y}, {planned.goal.yaw})"
-        table.add_row(planned.name, start, goal, f"{planned.timeout_sec:g}s")
+        table.add_row(
+            planned.name,
+            planned.map_id or "unspecified",
+            start,
+            goal,
+            f"{planned.timeout_sec:g}s",
+        )
 
     console.print(f"Config: {plan.config_path}", soft_wrap=True)
     console.print(f"Runtime request: [cyan]{plan.runtime}[/cyan]")

@@ -13,6 +13,7 @@ from typing import Literal, cast
 
 from robotci.config import (
     ConfigError,
+    PoseConfig,
     RuntimeName,
     ScenarioConfig,
     get_scenario,
@@ -22,9 +23,13 @@ from robotci.native_runtime import probe_native_ros
 from robotci.project import DEFAULT_CONFIG_PATH, resolve_project_context
 from robotci.replay import default_replay_path
 from robotci.results import (
+    RESULT_SCHEMA_VERSION,
+    TASK_SCHEMA_VERSION,
+    Pose2D,
     ScenarioStatus,
     SuiteResult,
     SuiteScenarioResult,
+    build_scenario_task,
     write_suite_result,
 )
 
@@ -147,6 +152,7 @@ def _run_native(
             "ROBOTCI_GOAL_X": str(scenario.goal.x),
             "ROBOTCI_GOAL_Y": str(scenario.goal.y),
             "ROBOTCI_GOAL_YAW": str(scenario.goal.yaw),
+            "ROBOTCI_MAP_ID": scenario.map_id or "unspecified",
             "ROBOTCI_RESULT_FILE": str(output.resolve()),
             "ROBOTCI_TIMEOUT_SEC": str(timeout_sec),
             "ROBOTCI_PYTHON": sys.executable,
@@ -254,8 +260,63 @@ def _clear_result_artifacts(path: Path) -> None:
         raise RuntimeUnavailableError(f"cannot prepare fresh result artifacts: {exc}") from exc
 
 
+def _pose_matches(value: object, expected: PoseConfig) -> bool:
+    if not isinstance(value, dict) or set(value) != {"x", "y", "yaw"}:
+        return False
+    for field in ("x", "y", "yaw"):
+        coordinate = value[field]
+        if isinstance(coordinate, bool) or not isinstance(coordinate, int | float):
+            return False
+        try:
+            number = float(coordinate)
+        except OverflowError:
+            return False
+        if not math.isfinite(number) or number != getattr(expected, field):
+            return False
+    return True
+
+
+def _result_matches_task(payload: dict[str, object], scenario: ScenarioConfig) -> bool:
+    task = payload.get("task")
+    if not isinstance(task, dict) or set(task) != {
+        "schema_version",
+        "frame_id",
+        "map_id",
+        "fingerprint",
+    }:
+        return False
+    task_version = task.get("schema_version")
+    result_version = payload.get("schema_version")
+    if (
+        not isinstance(task_version, int)
+        or isinstance(task_version, bool)
+        or task_version != TASK_SCHEMA_VERSION
+        or not isinstance(result_version, int)
+        or isinstance(result_version, bool)
+        or result_version != RESULT_SCHEMA_VERSION
+    ):
+        return False
+
+    try:
+        expected_task = build_scenario_task(
+            scenario=scenario.name,
+            start=Pose2D(scenario.start.x, scenario.start.y, scenario.start.yaw),
+            goal=Pose2D(scenario.goal.x, scenario.goal.y, scenario.goal.yaw),
+            map_id=scenario.map_id or "unspecified",
+        )
+    except (OverflowError, ValueError):
+        return False
+    return (
+        _pose_matches(payload.get("start"), scenario.start)
+        and _pose_matches(payload.get("goal"), scenario.goal)
+        and task.get("frame_id") == expected_task.frame_id
+        and task.get("map_id") == expected_task.map_id
+        and task.get("fingerprint") == expected_task.fingerprint
+    )
+
+
 def _finalize_result(
-    path: Path, scenario: str, exit_code: int,
+    path: Path, scenario: ScenarioConfig, exit_code: int,
 ) -> tuple[int, ScenarioStatus, float]:
     """Keep process, scenario artifact and suite verdicts consistent, failing closed."""
     payload = read_result_payload(path)
@@ -269,17 +330,18 @@ def _finalize_result(
     valid_status = isinstance(status, str) and status in _EXIT_BY_STATUS
     if (
         payload is not None
-        and payload.get("scenario") == scenario
+        and payload.get("scenario") == scenario.name
         and valid_status
         and valid_duration
         and _EXIT_BY_STATUS[status] == exit_code
+        and _result_matches_task(payload, scenario)
     ):
         return exit_code, cast(ScenarioStatus, status), float(duration)
 
     # Do not preserve a misleading PASS on disk when the process failed, or a
     # malformed/foreign result when an adapter violated its result contract.
     error_payload = {
-        "scenario": scenario,
+        "scenario": scenario.name,
         "status": "INFRA_ERROR",
         "duration_sec": 0.0,
         "runtime_exit_code": exit_code,
@@ -331,7 +393,7 @@ def run_scenario(
             context.config_path,
         )
 
-    exit_code, _, _ = _finalize_result(result_path, definition.name, exit_code)
+    exit_code, _, _ = _finalize_result(result_path, definition, exit_code)
     return exit_code, selected, result_path
 
 
@@ -386,7 +448,7 @@ def run_suite(
             )
 
         normalized_exit, status, duration = _finalize_result(
-            result_path, definition.name, exit_code,
+            result_path, definition, exit_code,
         )
         final_exit_code = max(final_exit_code, normalized_exit)
         scenario_results.append(

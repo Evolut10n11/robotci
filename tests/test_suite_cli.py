@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import xml.etree.ElementTree as ET
+from dataclasses import asdict
 from pathlib import Path
 
 from typer.testing import CliRunner
 
+from robotci.results import Pose2D, build_scenario_task
 from robotci.suite_cli import app
 
 runner = CliRunner()
@@ -18,13 +20,26 @@ def _write_result(
     duration_sec: float,
     path_length_m: float,
 ) -> None:
+    start = Pose2D(x=0.0, y=0.0, yaw=0.0)
+    goal = Pose2D(x=1.0, y=0.0, yaw=0.0)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(
             {
+                "schema_version": 1,
                 "scenario": scenario,
                 "status": "PASS",
                 "duration_sec": duration_sec,
+                "start": asdict(start),
+                "goal": asdict(goal),
+                "task": asdict(
+                    build_scenario_task(
+                        scenario=scenario,
+                        start=start,
+                        goal=goal,
+                        map_id="nav2-loopback",
+                    )
+                ),
                 "metrics": {
                     "path_length_m": path_length_m,
                     "distance_to_goal_m": 0.1,

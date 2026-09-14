@@ -11,7 +11,7 @@ from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 
 from robotci.metrics import NavigationMetricsTracker
 from robotci.replay import ReplayRecorder, default_replay_path, write_replay
-from robotci.results import Pose2D, ScenarioResult, write_result
+from robotci.results import Pose2D, ScenarioResult, build_scenario_task, write_result
 
 EXIT_PASS = 0
 EXIT_FAIL = 1
@@ -96,6 +96,7 @@ def run_navigation_scenario(
     goal: Pose2D,
     output: str | Path,
     timeout_sec: float,
+    map_id: str = "unspecified",
 ) -> int:
     started_at = time.monotonic()
     navigator: BasicNavigator | None = None
@@ -179,6 +180,12 @@ def run_navigation_scenario(
             goal=goal,
             navigation_result=navigation_result,
             metrics=metrics,
+            task=build_scenario_task(
+                scenario=scenario_name,
+                start=start,
+                goal=goal,
+                map_id=map_id,
+            ),
         )
         result_path = write_result(result, output)
         replay = recorder.build(
@@ -218,6 +225,11 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--goal-y", type=float, required=True)
     parser.add_argument("--goal-yaw", type=float, default=0.0)
     parser.add_argument(
+        "--map-id",
+        default="unspecified",
+        help="Stable map name or content digest used for task compatibility",
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         required=True,
@@ -242,6 +254,7 @@ def main() -> int:
         goal,
         args.output,
         args.timeout_sec,
+        args.map_id,
     )
 
 
