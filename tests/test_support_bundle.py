@@ -45,6 +45,7 @@ def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monk
         "status": "PASS",
         "runtime": "auto",
         "scenario_count": 1,
+        "error_code": None,
         "error": None,
     }
     assert "confidential_route" not in payload
@@ -98,6 +99,7 @@ def test_bundle_redacts_invalid_config_details(tmp_path: Path, monkeypatch) -> N
 
     assert bundle["status"] == "FAIL"
     assert bundle["config"]["status"] == "FAIL"
+    assert bundle["config"]["error_code"] == "config_invalid"
     assert bundle["config"]["error"] == (
         "RobotCI config is invalid; run 'robotci validate' locally for details"
     )
@@ -112,6 +114,10 @@ def test_bundle_redacts_missing_config_path(tmp_path: Path, monkeypatch) -> None
     payload = json.dumps(bundle)
 
     assert bundle["status"] == "FAIL"
+    assert bundle["config"]["error_code"] == "config_not_found"
+    assert bundle["config"]["error"] == (
+        "RobotCI config is invalid; run 'robotci validate' locally for details"
+    )
     assert "private-company-repo" not in payload
     assert str(config) not in payload
 
