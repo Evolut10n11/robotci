@@ -12,9 +12,19 @@
     "recoveries": 0,
     "stuck_events": 0
   },
+  "telemetry_quality": {
+    "final_pose_valid": true,
+    "invalid_pose_samples": 0,
+    "received_feedback_samples": 20,
+    "valid_pose_samples": 20
+  },
+  "evidence_policy": {
+    "goal_tolerance_m": 0.25,
+    "min_feedback_samples": 1
+  },
   "navigation_result": "SUCCEEDED",
   "scenario": "route",
-  "schema_version": 1,
+  "schema_version": 2,
   "start": {
     "x": 0.0,
     "y": 0.0,

@@ -19,6 +19,7 @@ def _write_result(
     scenario: str,
     duration_sec: float,
     path_length_m: float,
+    distance_to_goal_m: float = 0.1,
 ) -> None:
     start = Pose2D(x=0.0, y=0.0, yaw=0.0)
     goal = Pose2D(x=1.0, y=0.0, yaw=0.0)
@@ -26,7 +27,7 @@ def _write_result(
     path.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "scenario": scenario,
                 "status": "PASS",
                 "duration_sec": duration_sec,
@@ -43,10 +44,20 @@ def _write_result(
                 ),
                 "metrics": {
                     "path_length_m": path_length_m,
-                    "distance_to_goal_m": 0.1,
+                    "distance_to_goal_m": distance_to_goal_m,
                     "stuck_events": 0,
                     "feedback_samples": 10,
                     "recoveries": 0,
+                },
+                "telemetry_quality": {
+                    "received_feedback_samples": 10,
+                    "valid_pose_samples": 10,
+                    "invalid_pose_samples": 0,
+                    "final_pose_valid": True,
+                },
+                "evidence_policy": {
+                    "goal_tolerance_m": 0.25,
+                    "min_feedback_samples": 1,
                 },
             }
         ),
@@ -54,7 +65,13 @@ def _write_result(
     )
 
 
-def _write_suite(root: Path, *, duration: float, path_length: float) -> Path:
+def _write_suite(
+    root: Path,
+    *,
+    duration: float,
+    path_length: float,
+    distance_to_goal_m: float = 0.1,
+) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     result = root / "results" / "route.json"
     _write_result(
@@ -62,6 +79,7 @@ def _write_suite(root: Path, *, duration: float, path_length: float) -> Path:
         scenario="route",
         duration_sec=duration,
         path_length_m=path_length,
+        distance_to_goal_m=distance_to_goal_m,
     )
     suite = root / "suite-result.json"
     suite.write_text(
@@ -104,7 +122,7 @@ def test_suite_gate_writes_report_before_regression_exit(tmp_path: Path) -> None
 
     assert result.exit_code == 4
     payload = json.loads(output.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["kind"] == "suite_regression"
     assert payload["status"] == "REGRESSION"
     assert payload["scenarios"][0]["status"] == "REGRESSION"
@@ -189,6 +207,51 @@ def test_suite_gate_writes_junit_before_regression_exit(tmp_path: Path) -> None:
     assert failure.attrib["type"] == "REGRESSION"
     assert "duration" in (failure.text or "")
     assert "path_length" in (failure.text or "")
+
+
+def test_suite_gate_honors_distance_threshold_override(tmp_path: Path) -> None:
+    baseline = _write_suite(
+        tmp_path / "baseline",
+        duration=10.0,
+        path_length=5.0,
+        distance_to_goal_m=0.05,
+    )
+    candidate = _write_suite(
+        tmp_path / "candidate",
+        duration=10.0,
+        path_length=5.0,
+        distance_to_goal_m=0.2,
+    )
+
+    blocked = runner.invoke(
+        app,
+        [
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--json",
+        ],
+    )
+    allowed = runner.invoke(
+        app,
+        [
+            "--baseline",
+            str(baseline),
+            "--candidate",
+            str(candidate),
+            "--max-distance-to-goal-increase-m",
+            "0.2",
+        ],
+    )
+
+    assert blocked.exit_code == 4
+    blocked_payload = json.loads(blocked.stdout)
+    assert [
+        finding["metric"]
+        for finding in blocked_payload["scenarios"][0]["findings"]
+    ] == ["distance_to_goal_m"]
+    assert allowed.exit_code == 0
 
 
 def test_suite_gate_writes_passing_junit(tmp_path: Path) -> None:

@@ -45,6 +45,29 @@ def _load_json_object(path: Path, name: str) -> dict[str, object]:
     return payload
 
 
+def _safe_result_path(
+    *,
+    suite_path: Path,
+    result_file: str,
+    suite_name: str,
+) -> Path:
+    relative = Path(result_file)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ComparisonInputError(
+            f"{suite_name} contains unsafe result_file path: {result_file}"
+        )
+
+    suite_root = suite_path.parent.resolve()
+    resolved = (suite_root / relative).resolve()
+    try:
+        resolved.relative_to(suite_root)
+    except ValueError as exc:
+        raise ComparisonInputError(
+            f"{suite_name} result_file escapes suite directory: {result_file}"
+        ) from exc
+    return resolved
+
+
 def _load_suite_entries(path: str | Path, name: str) -> tuple[_SuiteEntry, ...]:
     suite_path = Path(path)
     payload = _load_json_object(suite_path, name)
@@ -81,7 +104,11 @@ def _load_suite_entries(path: str | Path, name: str) -> tuple[_SuiteEntry, ...]:
         entries.append(
             _SuiteEntry(
                 scenario=scenario,
-                result_path=(suite_path.parent / result_file).resolve(),
+                result_path=_safe_result_path(
+                    suite_path=suite_path,
+                    result_file=result_file,
+                    suite_name=name,
+                ),
             )
         )
 

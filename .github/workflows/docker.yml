@@ -81,14 +81,45 @@ jobs:
               if actual != goal:
                   raise SystemExit(f"{name} did not use YAML goal {goal}: {actual}")
 
+              if result.get("schema_version") != 2:
+                  raise SystemExit(f"{name} did not produce result schema v2: {result}")
               metrics = result.get("metrics")
+              quality = result.get("telemetry_quality")
+              policy = result.get("evidence_policy")
               if not isinstance(metrics, dict):
                   raise SystemExit(f"{name} did not produce metrics: {result}")
+              if not isinstance(quality, dict) or not isinstance(policy, dict):
+                  raise SystemExit(f"{name} did not produce evidence metadata: {result}")
+              duration_sec = result.get("duration_sec")
+              if type(duration_sec) not in {int, float} or duration_sec <= 0:
+                  raise SystemExit(f"{name} did not record duration: {duration_sec}")
+              required_metrics = {
+                  "path_length_m",
+                  "distance_to_goal_m",
+                  "stuck_events",
+                  "feedback_samples",
+                  "recoveries",
+              }
+              missing_metrics = required_metrics.difference(metrics)
+              if missing_metrics:
+                  raise SystemExit(
+                      f"{name} is missing metrics: {sorted(missing_metrics)}"
+                  )
               if metrics.get("path_length_m", 0) <= 0:
                   raise SystemExit(f"{name} path length was not recorded: {metrics}")
-              if metrics.get("feedback_samples", 0) <= 0:
-                  raise SystemExit(f"{name} feedback samples were not recorded: {metrics}")
-              if metrics.get("distance_to_goal_m", 999) > 0.75:
+              minimum = policy.get("min_feedback_samples", 1)
+              feedback = metrics.get("feedback_samples", 0)
+              if feedback < minimum:
+                  raise SystemExit(f"{name} feedback samples were insufficient: {metrics}")
+              if quality.get("received_feedback_samples") != feedback:
+                  raise SystemExit(f"{name} feedback counts disagree: {quality}")
+              if quality.get("valid_pose_samples", 0) < minimum:
+                  raise SystemExit(f"{name} valid pose samples were insufficient: {quality}")
+              if quality.get("invalid_pose_samples") != 0:
+                  raise SystemExit(f"{name} contains invalid pose samples: {quality}")
+              if quality.get("final_pose_valid") is not True:
+                  raise SystemExit(f"{name} final pose was invalid: {quality}")
+              if metrics.get("distance_to_goal_m", 999) > policy.get("goal_tolerance_m", 0):
                   raise SystemExit(f"{name} finished too far from goal: {metrics}")
               if metrics.get("stuck_events", -1) < 0:
                   raise SystemExit(f"{name} has invalid stuck telemetry: {metrics}")

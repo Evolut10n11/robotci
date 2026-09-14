@@ -88,13 +88,14 @@ robotci-baseline gate main-nav \
 
 The gate resolves `.robotci/baselines/main-nav/suite-result.json` automatically. It uses the same deterministic comparison engine and policy as `robotci-suite-gate`.
 
-The default policy allows up to 10% duration and path-length increase and no additional stuck events or recoveries. Override those thresholds explicitly when a repository needs another policy:
+The default policy allows up to 10% duration and path-length increase, up to 0.1 m additional final distance to goal, and no additional stuck events or recoveries. Override those thresholds explicitly when a repository needs another policy:
 
 ```bash
 robotci-baseline gate main-nav \
   --candidate .robotci/suite-result.json \
   --max-duration-increase-pct 15 \
   --max-path-length-increase-pct 12 \
+  --max-distance-to-goal-increase-m 0.15 \
   --max-stuck-events-increase 0 \
   --max-recoveries-increase 1
 ```
@@ -137,4 +138,4 @@ Baseline capture rejects:
 - unsafe baseline names;
 - accidental overwrite without `--replace`.
 
-The candidate run is never mutated while a baseline is captured or compared.
+Suite comparison applies the same path-containment rule to baseline and candidate artifacts. The candidate run is never mutated while a baseline is captured or compared.

@@ -19,6 +19,7 @@ from robotci.config import (
     get_scenario,
     load_config,
 )
+from robotci.evidence import NavigationEvidencePolicy
 from robotci.native_runtime import probe_native_ros
 from robotci.project import DEFAULT_CONFIG_PATH, resolve_project_context
 from robotci.replay import default_replay_path
@@ -159,6 +160,8 @@ def _run_native(
             "ROBOTCI_MAP_ID": scenario.map_id or "unspecified",
             "ROBOTCI_RESULT_FILE": str(output.resolve()),
             "ROBOTCI_TIMEOUT_SEC": str(timeout_sec),
+            "ROBOTCI_GOAL_TOLERANCE_M": str(scenario.goal_tolerance_m),
+            "ROBOTCI_MIN_FEEDBACK_SAMPLES": str(scenario.min_feedback_samples),
             "ROBOTCI_PYTHON": sys.executable,
         }
     )
@@ -282,6 +285,11 @@ def _result_matches_task(
         and result.start == start
         and result.goal == goal
         and result.task == expected_task
+        and result.evidence_policy
+        == NavigationEvidencePolicy(
+            goal_tolerance_m=scenario.goal_tolerance_m,
+            min_feedback_samples=scenario.min_feedback_samples,
+        )
     )
 
 
@@ -313,6 +321,13 @@ def _finalize_result(
         "goal": asdict(goal),
         "navigation_result": "RUNTIME_RESULT_INVALID",
         "metrics": None,
+        "telemetry_quality": None,
+        "evidence_policy": asdict(
+            NavigationEvidencePolicy(
+                goal_tolerance_m=scenario.goal_tolerance_m,
+                min_feedback_samples=scenario.min_feedback_samples,
+            )
+        ),
         "task": asdict(
             build_scenario_task(
                 scenario=scenario.name,

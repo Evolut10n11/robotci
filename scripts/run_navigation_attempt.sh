@@ -30,6 +30,8 @@ MAP_ID="${ROBOTCI_MAP_ID:-unspecified}"
 LOG_FILE="${ROBOTCI_LOG_FILE:-/tmp/nav2-${SCENARIO}.log}"
 RESULT_FILE="${ROBOTCI_RESULT_FILE:-artifacts/${SCENARIO}/result.json}"
 TIMEOUT_SEC="${ROBOTCI_TIMEOUT_SEC:-120}"
+GOAL_TOLERANCE_M="${ROBOTCI_GOAL_TOLERANCE_M:-0.25}"
+MIN_FEEDBACK_SAMPLES="${ROBOTCI_MIN_FEEDBACK_SAMPLES:-1}"
 
 PYTHON_BIN="${ROBOTCI_PYTHON:-python3}"
 if [ -x ".venv/bin/python" ]; then
@@ -246,7 +248,9 @@ set +e
   --goal-yaw "$GOAL_YAW" \
   --map-id "$MAP_ID" \
   --output "$RESULT_FILE" \
-  --timeout-sec "$TIMEOUT_SEC"
+  --timeout-sec "$TIMEOUT_SEC" \
+  --goal-tolerance-m "$GOAL_TOLERANCE_M" \
+  --min-feedback-samples "$MIN_FEEDBACK_SAMPLES"
 SCENARIO_EXIT=$?
 set -e
 

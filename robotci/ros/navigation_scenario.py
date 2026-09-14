@@ -9,7 +9,8 @@ import rclpy
 from geometry_msgs.msg import PoseStamped
 from nav2_simple_commander.robot_navigator import BasicNavigator, TaskResult
 
-from robotci.metrics import NavigationMetricsTracker
+from robotci.evidence import NavigationEvidencePolicy, evaluate_navigation_success
+from robotci.metrics import NavigationMetricsTracker, planar_yaw_from_quaternion
 from robotci.replay import ReplayRecorder, default_replay_path, write_replay
 from robotci.results import Pose2D, ScenarioResult, build_scenario_task, write_result
 
@@ -48,9 +49,12 @@ def _feedback_key(feedback: object) -> FeedbackKey:
 
 def _yaw_from_orientation(orientation: object) -> float:
     """Convert a geometry_msgs quaternion into planar yaw."""
-    siny_cosp = 2.0 * (orientation.w * orientation.z + orientation.x * orientation.y)
-    cosy_cosp = 1.0 - 2.0 * (orientation.y * orientation.y + orientation.z * orientation.z)
-    return math.atan2(siny_cosp, cosy_cosp)
+    return planar_yaw_from_quaternion(
+        x=float(orientation.x),
+        y=float(orientation.y),
+        z=float(orientation.z),
+        w=float(orientation.w),
+    )
 
 
 def _record_feedback(
@@ -74,19 +78,21 @@ def _record_feedback(
 
     pose = feedback.current_pose.pose
     position = pose.position
-    tracker.update(
+    yaw = _yaw_from_orientation(pose.orientation)
+    pose_is_valid = tracker.update(
         x=float(position.x),
         y=float(position.y),
+        yaw=yaw,
         now=now,
-        distance_remaining_m=float(feedback.distance_remaining),
         recoveries=int(feedback.number_of_recoveries),
     )
-    recorder.record(
-        x=float(position.x),
-        y=float(position.y),
-        yaw=_yaw_from_orientation(pose.orientation),
-        now=now,
-    )
+    if pose_is_valid:
+        recorder.record(
+            x=float(position.x),
+            y=float(position.y),
+            yaw=yaw,
+            now=now,
+        )
     return feedback_key
 
 
@@ -97,6 +103,8 @@ def run_navigation_scenario(
     output: str | Path,
     timeout_sec: float,
     map_id: str = "unspecified",
+    goal_tolerance_m: float = 0.25,
+    min_feedback_samples: int = 1,
 ) -> int:
     started_at = time.monotonic()
     navigator: BasicNavigator | None = None
@@ -111,8 +119,13 @@ def run_navigation_scenario(
         goal=goal,
         started_at=started_at,
     )
+    evidence_policy = NavigationEvidencePolicy(
+        goal_tolerance_m=goal_tolerance_m,
+        min_feedback_samples=min_feedback_samples,
+    )
     status = "INFRA_ERROR"
     navigation_result = "UNKNOWN"
+    reason_code: str | None = "runtime_not_completed"
     exit_code = EXIT_INFRA_ERROR
 
     try:
@@ -121,11 +134,27 @@ def run_navigation_scenario(
         navigator = BasicNavigator(node_name=node_name)
 
         goal_pose = _pose_stamped(navigator, goal)
+
+        # Runtime setup is not robot behavior. Start duration, replay timestamps,
+        # timeout accounting, and stuck detection at goal dispatch.
+        started_at = time.monotonic()
+        tracker = NavigationMetricsTracker(
+            start_x=start.x,
+            start_y=start.y,
+            started_at=started_at,
+        )
+        recorder = ReplayRecorder(
+            scenario=scenario_name,
+            start=start,
+            goal=goal,
+            started_at=started_at,
+        )
         accepted = navigator.goToPose(goal_pose)
 
         if not accepted:
             status = "FAIL"
             navigation_result = "GOAL_REJECTED"
+            reason_code = "goal_rejected"
             exit_code = EXIT_FAIL
         else:
             timed_out = False
@@ -150,28 +179,47 @@ def run_navigation_scenario(
             if timed_out:
                 status = "TIMEOUT"
                 navigation_result = "CANCELED_BY_TIMEOUT"
+                reason_code = "timeout"
                 exit_code = EXIT_TIMEOUT
             else:
                 result = navigator.getResult()
                 navigation_result = result.name
 
                 if result == TaskResult.SUCCEEDED:
-                    status = "PASS"
-                    exit_code = EXIT_PASS
+                    decision = evaluate_navigation_success(
+                        metrics=tracker.snapshot(goal_x=goal.x, goal_y=goal.y),
+                        telemetry_quality=tracker.telemetry_quality(),
+                        policy=evidence_policy,
+                    )
+                    status = decision.status
+                    reason_code = decision.reason_code
+                    exit_code = {
+                        "PASS": EXIT_PASS,
+                        "FAIL": EXIT_FAIL,
+                        "INFRA_ERROR": EXIT_INFRA_ERROR,
+                    }[decision.status]
                 elif result in {TaskResult.CANCELED, TaskResult.FAILED}:
                     status = "FAIL"
+                    reason_code = (
+                        "navigation_canceled"
+                        if result == TaskResult.CANCELED
+                        else "navigation_failed"
+                    )
                     exit_code = EXIT_FAIL
                 else:
                     status = "INFRA_ERROR"
+                    reason_code = "unknown_navigation_result"
                     exit_code = EXIT_INFRA_ERROR
 
     except Exception as exc:  # noqa: BLE001 - scenario boundary must record infrastructure errors
         status = "INFRA_ERROR"
         navigation_result = f"{type(exc).__name__}: {exc}"
+        reason_code = "runtime_exception"
         exit_code = EXIT_INFRA_ERROR
     finally:
         duration_sec = round(time.monotonic() - started_at, 3)
         metrics = tracker.snapshot(goal_x=goal.x, goal_y=goal.y)
+        telemetry_quality = tracker.telemetry_quality()
         result = ScenarioResult(
             scenario=scenario_name,
             status=status,
@@ -180,12 +228,15 @@ def run_navigation_scenario(
             goal=goal,
             navigation_result=navigation_result,
             metrics=metrics,
+            telemetry_quality=telemetry_quality,
+            evidence_policy=evidence_policy,
             task=build_scenario_task(
                 scenario=scenario_name,
                 start=start,
                 goal=goal,
                 map_id=map_id,
             ),
+            reason_code=reason_code,
         )
         result_path = write_result(result, output)
         replay = recorder.build(
@@ -204,6 +255,10 @@ def run_navigation_scenario(
         print(f"Distance to goal: {metrics.distance_to_goal_m:.3f}m")
         print(f"Stuck events: {metrics.stuck_events}")
         print(f"Recoveries: {metrics.recoveries}")
+        print(f"Valid pose samples: {telemetry_quality.valid_pose_samples}")
+        print(f"Invalid pose samples: {telemetry_quality.invalid_pose_samples}")
+        if reason_code is not None:
+            print(f"Reason: {reason_code}")
         print(f"Result: {result_path}")
         print(f"Replay: {replay_path}")
 
@@ -241,6 +296,18 @@ def _build_parser() -> argparse.ArgumentParser:
         required=True,
         help="Maximum wall-clock time allowed for navigation",
     )
+    parser.add_argument(
+        "--goal-tolerance-m",
+        type=float,
+        default=0.25,
+        help="Maximum measured distance to goal allowed for PASS",
+    )
+    parser.add_argument(
+        "--min-feedback-samples",
+        type=int,
+        default=1,
+        help="Minimum Nav2 feedback samples required for PASS",
+    )
     return parser
 
 
@@ -249,12 +316,14 @@ def main() -> int:
     start = Pose2D(x=args.start_x, y=args.start_y, yaw=args.start_yaw)
     goal = Pose2D(x=args.goal_x, y=args.goal_y, yaw=args.goal_yaw)
     return run_navigation_scenario(
-        args.scenario,
-        start,
-        goal,
-        args.output,
-        args.timeout_sec,
-        args.map_id,
+        scenario_name=args.scenario,
+        start=start,
+        goal=goal,
+        output=args.output,
+        timeout_sec=args.timeout_sec,
+        map_id=args.map_id,
+        goal_tolerance_m=args.goal_tolerance_m,
+        min_feedback_samples=args.min_feedback_samples,
     )
 
 
