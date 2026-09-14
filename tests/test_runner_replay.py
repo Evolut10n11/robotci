@@ -9,6 +9,16 @@ from robotci import runner
 from robotci.config import PoseConfig, ScenarioConfig
 from robotci.replay import default_replay_path
 
+_AUDITED_COMPOSE = """services:
+  robotci:
+    build:
+      context: .
+    image: robotci:dev
+    init: true
+    volumes:
+      - ./artifacts:/workspace/artifacts
+"""
+
 
 def test_run_docker_copies_replay_next_to_requested_result(
     tmp_path: Path,
@@ -16,6 +26,7 @@ def test_run_docker_copies_replay_next_to_requested_result(
 ) -> None:
     (tmp_path / "scripts").mkdir()
     (tmp_path / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    (tmp_path / "compose.yaml").write_text(_AUDITED_COMPOSE, encoding="utf-8")
     (tmp_path / "scripts" / "run_navigation_scenario.sh").write_text(
         "#!/usr/bin/env bash\n",
         encoding="utf-8",
