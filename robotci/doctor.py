@@ -6,6 +6,7 @@ import subprocess
 from dataclasses import dataclass
 
 from robotci.platform import current_platform
+from robotci.runner import RuntimeUnavailableError, select_runtime
 
 
 @dataclass(frozen=True)
@@ -14,6 +15,7 @@ class CheckResult:
     ok: bool
     message: str
     blocking: bool = True
+    value: str | None = None
 
 
 REQUIRED_ROS_PACKAGES = (
@@ -67,6 +69,14 @@ def get_docker_status() -> tuple[bool, str]:
         return False, "docker command is available but the Docker daemon is not ready"
 
     return True, "docker daemon is available"
+
+
+def _selected_runtime(*, strict_native_ros: bool) -> str:
+    requested = "native" if strict_native_ros else "auto"
+    try:
+        return select_runtime(requested)
+    except RuntimeUnavailableError:
+        return "none"
 
 
 def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
@@ -148,6 +158,7 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
         and ros_distro == "jazzy"
         and all(prefix is not None for prefix in package_prefixes.values())
     )
+    selected_runtime = _selected_runtime(strict_native_ros=strict_native_ros)
 
     if strict_native_ros:
         runtime_ready = native_ready
@@ -156,10 +167,10 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
             if native_ready
             else "native ROS2 Jazzy/Nav2 runtime is incomplete"
         )
-    elif native_ready:
+    elif selected_runtime == "native":
         runtime_ready = True
         runtime_message = "auto runtime will use native ROS2 Jazzy/Nav2"
-    elif docker_ready:
+    elif selected_runtime == "docker":
         runtime_ready = True
         runtime_message = "auto runtime will use Docker"
     else:
@@ -174,6 +185,7 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
             ok=runtime_ready,
             message=runtime_message,
             blocking=runtime_blocking,
+            value=selected_runtime,
         )
     )
 
