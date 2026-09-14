@@ -2,24 +2,29 @@ from __future__ import annotations
 
 import os
 import sys
-import sysconfig
+from importlib.metadata import PackageNotFoundError, distribution
 import tempfile
 import time
 from pathlib import Path
 from typing import NoReturn
 
 _LOADER_INJECTION_VARIABLES = ("LD_AUDIT", "LD_PRELOAD")
+_PYTHON_DISTRIBUTIONS = ("robotci", "PyYAML", "rich", "typer")
 
 
 def _controlled_python_path() -> str:
-    package_parent = str(Path(__file__).resolve().parent.parent)
-    install_paths = sysconfig.get_paths()
-    candidates = (
-        package_parent,
-        install_paths.get("purelib", ""),
-        install_paths.get("platlib", ""),
-    )
-    return os.pathsep.join(dict.fromkeys(path for path in candidates if path))
+    roots = [str(Path(__file__).resolve().parent.parent)]
+    for name in _PYTHON_DISTRIBUTIONS:
+        try:
+            package = distribution(name)
+        except PackageNotFoundError as exc:
+            raise RuntimeError(
+                f"Python distribution metadata is unavailable for {name}"
+            ) from exc
+        root = str(Path(package.locate_file("")).resolve())
+        if root not in roots:
+            roots.append(root)
+    return os.pathsep.join(roots)
 
 
 def _isolated_environment() -> dict[str, str]:

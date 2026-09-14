@@ -35,10 +35,25 @@ def test_entrypoint_relaunches_with_isolated_python(
     monkeypatch.setenv("PYTHONWARNINGS", "error")
     monkeypatch.setattr(sys, "argv", ["robotci", "run", "--runtime", "native"])
     monkeypatch.setattr(sys, "executable", "/trusted/python")
-    monkeypatch.setattr(bootstrap.sysconfig, "get_paths", lambda: {
-        "purelib": "/trusted/site",
-        "platlib": "/trusted/site",
-    })
+    class FakeDistribution:
+        def __init__(self, root: str) -> None:
+            self.root = root
+
+        def locate_file(self, path: str) -> str:
+            assert path == ""
+            return self.root
+
+    roots = {
+        "robotci": "/trusted/site",
+        "PyYAML": "/trusted/system",
+        "rich": "/trusted/site",
+        "typer": "/trusted/site",
+    }
+    monkeypatch.setattr(
+        bootstrap,
+        "distribution",
+        lambda name: FakeDistribution(roots[name]),
+    )
     monkeypatch.setattr(bootstrap.os, "getpid", lambda: 123)
     monkeypatch.setattr(bootstrap.time, "monotonic_ns", lambda: 456)
     monkeypatch.setattr(bootstrap.os, "execve", fake_execve)
@@ -61,8 +76,8 @@ def test_entrypoint_relaunches_with_isolated_python(
     environment = captured["environment"]
     assert isinstance(environment, dict)
     expected_root = str(Path(bootstrap.__file__).resolve().parent.parent)
-    assert environment["PYTHONPATH"] == (
-        expected_root + os.pathsep + "/trusted/site"
+    assert environment["PYTHONPATH"] == os.pathsep.join(
+        (expected_root, "/trusted/site", "/trusted/system")
     )
     assert environment["PYTHONHASHSEED"] == "0"
     assert environment["PYTHONNOUSERSITE"] == "1"
