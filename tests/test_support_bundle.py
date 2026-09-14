@@ -32,6 +32,18 @@ def _passing_checks() -> list[CheckResult]:
     ]
 
 
+def _native_passing_checks() -> list[CheckResult]:
+    return [
+        CheckResult("platform", True, "platform ready"),
+        CheckResult(
+            "runtime",
+            True,
+            "auto runtime will use native ROS2 Jazzy/Nav2",
+            value="native",
+        ),
+    ]
+
+
 def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monkeypatch) -> None:
     config = tmp_path / "secret-project" / "robotci.yaml"
     config.parent.mkdir()
@@ -66,7 +78,9 @@ def test_bundle_reports_adapter_override_without_leaking_path(tmp_path: Path, mo
     _write_config(config)
     adapter_path = "/private-company-repo/scripts/robotci_adapter.sh"
     monkeypatch.setenv("ROBOTCI_ATTEMPT_SCRIPT", adapter_path)
-    monkeypatch.setattr("robotci.support_bundle.run_doctor_checks", lambda **_: _passing_checks())
+    monkeypatch.setattr(
+        "robotci.support_bundle.run_doctor_checks", lambda **_: _native_passing_checks()
+    )
 
     bundle = build_support_bundle(config_path=config)
     payload = json.dumps(bundle)
