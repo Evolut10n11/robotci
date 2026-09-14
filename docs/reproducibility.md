@@ -14,8 +14,8 @@ an `execution` object with:
 - the actual Ubuntu, architecture, Python, ROS distribution, container
   isolation, Python-package versions, and the installed transitive dependency
   closure of the ROS/Nav2 Debian packages;
-- a safe whitelist of inherited ROS/RMW discovery, middleware, overlay, loader,
-  locale, and runtime-wrapper variables, stored only as value SHA-256 digests;
+- a safe whitelist of inherited ROS/RMW behavior, middleware, locale, and
+  runtime-wrapper variables, stored only as value SHA-256 digests;
 - content digests for file-backed middleware configuration;
 - a source digest of the executable RobotCI Python and runtime shell files;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
@@ -25,9 +25,10 @@ after the final attempt. It fails closed if the environment cannot be inspected
 or if any fingerprinted input changes during the suite. Docker metadata is
 collected inside one image built before the suite; every scenario uses that
 same image without rebuilding. Native execution strips Bash startup/function injection variables, rejects
-process-level `LD_AUDIT`/`LD_PRELOAD` injection, drops every inherited Python
-startup/control variable including `PYTHONPATH`, and sets a fixed hash seed,
-UTF-8, and no user site. The cleanup helper uses Python isolated mode and adds
+process-level `LD_AUDIT`/`LD_PRELOAD` injection, drops inherited executable,
+library, ROS overlay, and Python search paths, and sets a controlled system
+`PATH`, fixed hash seed, UTF-8, and no user site. The packaged ROS Jazzy setup
+then rebuilds the ROS paths. The cleanup helper uses Python isolated mode and adds
 the fingerprinted package only after interpreter startup, so checkout-level
 `sitecustomize.py` hooks cannot run. The attempt sources the packaged ROS Jazzy
 setup while Python resolves RobotCI from the fingerprinted runtime checkout. It honors the

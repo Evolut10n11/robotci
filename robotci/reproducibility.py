@@ -37,14 +37,9 @@ _DEBIAN_PACKAGES = (
 _FINGERPRINT_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _RUNTIME_VARIABLE_NAMES = frozenset(
     {
-        "AMENT_PREFIX_PATH",
-        "CMAKE_PREFIX_PATH",
-        "COLCON_PREFIX_PATH",
         "HOME",
         "LANG",
         "LANGUAGE",
-        "LD_LIBRARY_PATH",
-        "PATH",
         "ROBOTCI_ATTEMPT_SCRIPT",
         "ROBOTCI_LOG_FILE",
         "ROBOTCI_RETRY_DELAY_SEC",
@@ -597,7 +592,7 @@ def _runtime_configuration_path(
         return None
 
     stripped = value.strip()
-    if stripped.startswith(("<", "{", "[")):
+    if not stripped or stripped.startswith(("<", "{", "[")):
         return None
 
     direct_path = Path(stripped)

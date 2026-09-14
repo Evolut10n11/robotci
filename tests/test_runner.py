@@ -207,6 +207,12 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     monkeypatch.setenv("PYTHONPATH", str(tmp_path / "untrusted-python"))
     monkeypatch.setenv("PYTHONSAFEPATH", "1")
     monkeypatch.setenv("PYTHONWARNINGS", "error")
+    monkeypatch.setenv("PATH", str(tmp_path / "untrusted-bin"))
+    monkeypatch.setenv("LD_LIBRARY_PATH", str(tmp_path / "untrusted-lib"))
+    monkeypatch.setenv("AMENT_PREFIX_PATH", str(tmp_path / "untrusted-overlay"))
+    monkeypatch.setenv("CMAKE_PREFIX_PATH", str(tmp_path / "untrusted-cmake"))
+    monkeypatch.setenv("COLCON_PREFIX_PATH", str(tmp_path / "untrusted-colcon"))
+    monkeypatch.setenv("ROS_PACKAGE_PATH", str(tmp_path / "untrusted-ros-packages"))
     monkeypatch.setenv("BASH_FUNC_injected%%", "() { return 0; }")
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
 
@@ -238,6 +244,12 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert environment["PYTHONHASHSEED"] == "0"
     assert environment["PYTHONNOUSERSITE"] == "1"
     assert environment["PYTHONUTF8"] == "1"
+    assert environment["PATH"] == runner._NATIVE_PATH
+    assert "LD_LIBRARY_PATH" not in environment
+    assert "AMENT_PREFIX_PATH" not in environment
+    assert "CMAKE_PREFIX_PATH" not in environment
+    assert "COLCON_PREFIX_PATH" not in environment
+    assert "ROS_PACKAGE_PATH" not in environment
     assert "BASH_FUNC_injected%%" not in environment
 
 

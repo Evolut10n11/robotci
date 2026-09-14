@@ -50,6 +50,18 @@ _EXIT_BY_STATUS = {
 }
 _STATUS_BY_EXIT = {code: status for status, code in _EXIT_BY_STATUS.items()}
 
+_NATIVE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+_NATIVE_SEARCH_PATH_VARIABLES = frozenset(
+    {
+        "AMENT_PREFIX_PATH",
+        "CMAKE_PREFIX_PATH",
+        "COLCON_PREFIX_PATH",
+        "LD_LIBRARY_PATH",
+        "PATH",
+        "ROS_PACKAGE_PATH",
+    }
+)
+
 
 class RuntimeUnavailableError(RuntimeError):
     """Raised when RobotCI cannot find a usable scenario runtime."""
@@ -155,6 +167,7 @@ def _run_native(
             "LD_AUDIT",
             "LD_PRELOAD",
             "SHELLOPTS",
+            *_NATIVE_SEARCH_PATH_VARIABLES,
         }
         and not name.startswith("BASH_FUNC_")
         and not name.startswith("PYTHON")
@@ -166,6 +179,7 @@ def _run_native(
             "PYTHONHASHSEED": "0",
             "PYTHONNOUSERSITE": "1",
             "PYTHONUTF8": "1",
+            "PATH": _NATIVE_PATH,
             "ROBOTCI_SCENARIO": scenario.name,
             "ROBOTCI_START_X": str(scenario.start.x),
             "ROBOTCI_START_Y": str(scenario.start.y),
