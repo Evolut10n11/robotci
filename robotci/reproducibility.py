@@ -790,9 +790,10 @@ def build_robotci_source_fingerprint(
         if not import_sources:
             continue
         if candidate.is_symlink():
-            raise ReproducibilityError(
-                f"runtime import candidate must not be a symlink: {candidate}"
-            )
+            # Keep the lexical import entry in addition to the files reachable
+            # through it. Python imports through the link name, while changing
+            # the link target can change package/resource behavior.
+            import_sources.insert(0, candidate)
         sources.extend(
             (
                 f"runtime-imports/{path.relative_to(runtime).as_posix()}",
@@ -832,10 +833,10 @@ def build_robotci_source_fingerprint(
             if not import_sources:
                 continue
             if candidate.is_symlink():
-                raise ReproducibilityError(
-                    "Python dependency import candidate must not be a symlink: "
-                    f"{candidate}"
-                )
+                # Package-managed import roots may expose packages as links
+                # (for example Ubuntu's lldb package). Fingerprint both the
+                # lexical link and every reachable package file.
+                import_sources.insert(0, candidate)
             sources.extend(
                 (
                     "python-import-roots/"
