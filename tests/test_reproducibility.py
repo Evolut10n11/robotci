@@ -289,6 +289,7 @@ def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
     monkeypatch.setenv("ROS_SECURITY_KEYSTORE", str(keystore))
     monkeypatch.setenv("ROS_API_TOKEN", "super-secret")
     monkeypatch.setenv("RCUTILS_CONSOLE_OUTPUT_FORMAT", "{message}")
+    monkeypatch.setenv("RCL_ASSERT_RMW_ID_MATCHES", "rmw_fastrtps_cpp")
     monkeypatch.setenv("SKIP_DEFAULT_XML", "1")
 
     first = {item.name: item.value for item in _runtime_variables(tmp_path)}
@@ -300,6 +301,7 @@ def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
     assert first["ROS_API_TOKEN"].startswith("sha256:")
     assert len(first["ROS_API_TOKEN"]) == 71
     assert first["RCUTILS_CONSOLE_OUTPUT_FORMAT"].startswith("sha256:")
+    assert first["RCL_ASSERT_RMW_ID_MATCHES"].startswith("sha256:")
     assert first["SKIP_DEFAULT_XML"].startswith("sha256:")
     assert "{message}" not in serialized
 
