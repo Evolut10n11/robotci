@@ -7,10 +7,31 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+from robotci.reproducibility import (
+    RuntimePackage,
+    build_runtime_environment,
+    build_suite_execution_identity,
+)
 from robotci.results import Pose2D, build_scenario_task
 from robotci.suite_cli import app
 
 runner = CliRunner()
+
+_TEST_ENVIRONMENT = build_runtime_environment(
+    os_id="ubuntu",
+    os_version="24.04",
+    architecture="x86_64",
+    python_version="3.12.3",
+    ros_distro="jazzy",
+    robotci_build="sha256:" + "2" * 64,
+    containerized=False,
+    packages=(RuntimePackage(manager="python", name="robotci", version="0.0.1"),),
+)
+_TEST_EXECUTION = build_suite_execution_identity(
+    runtime="native",
+    plan_fingerprint="sha256:" + "1" * 64,
+    environment=_TEST_ENVIRONMENT,
+)
 
 
 def _write_result(
@@ -85,8 +106,10 @@ def _write_suite(
     suite.write_text(
         json.dumps(
             {
+                "schema_version": 1,
                 "status": "PASS",
                 "runtime": "native",
+                "execution": asdict(_TEST_EXECUTION),
                 "duration_sec": duration,
                 "scenarios": [
                     {

@@ -9,22 +9,50 @@ RETRY_DELAY_SEC="${ROBOTCI_RETRY_DELAY_SEC:-1}"
 ACTIVE_ATTEMPT_PID=""
 RESULT_FILE="${ROBOTCI_RESULT_FILE:-artifacts/${SCENARIO}/result.json}"
 PYTHON_BIN="${ROBOTCI_PYTHON:-python3}"
-if [ -x ".venv/bin/python" ]; then
+if [ -z "${ROBOTCI_PYTHON:-}" ] && [ -x ".venv/bin/python" ]; then
   PYTHON_BIN=".venv/bin/python"
 fi
+
+# -S disables site startup hooks, so dependency paths must be supplied
+# explicitly. The runner provides an audited path; direct wrapper invocations
+# fall back to the interpreter's standard install locations without honoring an
+# inherited PYTHONPATH.
+RUNTIME_PYTHONPATH="${ROBOTCI_PYTHONPATH:-}"
+if [ -z "$RUNTIME_PYTHONPATH" ]; then
+  RUNTIME_PYTHONPATH="$(
+    "$PYTHON_BIN" -S -B -P -c '
+import sysconfig
+
+paths = sysconfig.get_paths()
+print(":".join(dict.fromkeys(
+    path for path in (paths.get("purelib"), paths.get("platlib")) if path
+)))
+'
+  )" || {
+    echo "RobotCI runtime error: cannot resolve Python dependency paths." >&2
+    exit 3
+  }
+fi
+if [ -z "$RUNTIME_PYTHONPATH" ]; then
+  echo "RobotCI runtime error: Python dependency paths are unavailable." >&2
+  exit 3
+fi
+export PYTHONPATH="$SCRIPT_DIR/..:$RUNTIME_PYTHONPATH"
 
 clear_attempt_artifacts() {
   # Use the same helper and Python as the runtime; duplicating pathlib suffix
   # rules in Bash can leave stale replay files for unusual output names.
-  PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -c '
+  "$PYTHON_BIN" -S -B -P -c '
 import sys
 from pathlib import Path
+
+sys.path.insert(0, sys.argv[1])
 from robotci.replay import default_replay_path
 
-result = Path(sys.argv[1])
-for artifact in (result, default_replay_path(result), Path(sys.argv[2])):
+result = Path(sys.argv[2])
+for artifact in (result, default_replay_path(result), Path(sys.argv[3])):
     artifact.unlink(missing_ok=True)
-' "$RESULT_FILE" "$LOG_FILE"
+' "$SCRIPT_DIR/.." "$RESULT_FILE" "$LOG_FILE"
 }
 
 terminate_active_attempt() {

@@ -10,15 +10,14 @@ REQUIRED_ROS_PACKAGES = (
 )
 ROS_SETUP = Path("/opt/ros/jazzy/setup.bash")
 
-# Match run_navigation_attempt.sh: source the Jazzy installation when present,
-# otherwise use the inherited environment. Do not import ROS in the Python core.
+# Match run_navigation_attempt.sh: require and source the packaged Jazzy
+# installation. Do not import ROS in the Python core.
 _NATIVE_PROBE = r'''
 set -eo pipefail
 setup_file="$1"
 shift
-if [ -f "$setup_file" ]; then
-  source "$setup_file" >/dev/null 2>&1
-fi
+[ -f "$setup_file" ] || exit 1
+source "$setup_file" >/dev/null 2>&1
 command -v ros2 >/dev/null 2>&1 || exit 1
 [ "${ROS_DISTRO:-}" = "jazzy" ] || exit 1
 for package in "$@"; do

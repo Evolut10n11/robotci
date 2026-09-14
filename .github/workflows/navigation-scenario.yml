@@ -62,14 +62,14 @@ jobs:
       - name: Install RobotCI CLI into ROS Python
         run: |
           python3 -m pip install --break-system-packages -e .
-          python3 -m robotci.cli --help
+          robotci --help
 
       - name: Validate robotci.yaml
-        run: python3 -m robotci.cli validate --config robotci.yaml
+        run: robotci validate --config robotci.yaml
 
       - name: Run RobotCI YAML suite through CLI
         run: |
-          python3 -m robotci.cli run \
+          robotci run \
             --runtime native \
             --config robotci.yaml \
             --output artifacts/suite-result.json
@@ -82,6 +82,36 @@ jobs:
 
           suite = json.loads(Path("artifacts/suite-result.json").read_text(encoding="utf-8"))
           names = [item["scenario"] for item in suite["scenarios"]]
+          execution = suite["execution"]
+          environment = execution["environment"]
+
+          if suite["schema_version"] != 1:
+              raise SystemExit(f"Unexpected suite schema: {suite}")
+          if suite["runtime"] != "native" or execution["runtime"] != "native":
+              raise SystemExit(f"Native runtime provenance is incorrect: {execution}")
+          if environment["containerized"]:
+              raise SystemExit(f"Native suite was unexpectedly containerized: {environment}")
+          if not execution["fingerprint"].startswith("sha256:"):
+              raise SystemExit(f"Missing execution fingerprint: {execution}")
+          if not environment["fingerprint"].startswith("sha256:"):
+              raise SystemExit(f"Missing environment fingerprint: {environment}")
+          if not environment["robotci_build"].startswith("sha256:"):
+              raise SystemExit(f"Missing RobotCI build fingerprint: {environment}")
+          package_names = {item["name"] for item in environment["packages"]}
+          required_packages = {
+              "robotci",
+              "PyYAML",
+              "rich",
+              "typer",
+              "ros-jazzy-navigation2",
+              "ros-jazzy-nav2-bringup",
+              "ros-jazzy-nav2-loopback-sim",
+              "ros-jazzy-nav2-simple-commander",
+          }
+          if not required_packages <= package_names:
+              raise SystemExit(
+                  f"Runtime provenance is missing packages: {required_packages - package_names}"
+              )
 
           if suite["status"] != "PASS":
               raise SystemExit(f"Navigation suite did not PASS: {suite}")

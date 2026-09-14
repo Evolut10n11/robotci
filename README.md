@@ -4,7 +4,7 @@ Local-first regression testing for ROS2 / Nav2.
 
 RobotCI is an open-source developer tool for running repeatable navigation scenarios in simulation, producing machine-readable results, and eventually comparing candidate robot behavior against a known-good baseline before changes reach a physical robot.
 
-> Status: early alpha. M0–M4 are complete. RobotCI now captures evidence-qualified navigation telemetry and deterministically gates candidate behavior against known-good baselines.
+> Status: early alpha. M0–M5 are complete. RobotCI now captures evidence-qualified navigation telemetry, gates regressions deterministically, and rejects comparisons across incompatible execution environments.
 
 ## Why RobotCI
 
@@ -328,6 +328,21 @@ near a zero-distance baseline. Threshold equality is inclusive, while any excess
 produces `REGRESSION` and exit code `4`. Suite paths are confined to their own
 artifact directory before referenced scenario results are loaded.
 
+## Reproducibility contract
+
+M5 versions every suite result and fingerprints both the effective execution
+plan and the actual runtime environment. The plan covers scenario order, poses,
+map, effective timeouts, and evidence policies. Environment provenance covers
+host/container isolation, Ubuntu, architecture, Python, ROS Jazzy, RobotCI
+dependencies, the installed Nav2 packages, and a digest of the executable
+RobotCI Python and runtime shell sources.
+
+Baseline capture and suite comparison validate those fingerprints and require an
+exact execution match before reading metrics. Dependency drift or a native-vs-
+Docker mismatch is an input error, never a robot verdict. Pre-M5 suites must be
+rerun. See [docs/reproducibility.md](docs/reproducibility.md) for the contract
+and upgrade behavior.
+
 ## Verdicts and exit codes
 
 ```text
@@ -634,8 +649,8 @@ duration + path length + distance-to-goal + stuck detection + recoveries
 M4 — Regression ✅
 baseline + candidate comparison + deterministic REGRESSION verdict
 
-M5 — Reproducibility
-repeatable clean-environment execution
+M5 — Reproducibility ✅
+versioned plan + runtime provenance + compatible clean-environment execution
 
 M6 — CI integration
 JUnit + artifacts + PR release gate

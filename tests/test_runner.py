@@ -9,13 +9,54 @@ import pytest
 
 from robotci import runner
 from robotci.config import PoseConfig, ScenarioConfig
+from robotci.reproducibility import (
+    RuntimePackage,
+    build_runtime_environment,
+    build_suite_execution_identity,
+)
 from robotci.results import Pose2D, build_scenario_task
+
+_TEST_EXECUTION = build_suite_execution_identity(
+    runtime="native",
+    plan_fingerprint="sha256:" + "1" * 64,
+    environment=build_runtime_environment(
+        os_id="ubuntu",
+        os_version="24.04",
+        architecture="x86_64",
+        python_version="3.12.3",
+        ros_distro="jazzy",
+        robotci_build="sha256:" + "2" * 64,
+        containerized=False,
+        packages=(RuntimePackage(manager="python", name="robotci", version="0.0.1"),),
+    ),
+)
+
+
+@pytest.fixture(autouse=True)
+def _stable_suite_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        runner,
+        "capture_suite_execution",
+        lambda **kwargs: _TEST_EXECUTION,
+    )
 
 
 def _make_project_root(path: Path) -> None:
     scripts = path / "scripts"
     scripts.mkdir(parents=True, exist_ok=True)
     (path / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    (path / "compose.yaml").write_text(
+        """services:
+  robotci:
+    build:
+      context: .
+    image: robotci:dev
+    init: true
+    volumes:
+      - ./artifacts:/workspace/artifacts
+""",
+        encoding="utf-8",
+    )
     (scripts / "run_navigation_scenario.sh").write_text(
         "#!/usr/bin/env bash\n",
         encoding="utf-8",
@@ -170,8 +211,38 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
         captured["command"] = command
         captured["cwd"] = kwargs["cwd"]
         captured["env"] = kwargs["env"]
+        environment = kwargs["env"]
+        assert isinstance(environment, dict)
+        captured["pycache_exists_during_run"] = Path(
+            environment["PYTHONPYCACHEPREFIX"]
+        ).is_dir()
         return subprocess.CompletedProcess(command, 0)
 
+    monkeypatch.setenv("BASH_ENV", str(tmp_path / "startup.sh"))
+    monkeypatch.setenv("ENV", str(tmp_path / "posix-startup.sh"))
+    monkeypatch.setenv("PYTHONHOME", str(tmp_path / "python-home"))
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path / "untrusted-python"))
+    monkeypatch.setenv("ROBOTCI_PYTHONPATH", str(tmp_path / "untrusted-robotci-python"))
+    monkeypatch.setenv("PYTHONSAFEPATH", "1")
+    monkeypatch.setenv("PYTHONWARNINGS", "error")
+    monkeypatch.setenv("PATH", str(tmp_path / "untrusted-bin"))
+    monkeypatch.setenv("LD_LIBRARY_PATH", str(tmp_path / "untrusted-lib"))
+    monkeypatch.setenv("AMENT_PREFIX_PATH", str(tmp_path / "untrusted-overlay"))
+    monkeypatch.setenv("CMAKE_PREFIX_PATH", str(tmp_path / "untrusted-cmake"))
+    monkeypatch.setenv("COLCON_PREFIX_PATH", str(tmp_path / "untrusted-colcon"))
+    monkeypatch.setenv("ROS_PACKAGE_PATH", str(tmp_path / "untrusted-ros-packages"))
+    monkeypatch.setenv("ROS_DISTRO", "humble")
+    monkeypatch.setenv("ROS_ETC_DIR", "/opt/ros/humble/etc/ros")
+    monkeypatch.setenv("ROS_PYTHON_VERSION", "2")
+    monkeypatch.setenv("ROS_VERSION", "2")
+    monkeypatch.setenv("RCL_ASSERT_RMW_ID_MATCHES", "rmw_fastrtps_cpp")
+    monkeypatch.setenv("UNTRACKED_ROS_CONTROL", "unsafe")
+    monkeypatch.setenv("BASH_FUNC_injected%%", "() { return 0; }")
+    monkeypatch.setattr(
+        runner,
+        "_native_python_dependency_paths",
+        lambda: ("/trusted/python-packages",),
+    )
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
 
     exit_code = runner._run_native(tmp_path, scenario, output, 42.5)
@@ -193,6 +264,33 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert environment["ROBOTCI_TIMEOUT_SEC"] == "42.5"
     assert environment["ROBOTCI_GOAL_TOLERANCE_M"] == "0.25"
     assert environment["ROBOTCI_MIN_FEEDBACK_SAMPLES"] == "1"
+    assert "BASH_ENV" not in environment
+    assert "ENV" not in environment
+    assert "PYTHONHOME" not in environment
+    assert environment["PYTHONPATH"] == "/trusted/python-packages"
+    assert environment["ROBOTCI_PYTHONPATH"] == "/trusted/python-packages"
+    assert "untrusted-python" not in environment["PYTHONPATH"]
+    assert "PYTHONSAFEPATH" not in environment
+    assert "PYTHONWARNINGS" not in environment
+    assert environment["PYTHONHASHSEED"] == "0"
+    assert environment["PYTHONNOUSERSITE"] == "1"
+    assert environment["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert environment["PYTHONUTF8"] == "1"
+    assert captured["pycache_exists_during_run"] is True
+    assert not Path(environment["PYTHONPYCACHEPREFIX"]).exists()
+    assert environment["PATH"] == runner._NATIVE_PATH
+    assert "LD_LIBRARY_PATH" not in environment
+    assert "AMENT_PREFIX_PATH" not in environment
+    assert "CMAKE_PREFIX_PATH" not in environment
+    assert "COLCON_PREFIX_PATH" not in environment
+    assert "ROS_PACKAGE_PATH" not in environment
+    assert "ROS_DISTRO" not in environment
+    assert "ROS_ETC_DIR" not in environment
+    assert "ROS_PYTHON_VERSION" not in environment
+    assert "ROS_VERSION" not in environment
+    assert environment["RCL_ASSERT_RMW_ID_MATCHES"] == "rmw_fastrtps_cpp"
+    assert "UNTRACKED_ROS_CONTROL" not in environment
+    assert "BASH_FUNC_injected%%" not in environment
 
 
 def test_run_docker_mounts_config_and_copies_result(
@@ -225,7 +323,17 @@ def test_run_docker_mounts_config_and_copies_result(
     assert destination.read_text(encoding="utf-8") == '{"status": "PASS"}\n'
     command = captured["command"]
     assert isinstance(command, list)
-    assert command[:5] == ["docker", "compose", "run", "--rm", "--build"]
+    assert command[:9] == [
+        "docker",
+        "compose",
+        "--file",
+        str(tmp_path / "compose.yaml"),
+        "--project-name",
+        "robotci",
+        "run",
+        "--rm",
+        "--build",
+    ]
     assert "--volume" in command
     assert f"{config_path.resolve()}:/workspace/robotci.yaml:ro" in command
     assert "short_route" in command
@@ -354,7 +462,9 @@ def test_run_suite_uses_configured_scenarios_and_timeouts(
     payload = json.loads(result_path.read_text(encoding="utf-8"))
     assert exit_code == 0
     assert selected == "native"
+    assert payload["schema_version"] == 1
     assert payload["status"] == "PASS"
+    assert payload["execution"]["fingerprint"] == _TEST_EXECUTION.fingerprint
     assert [item["scenario"] for item in payload["scenarios"]] == [
         "short_route",
         "medium_route",
@@ -365,6 +475,64 @@ def test_run_suite_uses_configured_scenarios_and_timeouts(
         ("medium_route", 22.0),
         ("simple_route", 33.0),
     ]
+
+
+def test_run_suite_rejects_runtime_environment_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path)
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+    drifted_execution = build_suite_execution_identity(
+        runtime="native",
+        plan_fingerprint=_TEST_EXECUTION.plan_fingerprint,
+        environment=build_runtime_environment(
+            os_id="ubuntu",
+            os_version="24.04",
+            architecture="x86_64",
+            python_version="3.12.4",
+            ros_distro="jazzy",
+            robotci_build="sha256:" + "3" * 64,
+            containerized=False,
+            packages=(
+                RuntimePackage(manager="python", name="robotci", version="0.0.1"),
+            ),
+        ),
+    )
+    captures = iter((_TEST_EXECUTION, drifted_execution))
+    monkeypatch.setattr(
+        runner,
+        "capture_suite_execution",
+        lambda **kwargs: next(captures),
+    )
+
+    def fake_run_native(
+        project_root: Path,
+        scenario: ScenarioConfig,
+        output: Path,
+        timeout_sec: float,
+    ) -> int:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(_runtime_result_payload(scenario)),
+            encoding="utf-8",
+        )
+        return 0
+
+    monkeypatch.setattr(runner, "_run_native", fake_run_native)
+    suite_path = tmp_path / "suite-result.json"
+
+    with pytest.raises(
+        runner.RuntimeUnavailableError,
+        match="runtime environment changed during suite execution",
+    ):
+        runner.run_suite(
+            output=suite_path,
+            project_root=tmp_path,
+        )
+
+    assert not suite_path.exists()
 
 
 def test_run_suite_keeps_outputs_in_external_project(

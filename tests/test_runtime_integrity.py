@@ -12,8 +12,38 @@ import pytest
 
 from robotci import runner
 from robotci.replay import default_replay_path
+from robotci.reproducibility import (
+    RuntimePackage,
+    build_runtime_environment,
+    build_suite_execution_identity,
+)
 from robotci.result_schema import validate_result_payload
 from robotci.results import Pose2D, build_scenario_task
+
+_AUDITED_COMPOSE = """services:
+  robotci:
+    build:
+      context: .
+    image: robotci:dev
+    init: true
+    volumes:
+      - ./artifacts:/workspace/artifacts
+"""
+
+_TEST_EXECUTION = build_suite_execution_identity(
+    runtime="native",
+    plan_fingerprint="sha256:" + "1" * 64,
+    environment=build_runtime_environment(
+        os_id="ubuntu",
+        os_version="24.04",
+        architecture="x86_64",
+        python_version="3.12.3",
+        ros_distro="jazzy",
+        robotci_build="sha256:" + "2" * 64,
+        containerized=False,
+        packages=(RuntimePackage(manager="python", name="robotci", version="0.0.1"),),
+    ),
+)
 
 
 @pytest.fixture
@@ -21,6 +51,7 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (tmp_path / "scripts").mkdir()
     (tmp_path / "scripts/run_navigation_scenario.sh").touch()
     (tmp_path / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    (tmp_path / "compose.yaml").write_text(_AUDITED_COMPOSE, encoding="utf-8")
     (tmp_path / "robotci.yaml").write_text(
         "version: 1\nruntime: native\nscenarios:\n"
         "  - name: route\n    start: {x: 0, y: 0}\n"
@@ -28,6 +59,11 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         encoding="utf-8",
     )
     monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+    monkeypatch.setattr(
+        runner,
+        "capture_suite_execution",
+        lambda **kwargs: _TEST_EXECUTION,
+    )
     return tmp_path
 
 
@@ -273,6 +309,65 @@ def test_docker_still_publishes_fresh_result_and_replay(
     assert default_replay_path(_scenario_path(project, mode)).read_text() == "fresh"
 
 
+@pytest.mark.parametrize(
+    "script_name",
+    ["run_navigation_scenario.sh", "run_navigation_attempt.sh"],
+)
+def test_runtime_scripts_respect_explicit_python(script_name: str) -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / script_name
+
+    assert (
+        'if [ -z "${ROBOTCI_PYTHON:-}" ] && [ -x ".venv/bin/python" ]; then'
+        in script.read_text(encoding="utf-8")
+    )
+
+
+def test_runtime_python_disables_site_startup_and_bytecode_writes() -> None:
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    wrapper = (scripts / "run_navigation_scenario.sh").read_text(encoding="utf-8")
+    attempt = (scripts / "run_navigation_attempt.sh").read_text(encoding="utf-8")
+
+    assert '"$PYTHON_BIN" -S -B -P -c' in wrapper
+    assert '"$PYTHON_BIN" -S -B -P -m robotci.ros.navigation_scenario' in attempt
+
+
+@pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
+def test_cleanup_python_ignores_sitecustomize_from_pythonpath(tmp_path: Path) -> None:
+    wrapper = Path(__file__).resolve().parents[1] / "scripts/run_navigation_scenario.sh"
+    adapter = tmp_path / "adapter.sh"
+    marker = tmp_path / "sitecustomize-ran"
+    (tmp_path / "sitecustomize.py").write_text(
+        "import os\nfrom pathlib import Path\n"
+        "Path(os.environ['STARTUP_MARKER']).write_text('ran', encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "yaml.py").write_text(
+        "raise RuntimeError('inherited PYTHONPATH was imported')\n",
+        encoding="utf-8",
+    )
+    adapter.write_text("exit 0\n", encoding="utf-8")
+    env = {
+        **os.environ,
+        "PYTHONPATH": str(tmp_path),
+        "STARTUP_MARKER": str(marker),
+        "ROBOTCI_ATTEMPT_SCRIPT": str(adapter),
+        "ROBOTCI_PYTHON": sys.executable,
+        "ROBOTCI_RESULT_FILE": str(tmp_path / "result.json"),
+        "ROBOTCI_LOG_FILE": str(tmp_path / "nav2.log"),
+    }
+
+    completed = subprocess.run(
+        ["bash", str(wrapper)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        timeout=10,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert not marker.exists()
+
+
 @pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
 @pytest.mark.parametrize("filename", [
     "result.json", "result", ".result", ".result.json", "..json", "...json",
@@ -332,6 +427,43 @@ def test_wrapper_stops_when_cleanup_python_is_unavailable(tmp_path: Path) -> Non
     )
     assert completed.returncode == 3
     assert not marker.exists()
+
+
+@pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
+def test_wrapper_respects_explicit_python_over_project_venv(tmp_path: Path) -> None:
+    wrapper = Path(__file__).resolve().parents[1] / "scripts/run_navigation_scenario.sh"
+    project_python = tmp_path / ".venv/bin/python"
+    project_python.parent.mkdir(parents=True)
+    project_python.write_text(
+        '#!/usr/bin/env bash\ntouch "$PROJECT_PYTHON_USED"\n',
+        encoding="utf-8",
+    )
+    project_python.chmod(0o755)
+    adapter = tmp_path / "adapter.sh"
+    adapter.write_text('touch "$ADAPTER_STARTED"\n', encoding="utf-8")
+    project_python_used = tmp_path / "project-python-used"
+    adapter_started = tmp_path / "adapter-started"
+    env = {
+        **os.environ,
+        "ROBOTCI_ATTEMPT_SCRIPT": str(adapter),
+        "ROBOTCI_PYTHON": str(tmp_path / "missing-python"),
+        "ROBOTCI_RESULT_FILE": str(tmp_path / "result.json"),
+        "ROBOTCI_LOG_FILE": str(tmp_path / "nav2.log"),
+        "PROJECT_PYTHON_USED": str(project_python_used),
+        "ADAPTER_STARTED": str(adapter_started),
+    }
+
+    completed = subprocess.run(
+        ["bash", str(wrapper)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        timeout=10,
+    )
+
+    assert completed.returncode == 3
+    assert not project_python_used.exists()
+    assert not adapter_started.exists()
 
 
 @pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")

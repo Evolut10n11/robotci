@@ -1,0 +1,1553 @@
+from __future__ import annotations
+
+import json
+import os
+import platform
+import re
+import stat
+import subprocess
+import sys
+from collections.abc import Mapping, Sequence
+from dataclasses import asdict, dataclass
+from hashlib import sha256
+from importlib.machinery import all_suffixes
+from importlib.metadata import PackageNotFoundError, distribution
+from pathlib import Path
+from typing import Literal, cast
+from urllib.parse import unquote, urlparse
+
+import yaml
+
+from robotci.config import RobotCIConfig
+from robotci.native_runtime import ROS_SETUP
+
+SUITE_RESULT_SCHEMA_VERSION = 1
+ENVIRONMENT_SCHEMA_VERSION = 1
+EXECUTION_SCHEMA_VERSION = 1
+RUNTIME_CONTRACT = "ros2-nav2-jazzy-loopback-v1"
+
+_SYSTEM_PATH = "/usr/sbin:/usr/bin:/sbin:/bin"
+_ROS_PYTHONPATH_QUERY = r"""
+set -eo pipefail
+source "$1" >/dev/null 2>&1
+printf '%s' "${PYTHONPATH:-}"
+"""
+
+ExecutionRuntime = Literal["native", "docker"]
+PackageManager = Literal["python", "deb"]
+
+_PYTHON_DISTRIBUTIONS = ("robotci", "PyYAML", "rich", "typer")
+_DEBIAN_PACKAGES = (
+    "bash",
+    "coreutils",
+    "grep",
+    "util-linux",
+    "ros-jazzy-ros-base",
+    "ros-jazzy-navigation2",
+    "ros-jazzy-nav2-bringup",
+    "ros-jazzy-nav2-loopback-sim",
+    "ros-jazzy-nav2-simple-commander",
+    "ros-jazzy-nav2-minimal-tb4-description",
+)
+_FINGERPRINT_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_RMW_IMPLEMENTATION_RE = re.compile(r"^[a-z0-9_]+$")
+_IMPORT_SUFFIXES = tuple(all_suffixes())
+_DOCKER_COMPOSE_MODEL = {
+    "services": {
+        "robotci": {
+            "build": {"context": "."},
+            "image": "robotci:dev",
+            "init": True,
+            "volumes": ["./artifacts:/workspace/artifacts"],
+        }
+    }
+}
+_RUNTIME_VARIABLE_NAMES = frozenset(
+    {
+        "HOME",
+        "LANG",
+        "LANGUAGE",
+        "ROBOTCI_ATTEMPT_SCRIPT",
+        "ROBOTCI_LOG_FILE",
+        "ROBOTCI_RETRY_DELAY_SEC",
+        "SKIP_DEFAULT_XML",
+        "TMPDIR",
+    }
+)
+_RUNTIME_VARIABLE_PREFIXES = (
+    "CYCLONEDDS_",
+    "FASTDDS_",
+    "FASTRTPS_",
+    "LC_",
+    "RCL_",
+    "RCUTILS_",
+    "RMW_",
+    "ROS_",
+    "ZENOH_",
+)
+_UNSUPPORTED_LOADER_VARIABLES = ("LD_AUDIT", "LD_PRELOAD")
+_CONTROLLED_RUNTIME_VARIABLES = frozenset(
+    {
+        "ROS_DISTRO",
+        "ROS_ETC_DIR",
+        "ROS_PACKAGE_PATH",
+        "ROS_PYTHON_VERSION",
+        "ROS_VERSION",
+    }
+)
+_FILE_BACKED_RUNTIME_VARIABLES = frozenset(
+    {
+        "CYCLONEDDS_URI",
+        "FASTDDS_DEFAULT_PROFILES_FILE",
+        "FASTRTPS_DEFAULT_PROFILES_FILE",
+        "RMW_ZENOH_ROUTER_CONFIG_URI",
+    }
+)
+_FILE_BACKED_RUNTIME_SUFFIXES = ("_FILE", "_URI")
+_DIRECTORY_BACKED_RUNTIME_VARIABLES = frozenset({"ROS_SECURITY_KEYSTORE"})
+
+
+
+
+class ReproducibilityError(ValueError):
+    """Raised when suite execution provenance is missing, invalid, or unavailable."""
+
+
+@dataclass(frozen=True)
+class RuntimePackage:
+    manager: PackageManager
+    name: str
+    version: str
+
+
+@dataclass(frozen=True)
+class RuntimeVariable:
+    name: str
+    value: str
+
+
+@dataclass(frozen=True)
+class RuntimeEnvironment:
+    schema_version: int
+    os_id: str
+    os_version: str
+    architecture: str
+    python_version: str
+    ros_distro: str
+    robotci_build: str
+    containerized: bool
+    packages: tuple[RuntimePackage, ...]
+    runtime_variables: tuple[RuntimeVariable, ...]
+    fingerprint: str
+
+
+@dataclass(frozen=True)
+class SuiteExecutionIdentity:
+    schema_version: int
+    runtime: ExecutionRuntime
+    runtime_contract: str
+    plan_fingerprint: str
+    environment: RuntimeEnvironment
+    fingerprint: str
+
+
+def _fingerprint(payload: Mapping[str, object]) -> str:
+    canonical = json.dumps(
+        payload,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return f"sha256:{sha256(canonical).hexdigest()}"
+
+
+def _text(value: object, name: str) -> str:
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise ReproducibilityError(f"{name} must be a non-empty trimmed string")
+    return value
+
+
+def _fingerprint_text(value: object, name: str) -> str:
+    text = _text(value, name)
+    if not _FINGERPRINT_RE.fullmatch(text):
+        raise ReproducibilityError(f"{name} must be a sha256 fingerprint")
+    return text
+
+
+def _schema_version(value: object, *, expected: int, name: str) -> None:
+    if not isinstance(value, int) or isinstance(value, bool) or value != expected:
+        raise ReproducibilityError(f"{name} must be {expected}")
+
+
+def _mapping(value: object, name: str) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise ReproducibilityError(f"{name} must be an object")
+    return cast(dict[str, object], value)
+
+
+def _reject_unknown_keys(
+    payload: Mapping[str, object],
+    *,
+    allowed: set[str],
+    name: str,
+) -> None:
+    unknown = sorted(set(payload) - allowed)
+    if unknown:
+        raise ReproducibilityError(f"{name} contains unknown keys: {', '.join(unknown)}")
+
+
+def _environment_definition(
+    *,
+    os_id: str,
+    os_version: str,
+    architecture: str,
+    python_version: str,
+    ros_distro: str,
+    robotci_build: str,
+    containerized: bool,
+    packages: Sequence[RuntimePackage],
+    runtime_variables: Sequence[RuntimeVariable],
+) -> dict[str, object]:
+    return {
+        "schema_version": ENVIRONMENT_SCHEMA_VERSION,
+        "os_id": os_id,
+        "os_version": os_version,
+        "architecture": architecture,
+        "python_version": python_version,
+        "ros_distro": ros_distro,
+        "robotci_build": robotci_build,
+        "containerized": containerized,
+        "packages": [asdict(package) for package in packages],
+        "runtime_variables": [
+            asdict(variable) for variable in runtime_variables
+        ],
+    }
+
+
+def build_runtime_environment(
+    *,
+    os_id: str,
+    os_version: str,
+    architecture: str,
+    python_version: str,
+    ros_distro: str,
+    robotci_build: str,
+    containerized: bool,
+    packages: Sequence[RuntimePackage],
+    runtime_variables: Sequence[RuntimeVariable] = (),
+) -> RuntimeEnvironment:
+    values = {
+        "os_id": os_id,
+        "os_version": os_version,
+        "architecture": architecture,
+        "python_version": python_version,
+        "ros_distro": ros_distro,
+        "robotci_build": robotci_build,
+    }
+    normalized_values = {name: _text(value, name) for name, value in values.items()}
+    if not isinstance(containerized, bool):
+        raise ReproducibilityError("containerized must be a boolean")
+
+    normalized_packages = tuple(sorted(packages, key=lambda item: (item.manager, item.name)))
+    if not normalized_packages:
+        raise ReproducibilityError("runtime packages must not be empty")
+
+    seen: set[tuple[str, str]] = set()
+    for package in normalized_packages:
+        if package.manager not in {"python", "deb"}:
+            raise ReproducibilityError(f"unsupported package manager: {package.manager!r}")
+        _text(package.name, "package.name")
+        _text(package.version, "package.version")
+        key = (package.manager, package.name)
+        if key in seen:
+            raise ReproducibilityError(
+                f"duplicate runtime package: {package.manager}:{package.name}"
+            )
+        seen.add(key)
+
+    normalized_variables = tuple(
+        sorted(runtime_variables, key=lambda item: item.name)
+    )
+    seen_variables: set[str] = set()
+    for variable in normalized_variables:
+        variable_name = _text(variable.name, "runtime_variable.name")
+        if variable_name in seen_variables:
+            raise ReproducibilityError(
+                f"duplicate runtime variable: {variable_name}"
+            )
+        _fingerprint_text(
+            variable.value,
+            f"runtime variable {variable_name!r} value",
+        )
+        seen_variables.add(variable_name)
+
+    definition = _environment_definition(
+        **normalized_values,
+        containerized=containerized,
+        packages=normalized_packages,
+        runtime_variables=normalized_variables,
+    )
+    return RuntimeEnvironment(
+        schema_version=ENVIRONMENT_SCHEMA_VERSION,
+        **normalized_values,
+        containerized=containerized,
+        packages=normalized_packages,
+        runtime_variables=normalized_variables,
+        fingerprint=_fingerprint(definition),
+    )
+
+
+def runtime_environment_payload(environment: RuntimeEnvironment) -> dict[str, object]:
+    return cast(dict[str, object], asdict(environment))
+
+
+def parse_runtime_environment(
+    value: object,
+    *,
+    name: str = "runtime environment",
+) -> RuntimeEnvironment:
+    payload = _mapping(value, name)
+    _reject_unknown_keys(
+        payload,
+        allowed={
+            "schema_version",
+            "os_id",
+            "os_version",
+            "architecture",
+            "python_version",
+            "ros_distro",
+            "robotci_build",
+            "containerized",
+            "packages",
+            "runtime_variables",
+            "fingerprint",
+        },
+        name=name,
+    )
+    _schema_version(
+        payload.get("schema_version"),
+        expected=ENVIRONMENT_SCHEMA_VERSION,
+        name=f"{name}.schema_version",
+    )
+
+    raw_packages = payload.get("packages")
+    if not isinstance(raw_packages, list | tuple):
+        raise ReproducibilityError(f"{name}.packages must be an array")
+    packages: list[RuntimePackage] = []
+    for index, raw_package in enumerate(raw_packages):
+        package_name = f"{name}.packages[{index}]"
+        item = _mapping(raw_package, package_name)
+        _reject_unknown_keys(
+            item,
+            allowed={"manager", "name", "version"},
+            name=package_name,
+        )
+        manager = item.get("manager")
+        if manager not in {"python", "deb"}:
+            raise ReproducibilityError(
+                f"{package_name}.manager must be 'python' or 'deb'"
+            )
+        packages.append(
+            RuntimePackage(
+                manager=cast(PackageManager, manager),
+                name=_text(item.get("name"), f"{package_name}.name"),
+                version=_text(item.get("version"), f"{package_name}.version"),
+            )
+        )
+
+    raw_variables = payload.get("runtime_variables")
+    if not isinstance(raw_variables, list | tuple):
+        raise ReproducibilityError(f"{name}.runtime_variables must be an array")
+    runtime_variables: list[RuntimeVariable] = []
+    for index, raw_variable in enumerate(raw_variables):
+        variable_name = f"{name}.runtime_variables[{index}]"
+        item = _mapping(raw_variable, variable_name)
+        _reject_unknown_keys(
+            item,
+            allowed={"name", "value"},
+            name=variable_name,
+        )
+        raw_value = item.get("value")
+        if not isinstance(raw_value, str):
+            raise ReproducibilityError(f"{variable_name}.value must be a string")
+        runtime_variables.append(
+            RuntimeVariable(
+                name=_text(item.get("name"), f"{variable_name}.name"),
+                value=raw_value,
+            )
+        )
+
+    environment = build_runtime_environment(
+        os_id=_text(payload.get("os_id"), f"{name}.os_id"),
+        os_version=_text(payload.get("os_version"), f"{name}.os_version"),
+        architecture=_text(payload.get("architecture"), f"{name}.architecture"),
+        python_version=_text(payload.get("python_version"), f"{name}.python_version"),
+        ros_distro=_text(payload.get("ros_distro"), f"{name}.ros_distro"),
+        robotci_build=_fingerprint_text(
+            payload.get("robotci_build"),
+            f"{name}.robotci_build",
+        ),
+        containerized=payload.get("containerized"),
+        packages=packages,
+        runtime_variables=runtime_variables,
+    )
+    supplied = _fingerprint_text(payload.get("fingerprint"), f"{name}.fingerprint")
+    if supplied != environment.fingerprint:
+        raise ReproducibilityError(f"{name}.fingerprint does not match its contents")
+    return environment
+
+
+def _read_os_release(path: Path = Path("/etc/os-release")) -> tuple[str, str]:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError as exc:
+        raise ReproducibilityError(f"cannot read runtime OS identity: {exc}") from exc
+
+    values: dict[str, str] = {}
+    for line in lines:
+        if "=" not in line or line.startswith("#"):
+            continue
+        key, value = line.split("=", 1)
+        values[key] = value.strip().strip('"')
+    try:
+        return values["ID"], values["VERSION_ID"]
+    except KeyError as exc:
+        raise ReproducibilityError("runtime OS identity is incomplete") from exc
+
+
+def _installed_debian_packages() -> tuple[RuntimePackage, ...]:
+    query_format = (
+        "${db:Status-Abbrev}\\t${binary:Package}\\t${Version}\\t"
+        "${Depends}\\t${Pre-Depends}\\t${Provides}\\n"
+    )
+    try:
+        completed = subprocess.run(
+            ["dpkg-query", "-W", f"-f={query_format}"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ReproducibilityError(f"cannot inspect ROS package versions: {exc}") from exc
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or f"exit {completed.returncode}"
+        raise ReproducibilityError(f"cannot inspect ROS package versions: {detail}")
+
+    records: dict[str, tuple[str, str]] = {}
+    aliases: dict[str, set[str]] = {}
+    provided_by: dict[str, set[str]] = {}
+    provided_fields: dict[str, str] = {}
+    for line in completed.stdout.splitlines():
+        fields = line.split("\t")
+        if len(fields) != 6:
+            raise ReproducibilityError(
+                "cannot parse installed Debian package metadata"
+            )
+        status, name, version, depends, pre_depends, provides = fields
+        if len(status) < 3 or status[1:] != "i ":
+            continue
+        if not name or not version:
+            raise ReproducibilityError(
+                "installed Debian package metadata is incomplete"
+            )
+        records[name] = (version, ",".join(filter(None, (depends, pre_depends))))
+        provided_fields[name] = provides
+        aliases.setdefault(name, set()).add(name)
+        aliases.setdefault(name.split(":", 1)[0], set()).add(name)
+
+    def dependency_name(value: str) -> str:
+        token = value.strip().split(maxsplit=1)[0]
+        base, separator, qualifier = token.rpartition(":")
+        return base if separator and qualifier in {"any", "native"} else token
+
+    for package, provides in provided_fields.items():
+        for provided in provides.split(","):
+            if provided.strip():
+                provided_by.setdefault(
+                    dependency_name(provided),
+                    set(),
+                ).add(package)
+
+    roots = list(_DEBIAN_PACKAGES)
+    selected_rmw = os.environ.get("RMW_IMPLEMENTATION", "").strip()
+    if selected_rmw:
+        if not _RMW_IMPLEMENTATION_RE.fullmatch(selected_rmw):
+            raise ReproducibilityError(
+                "RMW_IMPLEMENTATION cannot be mapped to a Jazzy Debian package"
+            )
+        roots.append(f"ros-jazzy-{selected_rmw.replace('_', '-')}")
+
+    pending: list[str] = []
+    missing = []
+    for root in dict.fromkeys(roots):
+        matches = aliases.get(root, set())
+        if not matches:
+            missing.append(root)
+        pending.extend(matches)
+    if missing:
+        raise ReproducibilityError(
+            "runtime is missing version metadata for: " + ", ".join(missing)
+        )
+
+    closure: set[str] = set()
+    while pending:
+        package = pending.pop()
+        if package in closure:
+            continue
+        closure.add(package)
+        _, dependencies = records[package]
+        for group in dependencies.split(","):
+            if not group.strip():
+                continue
+            matches: set[str] = set()
+            for alternative in group.split("|"):
+                name = dependency_name(alternative)
+                matches.update(aliases.get(name, set()))
+                matches.update(provided_by.get(name, set()))
+            if not matches:
+                raise ReproducibilityError(
+                    f"cannot resolve installed dependency {group.strip()!r} "
+                    f"required by {package}"
+                )
+            pending.extend(matches)
+
+    return tuple(
+        RuntimePackage(manager="deb", name=name, version=records[name][0])
+        for name in sorted(closure)
+    )
+
+
+def _ros_setup_python_roots() -> tuple[Path, ...]:
+    try:
+        completed = subprocess.run(
+            [
+                "bash",
+                "-c",
+                _ROS_PYTHONPATH_QUERY,
+                "robotci-ros-pythonpath",
+                str(ROS_SETUP),
+            ],
+            env={"PATH": _SYSTEM_PATH},
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ReproducibilityError(
+            f"cannot inspect ROS Python import roots: {exc}"
+        ) from exc
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or f"exit {completed.returncode}"
+        raise ReproducibilityError(
+            f"cannot inspect ROS Python import roots: {detail}"
+        )
+
+    roots: list[Path] = []
+    for value in completed.stdout.split(":"):
+        if not value:
+            continue
+        candidate = Path(value)
+        if not candidate.is_absolute():
+            raise ReproducibilityError(
+                "ROS setup returned a relative Python import root"
+            )
+        try:
+            root = candidate.resolve(strict=True)
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot resolve ROS Python import root '{candidate}': {exc}"
+            ) from exc
+        if not root.is_dir():
+            raise ReproducibilityError(
+                f"ROS Python import root is not a directory: {root}"
+            )
+        if root not in roots:
+            roots.append(root)
+    if not roots:
+        raise ReproducibilityError(
+            "ROS setup did not provide a Python import root"
+        )
+    return tuple(roots)
+
+
+def runtime_python_dependency_roots() -> tuple[Path, ...]:
+    """Return every broad import root exported to isolated RobotCI processes."""
+
+    roots: list[Path] = []
+    for name in _PYTHON_DISTRIBUTIONS:
+        try:
+            package = distribution(name)
+        except PackageNotFoundError as exc:
+            raise ReproducibilityError(
+                f"runtime is missing Python distribution metadata for {name}"
+            ) from exc
+        root = Path(package.locate_file("")).resolve()
+        if root not in roots:
+            roots.append(root)
+    for root in _ros_setup_python_roots():
+        if root not in roots:
+            roots.append(root)
+    return tuple(roots)
+
+
+def _installed_python_packages() -> tuple[RuntimePackage, ...]:
+    packages: list[RuntimePackage] = []
+    for name in _PYTHON_DISTRIBUTIONS:
+        try:
+            package_version = distribution(name).version
+        except PackageNotFoundError as exc:
+            raise ReproducibilityError(
+                f"runtime is missing Python distribution metadata for {name}"
+            ) from exc
+        packages.append(
+            RuntimePackage(manager="python", name=name, version=package_version)
+        )
+    return tuple(packages)
+
+
+def build_robotci_source_fingerprint(
+    package_root: Path | None = None,
+    *,
+    runtime_root: Path | None = None,
+    attempt_script: Path | None = None,
+    attempt_script_identity: str | None = None,
+    python_dependency_roots: Sequence[Path] = (),
+) -> str:
+    """Hash the executable RobotCI Python and shell sources used by the runtime."""
+
+    installed_package = (
+        package_root or Path(__file__).resolve().parent
+    ).resolve()
+    runtime = (runtime_root or installed_package.parent).resolve()
+    runtime_package_candidate = runtime / "robotci"
+    runtime_package = (
+        runtime_package_candidate.resolve()
+        if runtime_package_candidate.is_dir()
+        else installed_package
+    )
+    package_roots = (
+        (("robotci", installed_package),)
+        if runtime_package == installed_package
+        else (
+            ("runner-package/robotci", installed_package),
+            ("runtime-package/robotci", runtime_package),
+        )
+    )
+    def package_import_sources(package: Path) -> list[Path]:
+        package_files: list[Path] = []
+
+        def visit(directory: Path) -> None:
+            try:
+                with os.scandir(directory) as scanner:
+                    children = sorted(
+                        (Path(entry.path) for entry in scanner),
+                        key=lambda item: item.name,
+                    )
+            except OSError as exc:
+                raise ReproducibilityError(
+                    f"cannot inspect RobotCI package '{package}': {exc}"
+                ) from exc
+            for child in children:
+                try:
+                    child_stat = child.lstat()
+                except OSError as exc:
+                    raise ReproducibilityError(
+                        f"cannot inspect RobotCI package source '{child}': {exc}"
+                    ) from exc
+                if stat.S_ISLNK(child_stat.st_mode):
+                    raise ReproducibilityError(
+                        f"RobotCI package source must not be a symlink: {child}"
+                    )
+                if stat.S_ISDIR(child_stat.st_mode):
+                    # Isolated RobotCI interpreters use a fresh cache prefix, so
+                    # checkout-local generated bytecode is neither executable
+                    # input nor a stable source fingerprint.
+                    if child.name != "__pycache__":
+                        visit(child)
+                elif stat.S_ISREG(child_stat.st_mode):
+                    if child.name.endswith(_IMPORT_SUFFIXES):
+                        package_files.append(child)
+                else:
+                    raise ReproducibilityError(
+                        f"RobotCI package contains a special file: {child}"
+                    )
+
+        visit(package)
+        return package_files
+
+    sources = [
+        (f"{label}/{path.relative_to(package).as_posix()}", path)
+        for label, package in package_roots
+        for path in package_import_sources(package)
+    ]
+
+    try:
+        runtime_children = sorted(runtime.iterdir(), key=lambda item: item.name)
+    except OSError as exc:
+        raise ReproducibilityError(
+            f"cannot inspect RobotCI runtime root '{runtime}': {exc}"
+        ) from exc
+
+    def is_import_file(path: Path) -> bool:
+        return path.name.endswith(_IMPORT_SUFFIXES)
+
+    def package_sources(
+        package: Path,
+        *,
+        namespace: bool = False,
+    ) -> list[Path]:
+        package_files: list[Path] = []
+        special_files: list[Path] = []
+        active_directories: set[Path] = set()
+        has_import_source = False
+
+        def visit(directory: Path) -> None:
+            nonlocal has_import_source
+            try:
+                resolved_directory = directory.resolve(strict=True)
+            except OSError as exc:
+                raise ReproducibilityError(
+                    f"cannot resolve runtime import package '{directory}': {exc}"
+                ) from exc
+            if resolved_directory in active_directories:
+                raise ReproducibilityError(
+                    f"runtime import package contains a symlink cycle: {directory}"
+                )
+            active_directories.add(resolved_directory)
+            try:
+                with os.scandir(directory) as scanner:
+                    children = sorted(
+                        (Path(entry.path) for entry in scanner),
+                        key=lambda item: item.name,
+                    )
+            except OSError as exc:
+                raise ReproducibilityError(
+                    f"cannot inspect runtime import package '{package}': {exc}"
+                ) from exc
+            try:
+                for child in children:
+                    try:
+                        child_stat = child.lstat()
+                    except OSError as exc:
+                        raise ReproducibilityError(
+                            f"cannot inspect runtime import candidate '{child}': {exc}"
+                        ) from exc
+                    if stat.S_ISLNK(child_stat.st_mode):
+                        try:
+                            target_stat = child.stat()
+                        except FileNotFoundError:
+                            # A broken package-managed link is still stable
+                            # executable/resource state and must be fingerprinted.
+                            package_files.append(child)
+                            if is_import_file(child):
+                                has_import_source = True
+                            continue
+                        except OSError as exc:
+                            raise ReproducibilityError(
+                                "cannot inspect runtime import symlink target "
+                                f"'{child}': {exc}"
+                            ) from exc
+                        if stat.S_ISDIR(target_stat.st_mode):
+                            if child.name != "__pycache__":
+                                package_files.append(child)
+                                visit(child)
+                        elif stat.S_ISREG(target_stat.st_mode):
+                            package_files.append(child)
+                            if is_import_file(child):
+                                has_import_source = True
+                        else:
+                            special_files.append(child)
+                        continue
+                    if stat.S_ISDIR(child_stat.st_mode):
+                        # Isolated RobotCI interpreters use a fresh cache prefix,
+                        # so checkout-local generated bytecode is neither
+                        # executable input nor a stable source fingerprint.
+                        if child.name != "__pycache__":
+                            visit(child)
+                    elif stat.S_ISREG(child_stat.st_mode):
+                        package_files.append(child)
+                        if is_import_file(child):
+                            has_import_source = True
+                    else:
+                        special_files.append(child)
+            finally:
+                active_directories.remove(resolved_directory)
+
+        visit(package)
+        if namespace and not has_import_source:
+            return []
+        if special_files:
+            raise ReproducibilityError(
+                "runtime import package contains a special file: "
+                f"{special_files[0]}"
+            )
+        return package_files
+
+    for candidate in runtime_children:
+        if candidate.name == "robotci":
+            continue
+        import_sources: list[Path] = []
+        if candidate.is_file() and is_import_file(candidate):
+            import_sources = [candidate]
+        elif candidate.is_dir():
+            has_package_init = any(
+                (candidate / f"__init__{suffix}").is_file()
+                for suffix in _IMPORT_SUFFIXES
+            )
+            if candidate.name.isidentifier() or has_package_init:
+                import_sources = package_sources(
+                    candidate,
+                    namespace=not has_package_init,
+                )
+        if not import_sources:
+            continue
+        if candidate.is_symlink() and candidate not in import_sources:
+            # Keep the lexical import entry in addition to the files reachable
+            # through it. Python imports through the link name, while changing
+            # the link target can change package/resource behavior.
+            import_sources.insert(0, candidate)
+        sources.extend(
+            (
+                f"runtime-imports/{path.relative_to(runtime).as_posix()}",
+                path,
+            )
+            for path in import_sources
+        )
+
+    unique_dependency_roots: list[Path] = []
+    for root in python_dependency_roots:
+        resolved_root = root.resolve()
+        if resolved_root not in unique_dependency_roots:
+            unique_dependency_roots.append(resolved_root)
+    for index, import_root in enumerate(unique_dependency_roots):
+        try:
+            root_children = sorted(
+                import_root.iterdir(),
+                key=lambda item: item.name,
+            )
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot inspect Python dependency root '{import_root}': {exc}"
+            ) from exc
+        for candidate in root_children:
+            if candidate.name == "__pycache__":
+                continue
+            import_sources = []
+            if candidate.is_file() and is_import_file(candidate):
+                import_sources = [candidate]
+            elif candidate.is_dir():
+                has_package_init = any(
+                    (candidate / f"__init__{suffix}").is_file()
+                    for suffix in _IMPORT_SUFFIXES
+                )
+                if candidate.name.isidentifier() or has_package_init:
+                    import_sources = package_sources(candidate)
+            if not import_sources:
+                continue
+            if candidate.is_symlink() and candidate not in import_sources:
+                # Package-managed import roots may expose packages as links
+                # (for example Ubuntu's lldb package). Fingerprint both the
+                # lexical link and every reachable package file.
+                import_sources.insert(0, candidate)
+            sources.extend(
+                (
+                    "python-import-roots/"
+                    f"{index}/{path.relative_to(import_root).as_posix()}",
+                    path,
+                )
+                for path in import_sources
+            )
+
+    implicit_fastdds_profile = runtime / "DEFAULT_FASTDDS_PROFILES.xml"
+    try:
+        profile_stat = implicit_fastdds_profile.lstat()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise ReproducibilityError(
+            "cannot inspect implicit Fast DDS profile "
+            f"'{implicit_fastdds_profile}': {exc}"
+        ) from exc
+    else:
+        if stat.S_ISLNK(profile_stat.st_mode):
+            try:
+                target_stat = implicit_fastdds_profile.stat()
+            except FileNotFoundError:
+                # Preserve a broken lexical link as stable runtime input.
+                target_stat = None
+            except OSError as exc:
+                raise ReproducibilityError(
+                    "cannot inspect implicit Fast DDS profile target "
+                    f"'{implicit_fastdds_profile}': {exc}"
+                ) from exc
+            if target_stat is not None and not stat.S_ISREG(target_stat.st_mode):
+                raise ReproducibilityError(
+                    "implicit Fast DDS profile must reference a regular file: "
+                    f"{implicit_fastdds_profile}"
+                )
+        elif not stat.S_ISREG(profile_stat.st_mode):
+            raise ReproducibilityError(
+                "implicit Fast DDS profile must be a regular file: "
+                f"{implicit_fastdds_profile}"
+            )
+        sources.append(
+            (
+                "runtime-configuration/DEFAULT_FASTDDS_PROFILES.xml",
+                implicit_fastdds_profile,
+            )
+        )
+
+    scripts = runtime / "scripts"
+    if scripts.is_dir():
+        sources.extend(
+            (f"scripts/{path.relative_to(scripts).as_posix()}", path)
+            for path in scripts.glob("*.sh")
+        )
+    selected_attempt_label: str | None = None
+    if attempt_script is not None:
+        lexical_attempt = attempt_script.absolute()
+        selected_attempt = lexical_attempt.resolve()
+        if not selected_attempt.is_file():
+            raise ReproducibilityError(
+                f"selected runtime attempt script does not exist: {selected_attempt}"
+            )
+        if attempt_script_identity is not None:
+            if not isinstance(attempt_script_identity, str) or not attempt_script_identity:
+                raise ReproducibilityError(
+                    "attempt script identity must be a non-empty string"
+                )
+            selected_attempt_label = attempt_script_identity
+        else:
+            try:
+                selected_attempt_label = (
+                    "scripts/"
+                    + lexical_attempt.relative_to(scripts.absolute()).as_posix()
+                )
+            except ValueError:
+                selected_attempt_label = "selected-attempt-script"
+
+        if selected_attempt not in {path.resolve() for _, path in sources}:
+            try:
+                source_label = (
+                    "scripts/"
+                    + selected_attempt.relative_to(scripts.resolve()).as_posix()
+                )
+            except ValueError:
+                source_label = "selected-attempt-script"
+            sources.append((source_label, selected_attempt))
+    sources = sorted(sources, key=lambda item: item[0])
+    if not sources:
+        raise ReproducibilityError("RobotCI runtime source files are unavailable")
+
+    files: list[dict[str, str]] = []
+    for relative, path in sources:
+        try:
+            path_stat = path.lstat()
+            if stat.S_ISLNK(path_stat.st_mode):
+                link_target = os.readlink(path)
+                definition: dict[str, str] = {"link_target": link_target}
+                try:
+                    target_stat = path.stat()
+                except FileNotFoundError:
+                    definition["target_type"] = "missing"
+                else:
+                    if stat.S_ISDIR(target_stat.st_mode):
+                        definition["target_type"] = "directory"
+                    elif stat.S_ISREG(target_stat.st_mode):
+                        definition["target_type"] = "file"
+                        definition["target_sha256"] = sha256(
+                            path.read_bytes()
+                        ).hexdigest()
+                    else:
+                        definition["target_type"] = "special"
+                digest = sha256(
+                    json.dumps(
+                        definition,
+                        separators=(",", ":"),
+                        sort_keys=True,
+                    ).encode("utf-8")
+                ).hexdigest()
+            else:
+                digest = sha256(path.read_bytes()).hexdigest()
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot read RobotCI runtime source '{path}': {exc}"
+            ) from exc
+        files.append({"path": relative, "sha256": digest})
+    return _fingerprint(
+        {
+            "files": files,
+            "selected_attempt": selected_attempt_label,
+        }
+    )
+
+
+def _resolve_attempt_script(runtime: Path) -> tuple[Path, str]:
+    attempt_value = os.environ.get("ROBOTCI_ATTEMPT_SCRIPT", "")
+    if attempt_value:
+        attempt_script = Path(attempt_value)
+        attempt_identity = f"environment:{attempt_value}"
+    else:
+        attempt_script = runtime / "scripts" / "run_navigation_attempt.sh"
+        attempt_identity = "default:scripts/run_navigation_attempt.sh"
+    if not attempt_script.is_absolute():
+        attempt_script = runtime / attempt_script
+    return attempt_script, attempt_identity
+
+
+def _runtime_configuration_path(
+    name: str,
+    value: str,
+    runtime_root: Path,
+) -> Path | None:
+    directory_backed = name in _DIRECTORY_BACKED_RUNTIME_VARIABLES
+    file_backed = name in _FILE_BACKED_RUNTIME_VARIABLES or (
+        name.startswith(_RUNTIME_VARIABLE_PREFIXES)
+        and name.endswith(_FILE_BACKED_RUNTIME_SUFFIXES)
+    )
+    if not file_backed and not directory_backed:
+        return None
+
+    stripped = value.strip()
+    if not stripped:
+        return None
+    if file_backed and stripped.startswith(("<", "{", "[")):
+        return None
+
+    direct_path = Path(stripped)
+    if direct_path.is_absolute():
+        path = direct_path
+    else:
+        parsed = urlparse(stripped)
+        if parsed.scheme:
+            if parsed.scheme != "file" or parsed.netloc not in {"", "localhost"}:
+                raise ReproducibilityError(
+                    f"remote runtime configuration is unsupported for {name}"
+                )
+            path = Path(unquote(parsed.path))
+        else:
+            path = runtime_root / direct_path
+
+    try:
+        resolved = path.resolve(strict=True)
+    except OSError as exc:
+        raise ReproducibilityError(
+            f"cannot resolve file-backed runtime variable {name}: {exc}"
+        ) from exc
+    expected_type = "directory" if directory_backed else "regular file"
+    if directory_backed and not resolved.is_dir():
+        raise ReproducibilityError(
+            f"directory-backed runtime variable {name} must reference a directory"
+        )
+    if file_backed and not resolved.is_file():
+        raise ReproducibilityError(
+            f"file-backed runtime variable {name} must reference a regular file"
+        )
+    if not resolved.exists():
+        raise ReproducibilityError(
+            f"runtime variable {name} must reference an existing {expected_type}"
+        )
+    return resolved
+
+
+def _runtime_configuration_fingerprint(path: Path, name: str) -> str:
+    def inspect(item: Path, *, follow_symlinks: bool = True) -> os.stat_result:
+        try:
+            return item.stat() if follow_symlinks else item.lstat()
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot inspect path-backed runtime variable {name}: {exc}"
+            ) from exc
+
+    def digest(item: Path) -> str:
+        try:
+            return sha256(item.read_bytes()).hexdigest()
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot read path-backed runtime variable {name}: {exc}"
+            ) from exc
+
+    root_stat = inspect(path)
+    if stat.S_ISREG(root_stat.st_mode):
+        return _fingerprint(
+            {
+                "type": "file",
+                "mode": stat.S_IMODE(root_stat.st_mode),
+                "sha256": digest(path),
+            }
+        )
+    if not stat.S_ISDIR(root_stat.st_mode):
+        raise ReproducibilityError(
+            f"path-backed runtime variable {name} contains a special file"
+        )
+
+    entries: list[dict[str, object]] = []
+
+    def visit(directory: Path) -> None:
+        try:
+            with os.scandir(directory) as scanner:
+                children = sorted(
+                    ((entry.name, Path(entry.path)) for entry in scanner),
+                    key=lambda item: item[0],
+                )
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot walk directory-backed runtime variable {name}: {exc}"
+            ) from exc
+
+        for _, child in children:
+            child_stat = inspect(child, follow_symlinks=False)
+            relative = child.relative_to(path).as_posix()
+            child_mode = stat.S_IMODE(child_stat.st_mode)
+            if stat.S_ISLNK(child_stat.st_mode):
+                raise ReproducibilityError(
+                    f"directory-backed runtime variable {name} contains a symlink"
+                )
+            if stat.S_ISDIR(child_stat.st_mode):
+                entries.append(
+                    {
+                        "path": relative,
+                        "type": "directory",
+                        "mode": child_mode,
+                    }
+                )
+                visit(child)
+                continue
+            if not stat.S_ISREG(child_stat.st_mode):
+                raise ReproducibilityError(
+                    f"directory-backed runtime variable {name} contains a special file"
+                )
+            entries.append(
+                {
+                    "path": relative,
+                    "type": "file",
+                    "mode": child_mode,
+                    "sha256": digest(child),
+                }
+            )
+
+    visit(path)
+    return _fingerprint(
+        {
+            "type": "directory",
+            "mode": stat.S_IMODE(root_stat.st_mode),
+            "entries": entries,
+        }
+    )
+
+
+def _runtime_variable_value_fingerprint(
+    name: str,
+    value: str,
+    runtime_root: Path,
+) -> str:
+    definition: dict[str, object] = {"value": value}
+    configuration = _runtime_configuration_path(name, value, runtime_root)
+    if configuration is not None:
+        definition["configuration_fingerprint"] = _runtime_configuration_fingerprint(
+            configuration,
+            name,
+        )
+    return _fingerprint(definition)
+
+
+def _inherited_runtime_variable_names() -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            name
+            for name in os.environ
+            if (
+                name in _RUNTIME_VARIABLE_NAMES
+                or name.startswith(_RUNTIME_VARIABLE_PREFIXES)
+            )
+            and name not in _CONTROLLED_RUNTIME_VARIABLES
+        )
+    )
+
+
+def inherited_runtime_environment() -> dict[str, str]:
+    """Return the exact inherited environment admitted to native ROS processes."""
+
+    return {
+        name: os.environ[name]
+        for name in _inherited_runtime_variable_names()
+    }
+
+
+def _runtime_variables(runtime_root: Path) -> tuple[RuntimeVariable, ...]:
+    environment = inherited_runtime_environment()
+    return tuple(
+        RuntimeVariable(
+            name=name,
+            value=_runtime_variable_value_fingerprint(
+                name,
+                value,
+                runtime_root,
+            ),
+        )
+        for name, value in environment.items()
+    )
+
+
+def collect_runtime_environment(
+    runtime_root: Path | None = None,
+) -> RuntimeEnvironment:
+    """Capture the actual process environment used to execute the Nav2 suite."""
+
+    loader_injection = [
+        name
+        for name in _UNSUPPORTED_LOADER_VARIABLES
+        if os.environ.get(name)
+    ]
+    if loader_injection:
+        raise ReproducibilityError(
+            "loader injection is unsupported for reproducible execution: "
+            + ", ".join(loader_injection)
+        )
+
+    os_id, os_version = _read_os_release()
+    runtime = (
+        runtime_root or Path(__file__).resolve().parent.parent
+    ).resolve()
+    attempt_script, attempt_script_identity = _resolve_attempt_script(runtime)
+
+    if not ROS_SETUP.is_file():
+        raise ReproducibilityError(
+            f"runtime ROS setup is unavailable: {ROS_SETUP}"
+        )
+    ros_distro = "jazzy"
+
+    return build_runtime_environment(
+        os_id=os_id,
+        os_version=os_version,
+        architecture=platform.machine(),
+        python_version=platform.python_version(),
+        ros_distro=ros_distro,
+        robotci_build=build_robotci_source_fingerprint(
+            runtime_root=runtime,
+            attempt_script=attempt_script,
+            attempt_script_identity=attempt_script_identity,
+            python_dependency_roots=runtime_python_dependency_roots(),
+        ),
+        containerized=Path("/.dockerenv").exists()
+        or Path("/run/.containerenv").exists(),
+        packages=(*_installed_python_packages(), *_installed_debian_packages()),
+        runtime_variables=_runtime_variables(runtime),
+    )
+
+
+def build_suite_plan_fingerprint(
+    config: RobotCIConfig,
+    *,
+    timeout_sec: float | None,
+) -> str:
+    """Fingerprint every effective input that changes suite execution semantics."""
+
+    scenarios: list[dict[str, object]] = []
+    for scenario in config.scenarios:
+        effective_timeout = scenario.timeout_sec if timeout_sec is None else timeout_sec
+
+        def pose_payload(x: float, y: float, yaw: float) -> dict[str, float]:
+            return {
+                name: 0.0 if float(value) == 0 else float(value)
+                for name, value in zip(("x", "y", "yaw"), (x, y, yaw), strict=True)
+            }
+
+        scenarios.append(
+            {
+                "name": scenario.name,
+                "frame_id": "map",
+                "map_id": scenario.map_id or "unspecified",
+                "start": pose_payload(
+                    scenario.start.x,
+                    scenario.start.y,
+                    scenario.start.yaw,
+                ),
+                "goal": pose_payload(
+                    scenario.goal.x,
+                    scenario.goal.y,
+                    scenario.goal.yaw,
+                ),
+                "timeout_sec": float(effective_timeout),
+                "evidence_policy": {
+                    "goal_tolerance_m": float(scenario.goal_tolerance_m),
+                    "min_feedback_samples": scenario.min_feedback_samples,
+                },
+            }
+        )
+    return _fingerprint(
+        {
+            "config_version": config.version,
+            "scenarios": scenarios,
+        }
+    )
+
+
+def build_suite_execution_identity(
+    *,
+    runtime: ExecutionRuntime,
+    plan_fingerprint: str,
+    environment: RuntimeEnvironment,
+) -> SuiteExecutionIdentity:
+    if runtime not in {"native", "docker"}:
+        raise ReproducibilityError(f"unsupported execution runtime: {runtime!r}")
+    plan = _fingerprint_text(plan_fingerprint, "plan_fingerprint")
+    effective_runtime: ExecutionRuntime = (
+        "docker" if environment.containerized else runtime
+    )
+    definition = {
+        "schema_version": EXECUTION_SCHEMA_VERSION,
+        "runtime": effective_runtime,
+        "runtime_contract": RUNTIME_CONTRACT,
+        "plan_fingerprint": plan,
+        "environment_fingerprint": environment.fingerprint,
+    }
+    return SuiteExecutionIdentity(
+        schema_version=EXECUTION_SCHEMA_VERSION,
+        runtime=effective_runtime,
+        runtime_contract=RUNTIME_CONTRACT,
+        plan_fingerprint=plan,
+        environment=environment,
+        fingerprint=_fingerprint(definition),
+    )
+
+
+def parse_suite_execution(
+    value: object,
+    *,
+    name: str = "suite.execution",
+) -> SuiteExecutionIdentity:
+    payload = _mapping(value, name)
+    _reject_unknown_keys(
+        payload,
+        allowed={
+            "schema_version",
+            "runtime",
+            "runtime_contract",
+            "plan_fingerprint",
+            "environment",
+            "fingerprint",
+        },
+        name=name,
+    )
+    _schema_version(
+        payload.get("schema_version"),
+        expected=EXECUTION_SCHEMA_VERSION,
+        name=f"{name}.schema_version",
+    )
+    runtime = payload.get("runtime")
+    if runtime not in {"native", "docker"}:
+        raise ReproducibilityError(f"{name}.runtime must be 'native' or 'docker'")
+    contract = _text(payload.get("runtime_contract"), f"{name}.runtime_contract")
+    if contract != RUNTIME_CONTRACT:
+        raise ReproducibilityError(
+            f"{name}.runtime_contract must be {RUNTIME_CONTRACT!r}"
+        )
+    environment = parse_runtime_environment(
+        payload.get("environment"),
+        name=f"{name}.environment",
+    )
+    execution = build_suite_execution_identity(
+        runtime=cast(ExecutionRuntime, runtime),
+        plan_fingerprint=_fingerprint_text(
+            payload.get("plan_fingerprint"),
+            f"{name}.plan_fingerprint",
+        ),
+        environment=environment,
+    )
+    if runtime != execution.runtime:
+        raise ReproducibilityError(
+            f"{name}.runtime is inconsistent with its environment"
+        )
+    supplied = _fingerprint_text(payload.get("fingerprint"), f"{name}.fingerprint")
+    if supplied != execution.fingerprint:
+        raise ReproducibilityError(f"{name}.fingerprint does not match its contents")
+    return execution
+
+
+def validate_suite_execution(
+    suite: object,
+    *,
+    name: str = "suite result",
+) -> SuiteExecutionIdentity:
+    payload = _mapping(suite, name)
+    _schema_version(
+        payload.get("schema_version"),
+        expected=SUITE_RESULT_SCHEMA_VERSION,
+        name=f"{name}.schema_version",
+    )
+    execution = parse_suite_execution(
+        payload.get("execution"),
+        name=f"{name}.execution",
+    )
+    if payload.get("runtime") != execution.runtime:
+        raise ReproducibilityError(
+            f"{name}.runtime must match {name}.execution.runtime"
+        )
+    return execution
+
+
+def _docker_compose_fingerprint(runtime_root: Path) -> str:
+    compose_path = runtime_root / "compose.yaml"
+    try:
+        compose_stat = compose_path.lstat()
+        payload = compose_path.read_bytes()
+    except OSError as exc:
+        raise ReproducibilityError(
+            f"cannot read audited Docker Compose configuration: {exc}"
+        ) from exc
+    if not stat.S_ISREG(compose_stat.st_mode):
+        raise ReproducibilityError(
+            "audited Docker Compose configuration must be a regular file"
+        )
+    try:
+        model = yaml.safe_load(payload.decode("utf-8"))
+    except (UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise ReproducibilityError(
+            f"audited Docker Compose configuration is invalid: {exc}"
+        ) from exc
+    if model != _DOCKER_COMPOSE_MODEL:
+        raise ReproducibilityError(
+            "Docker Compose configuration does not match the audited "
+            "RobotCI service model"
+        )
+    return _fingerprint(
+        {
+            "path": "compose.yaml",
+            "sha256": sha256(payload).hexdigest(),
+        }
+    )
+
+
+def docker_compose_command_prefix(runtime_root: Path) -> list[str]:
+    """Return the only Compose invocation admitted by RobotCI."""
+
+    _docker_compose_fingerprint(runtime_root)
+    return [
+        "docker",
+        "compose",
+        "--file",
+        str((runtime_root / "compose.yaml").absolute()),
+        "--project-name",
+        "robotci",
+    ]
+
+
+def _bind_docker_compose(
+    environment: RuntimeEnvironment,
+    compose_fingerprint: str,
+) -> RuntimeEnvironment:
+    return build_runtime_environment(
+        os_id=environment.os_id,
+        os_version=environment.os_version,
+        architecture=environment.architecture,
+        python_version=environment.python_version,
+        ros_distro=environment.ros_distro,
+        robotci_build=_fingerprint(
+            {
+                "container_robotci_build": environment.robotci_build,
+                "docker_compose": compose_fingerprint,
+            }
+        ),
+        containerized=environment.containerized,
+        packages=environment.packages,
+        runtime_variables=environment.runtime_variables,
+    )
+
+
+def _collect_docker_environment(
+    runtime_root: Path,
+    *,
+    build_image: bool = False,
+) -> RuntimeEnvironment:
+    compose_before = _docker_compose_fingerprint(runtime_root)
+    command = [
+        *docker_compose_command_prefix(runtime_root),
+        "run",
+        "--rm",
+        "--no-deps",
+    ]
+    if build_image:
+        command.append("--build")
+    command.extend(
+        [
+            "robotci",
+            "python",
+            "-m",
+            "robotci.reproducibility",
+        ]
+    )
+    try:
+        completed = subprocess.run(
+            command,
+            cwd=runtime_root,
+            capture_output=True,
+            text=True,
+            timeout=300 if build_image else 60,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise ReproducibilityError(
+            f"cannot capture Docker runtime environment: {exc}"
+        ) from exc
+    compose_after = _docker_compose_fingerprint(runtime_root)
+    if compose_after != compose_before:
+        raise ReproducibilityError(
+            "Docker Compose configuration changed while capturing the runtime"
+        )
+    if completed.returncode != 0:
+        detail = completed.stderr.strip() or f"exit {completed.returncode}"
+        raise ReproducibilityError(
+            f"cannot capture Docker runtime environment: {detail}"
+        )
+    try:
+        payload = json.loads(completed.stdout.strip())
+    except json.JSONDecodeError as exc:
+        raise ReproducibilityError(
+            "Docker runtime returned invalid environment metadata"
+        ) from exc
+    environment = parse_runtime_environment(
+        payload,
+        name="Docker runtime environment",
+    )
+    return _bind_docker_compose(environment, compose_before)
+
+
+def capture_suite_execution(
+    *,
+    config: RobotCIConfig,
+    timeout_sec: float | None,
+    runtime: ExecutionRuntime,
+    runtime_root: Path,
+    build_docker_image: bool = False,
+) -> SuiteExecutionIdentity:
+    environment = (
+        collect_runtime_environment(runtime_root)
+        if runtime == "native"
+        else _collect_docker_environment(
+            runtime_root,
+            build_image=build_docker_image,
+        )
+    )
+    return build_suite_execution_identity(
+        runtime=runtime,
+        plan_fingerprint=build_suite_plan_fingerprint(
+            config,
+            timeout_sec=timeout_sec,
+        ),
+        environment=environment,
+    )
+
+
+def main() -> int:
+    payload = runtime_environment_payload(
+        collect_runtime_environment(Path.cwd())
+    )
+    print(json.dumps(payload, allow_nan=False, separators=(",", ":"), sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

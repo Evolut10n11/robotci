@@ -25,7 +25,7 @@ dev = [
 ]
 
 [project.scripts]
-robotci = "robotci.entrypoint:app"
+robotci = "robotci.bootstrap:main"
 robotci-init = "robotci.init_cli:app"
 robotci-baseline = "robotci.baseline_cli:app"
 robotci-suite-gate = "robotci.suite_cli:app"

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -Eeo pipefail
 
-if [ -f /opt/ros/jazzy/setup.bash ]; then
-  # shellcheck disable=SC1091
-  source /opt/ros/jazzy/setup.bash
+if [ ! -f /opt/ros/jazzy/setup.bash ]; then
+  echo "RobotCI runtime error: /opt/ros/jazzy/setup.bash was not found."
+  exit 3
 fi
+# shellcheck disable=SC1091
+source /opt/ros/jazzy/setup.bash
 
 if ! command -v ros2 >/dev/null 2>&1; then
   echo "RobotCI runtime error: ros2 was not found."
@@ -34,7 +36,7 @@ GOAL_TOLERANCE_M="${ROBOTCI_GOAL_TOLERANCE_M:-0.25}"
 MIN_FEEDBACK_SAMPLES="${ROBOTCI_MIN_FEEDBACK_SAMPLES:-1}"
 
 PYTHON_BIN="${ROBOTCI_PYTHON:-python3}"
-if [ -x ".venv/bin/python" ]; then
+if [ -z "${ROBOTCI_PYTHON:-}" ] && [ -x ".venv/bin/python" ]; then
   PYTHON_BIN=".venv/bin/python"
 fi
 
@@ -238,7 +240,7 @@ fi
 
 echo "Running RobotCI scenario: $SCENARIO"
 set +e
-"$PYTHON_BIN" -m robotci.ros.navigation_scenario \
+"$PYTHON_BIN" -S -B -P -m robotci.ros.navigation_scenario \
   --scenario "$SCENARIO" \
   --start-x "$START_X" \
   --start-y "$START_Y" \

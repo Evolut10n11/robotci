@@ -11,6 +11,11 @@ from robotci.comparison import (
     load_scenario_result,
 )
 from robotci.regression import RegressionPolicy, RegressionReport
+from robotci.reproducibility import (
+    ReproducibilityError,
+    SuiteExecutionIdentity,
+    validate_suite_execution,
+)
 
 
 @dataclass(frozen=True)
@@ -68,9 +73,16 @@ def _safe_result_path(
     return resolved
 
 
-def _load_suite_entries(path: str | Path, name: str) -> tuple[_SuiteEntry, ...]:
+def _load_suite_entries(
+    path: str | Path,
+    name: str,
+) -> tuple[tuple[_SuiteEntry, ...], SuiteExecutionIdentity]:
     suite_path = Path(path)
     payload = _load_json_object(suite_path, name)
+    try:
+        execution = validate_suite_execution(payload, name=name)
+    except ReproducibilityError as exc:
+        raise ComparisonInputError(str(exc)) from exc
     if payload.get("status") != "PASS":
         raise ComparisonInputError(f"{name} must have PASS status before regression comparison")
 
@@ -112,7 +124,23 @@ def _load_suite_entries(path: str | Path, name: str) -> tuple[_SuiteEntry, ...]:
             )
         )
 
-    return tuple(entries)
+    return tuple(entries), execution
+
+
+def _execution_mismatch(
+    baseline: SuiteExecutionIdentity,
+    candidate: SuiteExecutionIdentity,
+) -> str:
+    details: list[str] = []
+    if baseline.runtime != candidate.runtime:
+        details.append(f"runtime differs: {baseline.runtime} != {candidate.runtime}")
+    if baseline.runtime_contract != candidate.runtime_contract:
+        details.append("runtime contract differs")
+    if baseline.plan_fingerprint != candidate.plan_fingerprint:
+        details.append("effective suite plan differs")
+    if baseline.environment.fingerprint != candidate.environment.fingerprint:
+        details.append("runtime environment differs")
+    return "; ".join(details) or "execution fingerprint differs"
 
 
 def compare_suite_result_files(
@@ -123,8 +151,18 @@ def compare_suite_result_files(
 ) -> SuiteRegressionReport:
     """Compare every matching scenario in two successful suite result files."""
     selected_policy = policy or RegressionPolicy()
-    baseline_entries = _load_suite_entries(baseline_path, "baseline suite")
-    candidate_entries = _load_suite_entries(candidate_path, "candidate suite")
+    baseline_entries, baseline_execution = _load_suite_entries(
+        baseline_path, "baseline suite"
+    )
+    candidate_entries, candidate_execution = _load_suite_entries(
+        candidate_path, "candidate suite"
+    )
+    if baseline_execution.fingerprint != candidate_execution.fingerprint:
+        raise ComparisonInputError(
+            "suite execution fingerprints must match ("
+            + _execution_mismatch(baseline_execution, candidate_execution)
+            + ")"
+        )
     candidate_by_name = {entry.scenario: entry for entry in candidate_entries}
 
     baseline_names = {entry.scenario for entry in baseline_entries}

@@ -8,6 +8,11 @@ import pytest
 
 from robotci.evidence import NavigationEvidencePolicy
 from robotci.metrics import NavigationMetrics, NavigationTelemetryQuality
+from robotci.reproducibility import (
+    RuntimePackage,
+    build_runtime_environment,
+    build_suite_execution_identity,
+)
 from robotci.result_schema import ResultSchemaError
 from robotci.results import (
     Pose2D,
@@ -102,14 +107,37 @@ def test_write_suite_result_serializes_scenario_summaries(tmp_path) -> None:
                 result_file="results/short_route.json",
             ),
         ),
+        execution=build_suite_execution_identity(
+            runtime="native",
+            plan_fingerprint="sha256:" + "1" * 64,
+            environment=build_runtime_environment(
+                os_id="ubuntu",
+                os_version="24.04",
+                architecture="x86_64",
+                python_version="3.12.3",
+                ros_distro="jazzy",
+                robotci_build="sha256:" + "2" * 64,
+                containerized=False,
+                packages=(
+                    RuntimePackage(
+                        manager="python",
+                        name="robotci",
+                        version="0.0.1",
+                    ),
+                ),
+            ),
+        ),
     )
 
     output = tmp_path / "suite-result.json"
     written = write_suite_result(suite, output)
     payload = json.loads(written.read_text(encoding="utf-8"))
 
+    assert payload["schema_version"] == 1
     assert payload["status"] == "PASS"
     assert payload["runtime"] == "native"
+    assert payload["execution"]["fingerprint"].startswith("sha256:")
+    assert payload["execution"]["environment"]["os_id"] == "ubuntu"
     assert payload["scenarios"][0]["scenario"] == "short_route"
     assert payload["scenarios"][0]["result_file"] == "results/short_route.json"
 

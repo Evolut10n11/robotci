@@ -147,3 +147,24 @@ def test_load_rejects_corrupt_manifest(tmp_path: Path) -> None:
 
     with pytest.raises(BaselineError, match="not valid JSON"):
         load_baseline_manifest("broken", store_root=store)
+
+
+def test_capture_rejects_suite_without_reproducibility_contract(tmp_path: Path) -> None:
+    suite = _copy_fixture(tmp_path)
+    payload = json.loads(suite.read_text(encoding="utf-8"))
+    payload.pop("schema_version")
+    payload.pop("execution")
+    suite.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(BaselineError, match="schema_version must be 1"):
+        capture_baseline("legacy", suite, store_root=tmp_path / "baselines")
+
+
+def test_capture_rejects_tampered_environment_fingerprint(tmp_path: Path) -> None:
+    suite = _copy_fixture(tmp_path)
+    payload = json.loads(suite.read_text(encoding="utf-8"))
+    payload["execution"]["environment"]["python_version"] = "3.12.99"
+    suite.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(BaselineError, match="fingerprint does not match its contents"):
+        capture_baseline("tampered", suite, store_root=tmp_path / "baselines")

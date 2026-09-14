@@ -7,6 +7,7 @@ import platform as stdlib_platform
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import asdict
 from pathlib import Path
@@ -23,6 +24,13 @@ from robotci.evidence import NavigationEvidencePolicy
 from robotci.native_runtime import probe_native_ros
 from robotci.project import DEFAULT_CONFIG_PATH, resolve_project_context
 from robotci.replay import default_replay_path
+from robotci.reproducibility import (
+    ReproducibilityError,
+    capture_suite_execution,
+    docker_compose_command_prefix,
+    inherited_runtime_environment,
+    runtime_python_dependency_roots,
+)
 from robotci.result_schema import (
     ResultSchemaError,
     ValidatedScenarioResult,
@@ -49,7 +57,7 @@ _EXIT_BY_STATUS = {
 }
 _STATUS_BY_EXIT = {code: status for status, code in _EXIT_BY_STATUS.items()}
 
-
+_NATIVE_PATH = "/usr/sbin:/usr/bin:/sbin:/bin"
 class RuntimeUnavailableError(RuntimeError):
     """Raised when RobotCI cannot find a usable scenario runtime."""
 
@@ -136,6 +144,13 @@ def _find_runtime_root(start: Path | None = None) -> Path:
     )
 
 
+def _native_python_dependency_paths() -> tuple[str, ...]:
+    try:
+        return tuple(str(root) for root in runtime_python_dependency_roots())
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(str(exc)) from exc
+
+
 def _run_native(
     runtime_root: Path,
     scenario: ScenarioConfig,
@@ -143,36 +158,45 @@ def _run_native(
     timeout_sec: float,
 ) -> int:
     script = runtime_root / "scripts" / "run_navigation_scenario.sh"
-    environment = os.environ.copy()
+    environment = inherited_runtime_environment()
     half_yaw = scenario.start.yaw / 2.0
-
-    environment.update(
-        {
-            "ROBOTCI_SCENARIO": scenario.name,
-            "ROBOTCI_START_X": str(scenario.start.x),
-            "ROBOTCI_START_Y": str(scenario.start.y),
-            "ROBOTCI_START_YAW": str(scenario.start.yaw),
-            "ROBOTCI_START_QZ": str(math.sin(half_yaw)),
-            "ROBOTCI_START_QW": str(math.cos(half_yaw)),
-            "ROBOTCI_GOAL_X": str(scenario.goal.x),
-            "ROBOTCI_GOAL_Y": str(scenario.goal.y),
-            "ROBOTCI_GOAL_YAW": str(scenario.goal.yaw),
-            "ROBOTCI_MAP_ID": scenario.map_id or "unspecified",
-            "ROBOTCI_RESULT_FILE": str(output.resolve()),
-            "ROBOTCI_TIMEOUT_SEC": str(timeout_sec),
-            "ROBOTCI_GOAL_TOLERANCE_M": str(scenario.goal_tolerance_m),
-            "ROBOTCI_MIN_FEEDBACK_SAMPLES": str(scenario.min_feedback_samples),
-            "ROBOTCI_PYTHON": sys.executable,
-        }
-    )
+    dependency_path = os.pathsep.join(_native_python_dependency_paths())
 
     try:
-        completed = subprocess.run(
-            ["bash", str(script)],
-            cwd=runtime_root,
-            env=environment,
-            check=False,
-        )
+        with tempfile.TemporaryDirectory(prefix="robotci-pycache-") as pycache:
+            environment.update(
+                {
+                    "PYTHONHASHSEED": "0",
+                    "PYTHONNOUSERSITE": "1",
+                    "PYTHONPATH": dependency_path,
+                    "ROBOTCI_PYTHONPATH": dependency_path,
+                    "PYTHONPYCACHEPREFIX": pycache,
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                    "PYTHONUTF8": "1",
+                    "PATH": _NATIVE_PATH,
+                    "ROBOTCI_SCENARIO": scenario.name,
+                    "ROBOTCI_START_X": str(scenario.start.x),
+                    "ROBOTCI_START_Y": str(scenario.start.y),
+                    "ROBOTCI_START_YAW": str(scenario.start.yaw),
+                    "ROBOTCI_START_QZ": str(math.sin(half_yaw)),
+                    "ROBOTCI_START_QW": str(math.cos(half_yaw)),
+                    "ROBOTCI_GOAL_X": str(scenario.goal.x),
+                    "ROBOTCI_GOAL_Y": str(scenario.goal.y),
+                    "ROBOTCI_GOAL_YAW": str(scenario.goal.yaw),
+                    "ROBOTCI_MAP_ID": scenario.map_id or "unspecified",
+                    "ROBOTCI_RESULT_FILE": str(output.resolve()),
+                    "ROBOTCI_TIMEOUT_SEC": str(timeout_sec),
+                    "ROBOTCI_GOAL_TOLERANCE_M": str(scenario.goal_tolerance_m),
+                    "ROBOTCI_MIN_FEEDBACK_SAMPLES": str(scenario.min_feedback_samples),
+                    "ROBOTCI_PYTHON": sys.executable,
+                }
+            )
+            completed = subprocess.run(
+                ["bash", str(script)],
+                cwd=runtime_root,
+                env=environment,
+                check=False,
+            )
     except OSError as exc:
         raise RuntimeUnavailableError(f"failed to start native runtime: {exc}") from exc
 
@@ -185,6 +209,8 @@ def _run_docker(
     output: Path,
     timeout_sec: float,
     config_path: Path,
+    *,
+    build_image: bool = True,
 ) -> int:
     container_result = f"/workspace/artifacts/{scenario.name}/result.json"
     host_result = runtime_root / "artifacts" / scenario.name / "result.json"
@@ -194,27 +220,31 @@ def _run_docker(
     config_mount = f"{config_path.resolve()}:/workspace/robotci.yaml:ro"
 
     command = [
-        "docker",
-        "compose",
+        *docker_compose_command_prefix(runtime_root),
         "run",
         "--rm",
-        "--build",
-        "--volume",
-        config_mount,
-        "robotci",
-        "robotci",
-        "run",
-        "--runtime",
-        "native",
-        "--config",
-        "/workspace/robotci.yaml",
-        "--scenario",
-        scenario.name,
-        "--output",
-        container_result,
-        "--timeout-sec",
-        str(timeout_sec),
     ]
+    if build_image:
+        command.append("--build")
+    command.extend(
+        [
+            "--volume",
+            config_mount,
+            "robotci",
+            "robotci",
+            "run",
+            "--runtime",
+            "native",
+            "--config",
+            "/workspace/robotci.yaml",
+            "--scenario",
+            scenario.name,
+            "--output",
+            container_result,
+            "--timeout-sec",
+            str(timeout_sec),
+        ]
+    )
 
     try:
         completed = subprocess.run(command, cwd=runtime_root, check=False)
@@ -422,6 +452,19 @@ def run_suite(
 
     scenario_dir = suite_path.parent / "results"
     started_at = time.monotonic()
+    try:
+        execution = capture_suite_execution(
+            config=config,
+            timeout_sec=timeout_sec,
+            runtime=selected,
+            runtime_root=runtime_root,
+            build_docker_image=selected == "docker",
+        )
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(
+            f"cannot capture reproducible runtime environment: {exc}"
+        ) from exc
+
     scenario_results: list[SuiteScenarioResult] = []
     final_exit_code = 0
 
@@ -441,6 +484,7 @@ def run_suite(
                 result_path,
                 effective_timeout,
                 context.config_path,
+                build_image=False,
             )
 
         normalized_exit, status, duration = _finalize_result(
@@ -456,12 +500,29 @@ def run_suite(
             )
         )
 
+    try:
+        verified_execution = capture_suite_execution(
+            config=config,
+            timeout_sec=timeout_sec,
+            runtime=selected,
+            runtime_root=runtime_root,
+        )
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(
+            f"cannot verify reproducible runtime environment: {exc}"
+        ) from exc
+    if verified_execution.fingerprint != execution.fingerprint:
+        raise RuntimeUnavailableError(
+            "runtime environment changed during suite execution"
+        )
+
     suite_status = cast(ScenarioStatus, _STATUS_BY_EXIT[final_exit_code])
     suite = SuiteResult(
         status=suite_status,
-        runtime=selected,
+        runtime=execution.runtime,
         duration_sec=round(time.monotonic() - started_at, 3),
         scenarios=tuple(scenario_results),
+        execution=execution,
     )
     suite_path = write_suite_result(suite, suite_path)
     return final_exit_code, selected, suite_path
