@@ -316,8 +316,8 @@ def test_runtime_python_disables_site_startup_and_bytecode_writes() -> None:
     wrapper = (scripts / "run_navigation_scenario.sh").read_text(encoding="utf-8")
     attempt = (scripts / "run_navigation_attempt.sh").read_text(encoding="utf-8")
 
-    assert '"$PYTHON_BIN" -S -B -c' in wrapper
-    assert '"$PYTHON_BIN" -S -B -m robotci.ros.navigation_scenario' in attempt
+    assert '"$PYTHON_BIN" -S -B -P -c' in wrapper
+    assert '"$PYTHON_BIN" -S -B -P -m robotci.ros.navigation_scenario' in attempt
 
 
 @pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")

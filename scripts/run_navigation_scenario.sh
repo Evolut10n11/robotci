@@ -20,7 +20,7 @@ fi
 RUNTIME_PYTHONPATH="${ROBOTCI_PYTHONPATH:-}"
 if [ -z "$RUNTIME_PYTHONPATH" ]; then
   RUNTIME_PYTHONPATH="$(
-    "$PYTHON_BIN" -S -B -c '
+    "$PYTHON_BIN" -S -B -P -c '
 import sysconfig
 
 paths = sysconfig.get_paths()
@@ -42,7 +42,7 @@ export PYTHONPATH="$SCRIPT_DIR/..:$RUNTIME_PYTHONPATH"
 clear_attempt_artifacts() {
   # Use the same helper and Python as the runtime; duplicating pathlib suffix
   # rules in Bash can leave stale replay files for unusual output names.
-  "$PYTHON_BIN" -S -B -c '
+  "$PYTHON_BIN" -S -B -P -c '
 import sys
 from pathlib import Path
 
