@@ -215,7 +215,7 @@ def parse_runtime_environment(
         )
 
     raw_packages = payload.get("packages")
-    if not isinstance(raw_packages, list):
+    if not isinstance(raw_packages, list | tuple):
         raise ReproducibilityError(f"{name}.packages must be an array")
     packages: list[RuntimePackage] = []
     for index, raw_package in enumerate(raw_packages):
