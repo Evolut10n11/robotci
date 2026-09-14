@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from robotci import entrypoint
+from robotci import bootstrap
 
 
 class _ExecCalled(Exception):
@@ -35,16 +35,16 @@ def test_entrypoint_relaunches_with_isolated_python(
     monkeypatch.setenv("PYTHONWARNINGS", "error")
     monkeypatch.setattr(sys, "argv", ["robotci", "run", "--runtime", "native"])
     monkeypatch.setattr(sys, "executable", "/trusted/python")
-    monkeypatch.setattr(entrypoint.sysconfig, "get_paths", lambda: {
+    monkeypatch.setattr(bootstrap.sysconfig, "get_paths", lambda: {
         "purelib": "/trusted/site",
         "platlib": "/trusted/site",
     })
-    monkeypatch.setattr(entrypoint.os, "getpid", lambda: 123)
-    monkeypatch.setattr(entrypoint.time, "monotonic_ns", lambda: 456)
-    monkeypatch.setattr(entrypoint.os, "execve", fake_execve)
+    monkeypatch.setattr(bootstrap.os, "getpid", lambda: 123)
+    monkeypatch.setattr(bootstrap.time, "monotonic_ns", lambda: 456)
+    monkeypatch.setattr(bootstrap.os, "execve", fake_execve)
 
     with pytest.raises(_ExecCalled):
-        entrypoint.app()
+        bootstrap.main()
 
     assert captured["executable"] == "/trusted/python"
     assert captured["command"] == [
@@ -53,14 +53,14 @@ def test_entrypoint_relaunches_with_isolated_python(
         "-B",
         "-P",
         "-m",
-        "robotci.application",
+        "robotci.entrypoint",
         "run",
         "--runtime",
         "native",
     ]
     environment = captured["environment"]
     assert isinstance(environment, dict)
-    expected_root = str(Path(entrypoint.__file__).resolve().parent.parent)
+    expected_root = str(Path(bootstrap.__file__).resolve().parent.parent)
     assert environment["PYTHONPATH"] == (
         expected_root + os.pathsep + "/trusted/site"
     )
@@ -87,10 +87,10 @@ def test_entrypoint_rejects_loader_injection_before_relaunch(
         called = True
 
     monkeypatch.setenv("LD_PRELOAD", "/untrusted/inject.so")
-    monkeypatch.setattr(entrypoint.os, "execve", fake_execve)
+    monkeypatch.setattr(bootstrap.os, "execve", fake_execve)
 
     with pytest.raises(SystemExit) as exc_info:
-        entrypoint.app()
+        bootstrap.main()
 
     assert exc_info.value.code == 3
     assert not called
