@@ -14,6 +14,9 @@ from robotci.doctor_report import build_report
 
 SCHEMA_VERSION = 1
 _CONFIG_ERROR_MESSAGE = "RobotCI config is invalid; run 'robotci validate' locally for details"
+_CONFIG_READ_ERROR_MESSAGE = (
+    "RobotCI config could not be read; check file access locally and retry"
+)
 _PACKAGE_INSTALLED_MESSAGE = "package is installed"
 
 
@@ -29,13 +32,14 @@ def _config_report(config_path: Path) -> dict[str, object]:
 
     try:
         config = load_config(config_path)
-    except ConfigError:
+    except ConfigError as exc:
+        unreadable = isinstance(exc.__cause__, OSError)
         return {
             "status": "FAIL",
             "runtime": None,
             "scenario_count": 0,
-            "error_code": "config_invalid",
-            "error": _CONFIG_ERROR_MESSAGE,
+            "error_code": "config_unreadable" if unreadable else "config_invalid",
+            "error": _CONFIG_READ_ERROR_MESSAGE if unreadable else _CONFIG_ERROR_MESSAGE,
         }
 
     return {
