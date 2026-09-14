@@ -61,7 +61,7 @@ scenarios:
 
 def test_auto_runtime_prefers_native_ros_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(runner.stdlib_platform, "system", lambda: "Linux")
-    monkeypatch.setattr(runner, "_command_exists", lambda command: command == "ros2")
+    monkeypatch.setattr(runner, "probe_native_ros", lambda: True)
     monkeypatch.setattr(runner, "_docker_available", lambda: True)
 
     assert runner.select_runtime("auto") == "native"
@@ -203,6 +203,11 @@ def test_run_scenario_uses_yaml_runtime_pose_and_timeout(
     ) -> int:
         captured["scenario"] = scenario
         captured["timeout"] = timeout_sec
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps({"scenario": scenario.name, "status": "PASS", "duration_sec": 1.0}),
+            encoding="utf-8",
+        )
         return 0
 
     monkeypatch.setattr(runner, "select_runtime", fake_select_runtime)
@@ -294,7 +299,7 @@ def test_run_suite_cli_timeout_overrides_yaml_timeouts(
         observed_timeouts.append(timeout_sec)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
-            json.dumps({"status": "PASS", "duration_sec": 1.0}),
+            json.dumps({"scenario": scenario.name, "status": "PASS", "duration_sec": 1.0}),
             encoding="utf-8",
         )
         return 0

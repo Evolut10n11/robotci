@@ -18,6 +18,7 @@ from robotci.config import (
     get_scenario,
     load_config,
 )
+from robotci.native_runtime import probe_native_ros
 from robotci.replay import default_replay_path
 from robotci.results import (
     ScenarioStatus,
@@ -69,7 +70,7 @@ def _native_ros_available() -> bool:
     if stdlib_platform.system() != "Linux":
         return False
 
-    return _command_exists("ros2") or Path("/opt/ros/jazzy/setup.bash").is_file()
+    return probe_native_ros()
 
 
 def select_runtime(requested: RuntimeName = "auto") -> Literal["native", "docker"]:
@@ -179,7 +180,8 @@ def _run_docker(
     container_result = f"/workspace/artifacts/{scenario.name}/result.json"
     host_result = project_root / "artifacts" / scenario.name / "result.json"
     host_replay = default_replay_path(host_result)
-    host_result.parent.mkdir(parents=True, exist_ok=True)
+    _clear_result_artifacts(host_result)
+    _clear_result_artifacts(output)
     config_mount = f"{config_path.resolve()}:/workspace/robotci.yaml:ro"
 
     command = [
@@ -231,7 +233,7 @@ def read_result_payload(path: str | Path) -> dict[str, object] | None:
 
     try:
         payload = json.loads(result_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, UnicodeError, json.JSONDecodeError):
         return None
 
     return payload if isinstance(payload, dict) else None
@@ -244,6 +246,56 @@ def read_result_status(path: str | Path) -> str | None:
 
     status = payload.get("status")
     return status if isinstance(status, str) else None
+
+
+def _clear_result_artifacts(path: Path) -> None:
+    """Invalidate this attempt's result and replay before the runtime starts."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.unlink(missing_ok=True)
+        default_replay_path(path).unlink(missing_ok=True)
+    except OSError as exc:
+        raise RuntimeUnavailableError(f"cannot prepare fresh result artifacts: {exc}") from exc
+
+
+def _finalize_result(
+    path: Path, scenario: str, exit_code: int,
+) -> tuple[int, ScenarioStatus, float]:
+    """Keep process, scenario artifact and suite verdicts consistent, failing closed."""
+    payload = read_result_payload(path)
+    status = payload.get("status") if payload else None
+    duration = payload.get("duration_sec") if payload else None
+    valid_duration = (
+        not isinstance(duration, bool)
+        and isinstance(duration, int | float)
+        and 0 <= duration <= sys.float_info.max
+    )
+    valid_status = isinstance(status, str) and status in _EXIT_BY_STATUS
+    if (
+        payload is not None
+        and payload.get("scenario") == scenario
+        and valid_status
+        and valid_duration
+        and _EXIT_BY_STATUS[status] == exit_code
+    ):
+        return exit_code, cast(ScenarioStatus, status), float(duration)
+
+    # Do not preserve a misleading PASS on disk when the process failed, or a
+    # malformed/foreign result when an adapter violated its result contract.
+    error_payload = {
+        "scenario": scenario,
+        "status": "INFRA_ERROR",
+        "duration_sec": 0.0,
+        "runtime_exit_code": exit_code,
+        "error": "missing, invalid or inconsistent runtime result",
+    }
+    try:
+        default_replay_path(path).unlink(missing_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(error_payload, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeUnavailableError(f"cannot write runtime failure result: {exc}") from exc
+    return 3, "INFRA_ERROR", 0.0
 
 
 def run_scenario(
@@ -270,6 +322,7 @@ def run_scenario(
     if not result_path.is_absolute():
         result_path = root / result_path
     result_path = result_path.resolve()
+    _clear_result_artifacts(result_path)
 
     if selected == "native":
         exit_code = _run_native(root, definition, result_path, effective_timeout)
@@ -282,6 +335,7 @@ def run_scenario(
             resolved_config,
         )
 
+    exit_code, _, _ = _finalize_result(result_path, definition.name, exit_code)
     return exit_code, selected, result_path
 
 
@@ -307,6 +361,10 @@ def run_suite(
     if not suite_path.is_absolute():
         suite_path = root / suite_path
     suite_path = suite_path.resolve()
+    try:
+        suite_path.unlink(missing_ok=True)
+    except OSError as exc:
+        raise RuntimeUnavailableError(f"cannot prepare fresh suite result: {exc}") from exc
 
     scenario_dir = suite_path.parent / "results"
     started_at = time.monotonic()
@@ -316,6 +374,7 @@ def run_suite(
     for definition in config.scenarios:
         result_path = scenario_dir / f"{definition.name}.json"
         effective_timeout = definition.timeout_sec if timeout_sec is None else timeout_sec
+        _clear_result_artifacts(result_path)
 
         if selected == "native":
             exit_code = _run_native(root, definition, result_path, effective_timeout)
@@ -328,17 +387,10 @@ def run_suite(
                 resolved_config,
             )
 
-        payload = read_result_payload(result_path)
-        status = payload.get("status") if payload is not None else None
-        duration = payload.get("duration_sec") if payload is not None else None
-
-        if status not in _EXIT_BY_STATUS:
-            status = "INFRA_ERROR"
-        if isinstance(duration, bool) or not isinstance(duration, int | float):
-            duration = 0.0
-
-        normalized_exit = exit_code if exit_code in _STATUS_BY_EXIT else 3
-        final_exit_code = max(final_exit_code, _EXIT_BY_STATUS[status], normalized_exit)
+        normalized_exit, status, duration = _finalize_result(
+            result_path, definition.name, exit_code,
+        )
+        final_exit_code = max(final_exit_code, normalized_exit)
         scenario_results.append(
             SuiteScenarioResult(
                 scenario=definition.name,

@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 
+from robotci.native_runtime import REQUIRED_ROS_PACKAGES
 from robotci.platform import current_platform
 from robotci.runner import RuntimeUnavailableError, select_runtime
 
@@ -16,13 +17,6 @@ class CheckResult:
     message: str
     blocking: bool = True
     value: str | None = None
-
-
-REQUIRED_ROS_PACKAGES = (
-    "nav2_bringup",
-    "nav2_loopback_sim",
-    "nav2_simple_commander",
-)
 
 
 def command_exists(command: str) -> bool:
