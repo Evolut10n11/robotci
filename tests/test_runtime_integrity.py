@@ -20,7 +20,6 @@ from robotci.reproducibility import (
 from robotci.result_schema import validate_result_payload
 from robotci.results import Pose2D, build_scenario_task
 
-
 _TEST_EXECUTION = build_suite_execution_identity(
     runtime="native",
     plan_fingerprint="sha256:" + "1" * 64,

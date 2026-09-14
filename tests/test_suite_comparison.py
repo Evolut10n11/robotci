@@ -15,7 +15,6 @@ from robotci.reproducibility import (
 from robotci.results import Pose2D, build_scenario_task
 from robotci.suite_comparison import compare_suite_result_files
 
-
 _TEST_ENVIRONMENT = build_runtime_environment(
     os_id="ubuntu",
     os_version="24.04",
