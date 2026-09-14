@@ -62,7 +62,7 @@ The JSON bundle is schema-versioned and contains only compact setup information:
 
 - RobotCI version;
 - operating-system family and Python version;
-- the same runtime-readiness checks used by `robotci doctor`;
+- the same runtime-readiness checks used by `robotci doctor`, with ROS package installation paths redacted;
 - config validity, selected runtime, and scenario count;
 - an overall PASS/FAIL verdict.
 
@@ -71,6 +71,7 @@ The JSON bundle is schema-versioned and contains only compact setup information:
 The bundle does not include:
 
 - repository or project paths;
+- ROS package installation prefixes or other local runtime filesystem locations emitted by package discovery;
 - scenario names, poses, routes, or maps;
 - source code or configuration contents;
 - environment variables;
@@ -79,7 +80,7 @@ The bundle does not include:
 
 Config validation failures are intentionally summarized rather than embedding parser details or local file paths. Run `robotci validate` locally when the detailed config error is needed.
 
-Doctor diagnostics may identify installed runtime components and system-level ROS package locations. Review the JSON before sharing it if the organization treats host/runtime inventory as sensitive.
+The standalone `robotci-doctor` report remains a local diagnostic and may contain system-level ROS package locations. Use `robotci-support-bundle` when the artifact is intended to be shared outside the machine.
 
 ## Pilot workflow
 

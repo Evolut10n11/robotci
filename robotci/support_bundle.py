@@ -9,11 +9,12 @@ from pathlib import Path
 
 from robotci import __version__
 from robotci.config import ConfigError, load_config
-from robotci.doctor import run_doctor_checks
+from robotci.doctor import REQUIRED_ROS_PACKAGES, run_doctor_checks
 from robotci.doctor_report import build_report
 
 SCHEMA_VERSION = 1
 _CONFIG_ERROR_MESSAGE = "RobotCI config is invalid; run 'robotci validate' locally for details"
+_PACKAGE_INSTALLED_MESSAGE = "package is installed"
 
 
 def _config_report(config_path: Path) -> dict[str, object]:
@@ -35,6 +36,29 @@ def _config_report(config_path: Path) -> dict[str, object]:
     }
 
 
+def _redact_doctor_report(report: dict[str, object]) -> dict[str, object]:
+    """Remove host filesystem locations that are useful locally but unnecessary for support."""
+
+    checks = report.get("checks")
+    if not isinstance(checks, list):
+        return report
+
+    redacted_checks: list[object] = []
+    for item in checks:
+        if not isinstance(item, dict):
+            redacted_checks.append(item)
+            continue
+
+        check = dict(item)
+        if check.get("name") in REQUIRED_ROS_PACKAGES and check.get("ok") is True:
+            check["message"] = _PACKAGE_INSTALLED_MESSAGE
+        redacted_checks.append(check)
+
+    redacted = dict(report)
+    redacted["checks"] = redacted_checks
+    return redacted
+
+
 def build_support_bundle(
     *,
     config_path: Path,
@@ -42,7 +66,7 @@ def build_support_bundle(
 ) -> dict[str, object]:
     """Build a compact diagnostics bundle without project paths or scenario names."""
 
-    doctor = build_report(run_doctor_checks(require_ros=require_ros))
+    doctor = _redact_doctor_report(build_report(run_doctor_checks(require_ros=require_ros)))
     config = _config_report(config_path)
 
     return {

@@ -57,6 +57,36 @@ def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monk
     }
 
 
+def test_bundle_redacts_ros_package_prefixes(tmp_path: Path, monkeypatch) -> None:
+    config = tmp_path / "robotci.yaml"
+    _write_config(config)
+    checks = [
+        CheckResult("platform", True, "Linux: RobotCI core and ROS runtime supported"),
+        CheckResult("nav2_bringup", True, "installed at /opt/ros/jazzy"),
+        CheckResult("nav2_loopback_sim", True, "installed at /private/runtime/nav2_loopback_sim"),
+        CheckResult("nav2_simple_commander", True, "installed at /srv/robot/ros/jazzy"),
+        CheckResult("runtime", True, "auto runtime will use native ROS2 Jazzy/Nav2"),
+    ]
+    monkeypatch.setattr("robotci.support_bundle.run_doctor_checks", lambda **_: checks)
+
+    bundle = build_support_bundle(config_path=config)
+    payload = json.dumps(bundle)
+    package_checks = {
+        check["name"]: check["message"]
+        for check in bundle["doctor"]["checks"]
+        if check["name"].startswith("nav2_")
+    }
+
+    assert package_checks == {
+        "nav2_bringup": "package is installed",
+        "nav2_loopback_sim": "package is installed",
+        "nav2_simple_commander": "package is installed",
+    }
+    assert "/opt/ros/jazzy" not in payload
+    assert "/private/runtime/nav2_loopback_sim" not in payload
+    assert "/srv/robot/ros/jazzy" not in payload
+
+
 def test_bundle_redacts_invalid_config_details(tmp_path: Path, monkeypatch) -> None:
     config = tmp_path / "secret-project" / "robotci.yaml"
     config.parent.mkdir()
