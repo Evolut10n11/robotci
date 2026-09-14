@@ -289,6 +289,7 @@ def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
     monkeypatch.setenv("ROS_SECURITY_KEYSTORE", str(keystore))
     monkeypatch.setenv("ROS_API_TOKEN", "super-secret")
     monkeypatch.setenv("RCUTILS_CONSOLE_OUTPUT_FORMAT", "{message}")
+    monkeypatch.setenv("SKIP_DEFAULT_XML", "1")
 
     first = {item.name: item.value for item in _runtime_variables(tmp_path)}
     serialized = json.dumps(first)
@@ -299,6 +300,7 @@ def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
     assert first["ROS_API_TOKEN"].startswith("sha256:")
     assert len(first["ROS_API_TOKEN"]) == 71
     assert first["RCUTILS_CONSOLE_OUTPUT_FORMAT"].startswith("sha256:")
+    assert first["SKIP_DEFAULT_XML"].startswith("sha256:")
     assert "{message}" not in serialized
 
     configuration.write_text("<CycloneDDS><Domain/></CycloneDDS>\n", encoding="utf-8")
@@ -308,6 +310,10 @@ def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
     assert first["ROS_API_TOKEN"] == changed["ROS_API_TOKEN"]
     assert first["CYCLONEDDS_URI"] != changed["CYCLONEDDS_URI"]
     assert first["ROS_SECURITY_KEYSTORE"] != changed["ROS_SECURITY_KEYSTORE"]
+
+    monkeypatch.setenv("SKIP_DEFAULT_XML", "0")
+    toggled = {item.name: item.value for item in _runtime_variables(tmp_path)}
+    assert first["SKIP_DEFAULT_XML"] != toggled["SKIP_DEFAULT_XML"]
 
     real_scandir = os.scandir
 
@@ -559,6 +565,33 @@ def test_robotci_source_fingerprint_records_broken_dependency_symlink(
         python_dependency_roots=(dependency_root,),
     ) != original
 
+
+
+def test_robotci_source_fingerprint_covers_implicit_fastdds_profile(
+    tmp_path: Path,
+) -> None:
+    runtime = tmp_path / "runtime"
+    package = runtime / "robotci"
+    package.mkdir(parents=True)
+    (package / "runner.py").write_text("VALUE = 1\n", encoding="utf-8")
+
+    without_profile = build_robotci_source_fingerprint(
+        package,
+        runtime_root=runtime,
+    )
+    profile = runtime / "DEFAULT_FASTDDS_PROFILES.xml"
+    profile.write_text("<profiles version='1'/>\n", encoding="utf-8")
+    with_profile = build_robotci_source_fingerprint(
+        package,
+        runtime_root=runtime,
+    )
+    profile.write_text("<profiles version='2'/>\n", encoding="utf-8")
+
+    assert without_profile != with_profile
+    assert with_profile != build_robotci_source_fingerprint(
+        package,
+        runtime_root=runtime,
+    )
 
 
 def test_robotci_source_fingerprint_covers_linked_dependency_package_root(
