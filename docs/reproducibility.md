@@ -37,7 +37,11 @@ The runner captures metadata before the first attempt and verifies it again
 after the final attempt. It fails closed if the environment cannot be inspected
 or if any fingerprinted input changes during the suite. Docker metadata is
 collected inside one image built before the suite; every scenario uses that
-same image without rebuilding. Native execution rebuilds the child environment
+same image without rebuilding. Metadata collection and scenario execution use
+one explicit `compose.yaml` and a fixed project name, so automatic override
+files are not loaded. The Compose service model must exactly match the audited
+RobotCI definition, and its file digest is bound into the execution identity
+before and after the suite. Native execution rebuilds the child environment
 from the exact inherited allowlist recorded in provenance: locale, runtime
 wrapper, ROS/RCL/RMW/RCUTILS, and supported middleware controls. Unlisted and
 Bash startup/function variables are removed, process-level
