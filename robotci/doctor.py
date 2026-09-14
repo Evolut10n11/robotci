@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 
+from robotci.native_runtime import REQUIRED_ROS_PACKAGES
 from robotci.platform import current_platform
 from robotci.runner import RuntimeUnavailableError, select_runtime
 
@@ -16,13 +17,6 @@ class CheckResult:
     message: str
     blocking: bool = True
     value: str | None = None
-
-
-REQUIRED_ROS_PACKAGES = (
-    "nav2_bringup",
-    "nav2_loopback_sim",
-    "nav2_simple_commander",
-)
 
 
 def command_exists(command: str) -> bool:
@@ -161,10 +155,10 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
     selected_runtime = _selected_runtime(strict_native_ros=strict_native_ros)
 
     if strict_native_ros:
-        runtime_ready = native_ready
+        runtime_ready = native_ready and selected_runtime == "native"
         runtime_message = (
             "native ROS2 Jazzy/Nav2 runtime is ready"
-            if native_ready
+            if runtime_ready
             else "native ROS2 Jazzy/Nav2 runtime is incomplete"
         )
     elif selected_runtime == "native":
