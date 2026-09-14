@@ -67,6 +67,7 @@ _RUNTIME_VARIABLE_PREFIXES = (
     "FASTDDS_",
     "FASTRTPS_",
     "LC_",
+    "RCL_",
     "RCUTILS_",
     "RMW_",
     "ROS_",
@@ -1140,26 +1141,41 @@ def _runtime_variable_value_fingerprint(
     return _fingerprint(definition)
 
 
-def _runtime_variables(runtime_root: Path) -> tuple[RuntimeVariable, ...]:
-    names = sorted(
-        name
-        for name in os.environ
-        if (
-            name in _RUNTIME_VARIABLE_NAMES
-            or name.startswith(_RUNTIME_VARIABLE_PREFIXES)
+def _inherited_runtime_variable_names() -> tuple[str, ...]:
+    return tuple(
+        sorted(
+            name
+            for name in os.environ
+            if (
+                name in _RUNTIME_VARIABLE_NAMES
+                or name.startswith(_RUNTIME_VARIABLE_PREFIXES)
+            )
+            and name not in _CONTROLLED_RUNTIME_VARIABLES
         )
-        and name not in _CONTROLLED_RUNTIME_VARIABLES
     )
+
+
+def inherited_runtime_environment() -> dict[str, str]:
+    """Return the exact inherited environment admitted to native ROS processes."""
+
+    return {
+        name: os.environ[name]
+        for name in _inherited_runtime_variable_names()
+    }
+
+
+def _runtime_variables(runtime_root: Path) -> tuple[RuntimeVariable, ...]:
+    environment = inherited_runtime_environment()
     return tuple(
         RuntimeVariable(
             name=name,
             value=_runtime_variable_value_fingerprint(
                 name,
-                os.environ[name],
+                value,
                 runtime_root,
             ),
         )
-        for name in names
+        for name, value in environment.items()
     )
 
 
