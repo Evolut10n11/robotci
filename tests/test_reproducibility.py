@@ -11,6 +11,7 @@ from robotci.config import PoseConfig, RobotCIConfig, ScenarioConfig
 from robotci.reproducibility import (
     RUNTIME_CONTRACT,
     ReproducibilityError,
+    _resolve_attempt_script,
     RuntimePackage,
     build_robotci_source_fingerprint,
     build_runtime_environment,
@@ -228,6 +229,43 @@ def test_robotci_source_fingerprint_covers_external_attempt_script(
         runtime_root=runtime,
         attempt_script=attempt,
     )
+
+
+def test_robotci_source_fingerprint_covers_selected_internal_attempt_script(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "robotci"
+    runtime = tmp_path / "runtime"
+    scripts = runtime / "scripts"
+    package.mkdir()
+    scripts.mkdir(parents=True)
+    (package / "runner.py").write_text("VALUE = 1\n", encoding="utf-8")
+    first = scripts / "first.sh"
+    second = scripts / "second.sh"
+    first.write_text("exit 0\n", encoding="utf-8")
+    second.write_text("exit 0\n", encoding="utf-8")
+
+    first_selected = build_robotci_source_fingerprint(
+        package,
+        runtime_root=runtime,
+        attempt_script=first,
+    )
+    second_selected = build_robotci_source_fingerprint(
+        package,
+        runtime_root=runtime,
+        attempt_script=second,
+    )
+
+    assert first_selected != second_selected
+
+
+def test_attempt_script_resolution_preserves_literal_tilde(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ROBOTCI_ATTEMPT_SCRIPT", "~/adapter.sh")
+
+    assert _resolve_attempt_script(tmp_path) == tmp_path / "~" / "adapter.sh"
 
 
 def test_boolean_provenance_schema_versions_are_rejected() -> None:

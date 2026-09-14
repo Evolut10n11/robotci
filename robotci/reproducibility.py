@@ -354,14 +354,21 @@ def build_robotci_source_fingerprint(
             (f"scripts/{path.relative_to(scripts).as_posix()}", path)
             for path in scripts.glob("*.sh")
         )
+    selected_attempt_label: str | None = None
     if attempt_script is not None:
         selected_attempt = attempt_script.resolve()
         if not selected_attempt.is_file():
             raise ReproducibilityError(
                 f"selected runtime attempt script does not exist: {selected_attempt}"
             )
+        try:
+            selected_attempt_label = (
+                "scripts/" + selected_attempt.relative_to(scripts.resolve()).as_posix()
+            )
+        except ValueError:
+            selected_attempt_label = "selected-attempt-script"
         if selected_attempt not in {path.resolve() for _, path in sources}:
-            sources.append(("selected-attempt-script", selected_attempt))
+            sources.append((selected_attempt_label, selected_attempt))
     sources = sorted(sources, key=lambda item: item[0])
     if not sources:
         raise ReproducibilityError("RobotCI runtime source files are unavailable")
@@ -375,7 +382,24 @@ def build_robotci_source_fingerprint(
                 f"cannot read RobotCI runtime source '{path}': {exc}"
             ) from exc
         files.append({"path": relative, "sha256": digest})
-    return _fingerprint({"files": files})
+    return _fingerprint(
+        {
+            "files": files,
+            "selected_attempt": selected_attempt_label,
+        }
+    )
+
+
+def _resolve_attempt_script(runtime: Path) -> Path:
+    attempt_value = os.environ.get("ROBOTCI_ATTEMPT_SCRIPT", "")
+    attempt_script = (
+        Path(attempt_value)
+        if attempt_value
+        else runtime / "scripts" / "run_navigation_attempt.sh"
+    )
+    if not attempt_script.is_absolute():
+        attempt_script = runtime / attempt_script
+    return attempt_script
 
 
 def collect_runtime_environment(
@@ -387,12 +411,7 @@ def collect_runtime_environment(
     runtime = (
         runtime_root or Path(__file__).resolve().parent.parent
     ).resolve()
-    attempt_value = os.environ.get("ROBOTCI_ATTEMPT_SCRIPT", "")
-    attempt_script = Path(attempt_value).expanduser() if attempt_value else (
-        runtime / "scripts" / "run_navigation_attempt.sh"
-    )
-    if not attempt_script.is_absolute():
-        attempt_script = runtime / attempt_script
+    attempt_script = _resolve_attempt_script(runtime)
 
     ros_distro = os.environ.get("ROS_DISTRO", "")
     if not ros_distro and Path("/opt/ros/jazzy").is_dir():
