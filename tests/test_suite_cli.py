@@ -23,6 +23,7 @@ _TEST_ENVIRONMENT = build_runtime_environment(
     architecture="x86_64",
     python_version="3.12.3",
     ros_distro="jazzy",
+    robotci_build="sha256:" + "2" * 64,
     containerized=False,
     packages=(RuntimePackage(manager="python", name="robotci", version="0.0.1"),),
 )

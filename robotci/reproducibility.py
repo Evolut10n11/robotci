@@ -55,6 +55,7 @@ class RuntimeEnvironment:
     architecture: str
     python_version: str
     ros_distro: str
+    robotci_build: str
     containerized: bool
     packages: tuple[RuntimePackage, ...]
     fingerprint: str
@@ -93,6 +94,11 @@ def _fingerprint_text(value: object, name: str) -> str:
     return text
 
 
+def _schema_version(value: object, *, expected: int, name: str) -> None:
+    if not isinstance(value, int) or isinstance(value, bool) or value != expected:
+        raise ReproducibilityError(f"{name} must be {expected}")
+
+
 def _mapping(value: object, name: str) -> dict[str, object]:
     if not isinstance(value, dict):
         raise ReproducibilityError(f"{name} must be an object")
@@ -117,6 +123,7 @@ def _environment_definition(
     architecture: str,
     python_version: str,
     ros_distro: str,
+    robotci_build: str,
     containerized: bool,
     packages: Sequence[RuntimePackage],
 ) -> dict[str, object]:
@@ -127,6 +134,7 @@ def _environment_definition(
         "architecture": architecture,
         "python_version": python_version,
         "ros_distro": ros_distro,
+        "robotci_build": robotci_build,
         "containerized": containerized,
         "packages": [asdict(package) for package in packages],
     }
@@ -139,6 +147,7 @@ def build_runtime_environment(
     architecture: str,
     python_version: str,
     ros_distro: str,
+    robotci_build: str,
     containerized: bool,
     packages: Sequence[RuntimePackage],
 ) -> RuntimeEnvironment:
@@ -148,6 +157,7 @@ def build_runtime_environment(
         "architecture": architecture,
         "python_version": python_version,
         "ros_distro": ros_distro,
+        "robotci_build": robotci_build,
     }
     normalized_values = {name: _text(value, name) for name, value in values.items()}
     if not isinstance(containerized, bool):
@@ -203,16 +213,18 @@ def parse_runtime_environment(
             "architecture",
             "python_version",
             "ros_distro",
+            "robotci_build",
             "containerized",
             "packages",
             "fingerprint",
         },
         name=name,
     )
-    if payload.get("schema_version") != ENVIRONMENT_SCHEMA_VERSION:
-        raise ReproducibilityError(
-            f"{name}.schema_version must be {ENVIRONMENT_SCHEMA_VERSION}"
-        )
+    _schema_version(
+        payload.get("schema_version"),
+        expected=ENVIRONMENT_SCHEMA_VERSION,
+        name=f"{name}.schema_version",
+    )
 
     raw_packages = payload.get("packages")
     if not isinstance(raw_packages, list | tuple):
@@ -245,6 +257,10 @@ def parse_runtime_environment(
         architecture=_text(payload.get("architecture"), f"{name}.architecture"),
         python_version=_text(payload.get("python_version"), f"{name}.python_version"),
         ros_distro=_text(payload.get("ros_distro"), f"{name}.ros_distro"),
+        robotci_build=_fingerprint_text(
+            payload.get("robotci_build"),
+            f"{name}.robotci_build",
+        ),
         containerized=payload.get("containerized"),
         packages=packages,
     )
@@ -318,6 +334,38 @@ def _installed_python_packages() -> tuple[RuntimePackage, ...]:
     return tuple(packages)
 
 
+def build_robotci_source_fingerprint(
+    package_root: Path | None = None,
+) -> str:
+    """Hash the executable RobotCI Python and shell sources used by the runtime."""
+
+    root = (package_root or Path(__file__).resolve().parent).resolve()
+    runtime_root = root.parent
+    paths = [*root.rglob("*.py")]
+    scripts = runtime_root / "scripts"
+    if scripts.is_dir():
+        paths.extend(scripts.glob("*.sh"))
+    paths = sorted({path.resolve() for path in paths})
+    if not paths:
+        raise ReproducibilityError("RobotCI runtime source files are unavailable")
+
+    files: list[dict[str, str]] = []
+    for path in paths:
+        try:
+            digest = sha256(path.read_bytes()).hexdigest()
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot read RobotCI runtime source '{path}': {exc}"
+            ) from exc
+        files.append(
+            {
+                "path": path.relative_to(runtime_root).as_posix(),
+                "sha256": digest,
+            }
+        )
+    return _fingerprint({"files": files})
+
+
 def collect_runtime_environment() -> RuntimeEnvironment:
     """Capture the actual process environment used to execute the Nav2 suite."""
 
@@ -336,6 +384,7 @@ def collect_runtime_environment() -> RuntimeEnvironment:
         architecture=platform.machine(),
         python_version=platform.python_version(),
         ros_distro=ros_distro,
+        robotci_build=build_robotci_source_fingerprint(),
         containerized=Path("/.dockerenv").exists()
         or Path("/run/.containerenv").exists(),
         packages=(*_installed_python_packages(), *_installed_debian_packages()),
@@ -436,10 +485,11 @@ def parse_suite_execution(
         },
         name=name,
     )
-    if payload.get("schema_version") != EXECUTION_SCHEMA_VERSION:
-        raise ReproducibilityError(
-            f"{name}.schema_version must be {EXECUTION_SCHEMA_VERSION}"
-        )
+    _schema_version(
+        payload.get("schema_version"),
+        expected=EXECUTION_SCHEMA_VERSION,
+        name=f"{name}.schema_version",
+    )
     runtime = payload.get("runtime")
     if runtime not in {"native", "docker"}:
         raise ReproducibilityError(f"{name}.runtime must be 'native' or 'docker'")
@@ -472,10 +522,11 @@ def validate_suite_execution(
     name: str = "suite result",
 ) -> SuiteExecutionIdentity:
     payload = _mapping(suite, name)
-    if payload.get("schema_version") != SUITE_RESULT_SCHEMA_VERSION:
-        raise ReproducibilityError(
-            f"{name}.schema_version must be {SUITE_RESULT_SCHEMA_VERSION}"
-        )
+    _schema_version(
+        payload.get("schema_version"),
+        expected=SUITE_RESULT_SCHEMA_VERSION,
+        name=f"{name}.schema_version",
+    )
     execution = parse_suite_execution(
         payload.get("execution"),
         name=f"{name}.execution",

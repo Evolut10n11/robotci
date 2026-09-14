@@ -334,7 +334,8 @@ M5 versions every suite result and fingerprints both the effective execution
 plan and the actual runtime environment. The plan covers scenario order, poses,
 map, effective timeouts, and evidence policies. Environment provenance covers
 host/container isolation, Ubuntu, architecture, Python, ROS Jazzy, RobotCI
-dependencies, and the installed Nav2 packages.
+dependencies, the installed Nav2 packages, and a digest of the executable
+RobotCI Python and runtime shell sources.
 
 Baseline capture and suite comparison validate those fingerprints and require an
 exact execution match before reading metrics. Dependency drift or a native-vs-

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 from dataclasses import asdict, replace
+from pathlib import Path
 
 import pytest
 
@@ -11,12 +12,14 @@ from robotci.reproducibility import (
     RUNTIME_CONTRACT,
     ReproducibilityError,
     RuntimePackage,
+    build_robotci_source_fingerprint,
     build_runtime_environment,
     build_suite_execution_identity,
     build_suite_plan_fingerprint,
     capture_suite_execution,
     parse_runtime_environment,
     parse_suite_execution,
+    validate_suite_execution,
 )
 
 
@@ -45,6 +48,7 @@ def _environment(*, python_version: str = "3.12.3", containerized: bool = False)
         architecture="x86_64",
         python_version=python_version,
         ros_distro="jazzy",
+        robotci_build="sha256:" + "2" * 64,
         containerized=containerized,
         packages=(
             RuntimePackage(manager="python", name="robotci", version="0.0.1"),
@@ -87,6 +91,7 @@ def test_environment_fingerprint_is_independent_of_package_order() -> None:
         architecture=environment.architecture,
         python_version=environment.python_version,
         ros_distro=environment.ros_distro,
+        robotci_build=environment.robotci_build,
         containerized=environment.containerized,
         packages=tuple(reversed(environment.packages)),
     )
@@ -174,6 +179,47 @@ def test_duplicate_runtime_packages_are_rejected() -> None:
             architecture="x86_64",
             python_version="3.12.3",
             ros_distro="jazzy",
+            robotci_build="sha256:" + "2" * 64,
             containerized=False,
             packages=(package, package),
         )
+
+
+def test_robotci_source_fingerprint_changes_with_executable_source(tmp_path: Path) -> None:
+    package = tmp_path / "robotci"
+    scripts = tmp_path / "scripts"
+    package.mkdir()
+    scripts.mkdir()
+    source = package / "runner.py"
+    source.write_text("VALUE = 1\n", encoding="utf-8")
+    (scripts / "run.sh").write_text("exit 0\n", encoding="utf-8")
+
+    original = build_robotci_source_fingerprint(package)
+    source.write_text("VALUE = 2\n", encoding="utf-8")
+
+    assert original != build_robotci_source_fingerprint(package)
+
+
+def test_boolean_provenance_schema_versions_are_rejected() -> None:
+    environment_payload = asdict(_environment())
+    environment_payload["schema_version"] = True
+    with pytest.raises(ReproducibilityError, match="schema_version must be 1"):
+        parse_runtime_environment(environment_payload)
+
+    execution = build_suite_execution_identity(
+        runtime="native",
+        plan_fingerprint=build_suite_plan_fingerprint(_config(), timeout_sec=None),
+        environment=_environment(),
+    )
+    execution_payload = asdict(execution)
+    execution_payload["schema_version"] = True
+    with pytest.raises(ReproducibilityError, match="schema_version must be 1"):
+        parse_suite_execution(execution_payload)
+
+    suite_payload = {
+        "schema_version": True,
+        "runtime": execution.runtime,
+        "execution": asdict(execution),
+    }
+    with pytest.raises(ReproducibilityError, match="schema_version must be 1"):
+        validate_suite_execution(suite_payload)

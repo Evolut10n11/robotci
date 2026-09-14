@@ -13,6 +13,7 @@ an `execution` object with:
   timeouts, and evidence policies;
 - the actual Ubuntu, architecture, Python, ROS distribution, container
   isolation, Python-package, and ROS/Nav2 Debian-package versions;
+- a source digest of the executable RobotCI Python and runtime shell files;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
 
 The runner captures metadata after the runtime attempts and fails closed if the

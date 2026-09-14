@@ -116,6 +116,7 @@ def test_write_suite_result_serializes_scenario_summaries(tmp_path) -> None:
                 architecture="x86_64",
                 python_version="3.12.3",
                 ros_distro="jazzy",
+                robotci_build="sha256:" + "2" * 64,
                 containerized=False,
                 packages=(
                     RuntimePackage(

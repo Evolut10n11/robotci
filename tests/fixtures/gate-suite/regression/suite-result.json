@@ -31,8 +31,9 @@
           "version": "0.0.1"
         }
       ],
-      "fingerprint": "sha256:5d7091e0f8d4c1ef99e473b0c3a91d6e020135016cd3b2049d23b9648384e67f"
+      "fingerprint": "sha256:02e002bf64752b3b1a94ad9fc2030282451d22a31df8c7adf569d8d55f7bf244",
+      "robotci_build": "sha256:2222222222222222222222222222222222222222222222222222222222222222"
     },
-    "fingerprint": "sha256:bc8c893d856f0739fda6db4edc5f20e4d4773feec04405b7f2e4a67d3278d727"
+    "fingerprint": "sha256:e2d618e81b56dd82ba4f1a37f288b493894fc8940a53a00945f58fe8e23db34f"
   }
 }
