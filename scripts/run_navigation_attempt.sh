@@ -240,7 +240,7 @@ fi
 
 echo "Running RobotCI scenario: $SCENARIO"
 set +e
-"$PYTHON_BIN" -m robotci.ros.navigation_scenario \
+"$PYTHON_BIN" -S -B -m robotci.ros.navigation_scenario \
   --scenario "$SCENARIO" \
   --start-x "$START_X" \
   --start-y "$START_Y" \

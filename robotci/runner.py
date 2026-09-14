@@ -7,8 +7,10 @@ import platform as stdlib_platform
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import asdict
+from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 from typing import Literal, cast
 
@@ -51,6 +53,7 @@ _EXIT_BY_STATUS = {
 _STATUS_BY_EXIT = {code: status for status, code in _EXIT_BY_STATUS.items()}
 
 _NATIVE_PATH = "/usr/sbin:/usr/bin:/sbin:/bin"
+_NATIVE_PYTHON_DISTRIBUTIONS = ("PyYAML", "rich", "typer")
 _NATIVE_SETUP_VARIABLES = frozenset(
     {
         "AMENT_PREFIX_PATH",
@@ -153,6 +156,19 @@ def _find_runtime_root(start: Path | None = None) -> Path:
     )
 
 
+def _native_python_dependency_paths() -> tuple[str, ...]:
+    roots: set[str] = set()
+    for name in _NATIVE_PYTHON_DISTRIBUTIONS:
+        try:
+            package = distribution(name)
+        except PackageNotFoundError as exc:
+            raise RuntimeUnavailableError(
+                f"native runtime is missing Python distribution metadata for {name}"
+            ) from exc
+        roots.add(str(Path(package.locate_file("")).resolve()))
+    return tuple(sorted(roots))
+
+
 def _run_native(
     runtime_root: Path,
     scenario: ScenarioConfig,
@@ -177,38 +193,42 @@ def _run_native(
         and not name.startswith("PYTHON")
     }
     half_yaw = scenario.start.yaw / 2.0
-
-    environment.update(
-        {
-            "PYTHONHASHSEED": "0",
-            "PYTHONNOUSERSITE": "1",
-            "PYTHONUTF8": "1",
-            "PATH": _NATIVE_PATH,
-            "ROBOTCI_SCENARIO": scenario.name,
-            "ROBOTCI_START_X": str(scenario.start.x),
-            "ROBOTCI_START_Y": str(scenario.start.y),
-            "ROBOTCI_START_YAW": str(scenario.start.yaw),
-            "ROBOTCI_START_QZ": str(math.sin(half_yaw)),
-            "ROBOTCI_START_QW": str(math.cos(half_yaw)),
-            "ROBOTCI_GOAL_X": str(scenario.goal.x),
-            "ROBOTCI_GOAL_Y": str(scenario.goal.y),
-            "ROBOTCI_GOAL_YAW": str(scenario.goal.yaw),
-            "ROBOTCI_MAP_ID": scenario.map_id or "unspecified",
-            "ROBOTCI_RESULT_FILE": str(output.resolve()),
-            "ROBOTCI_TIMEOUT_SEC": str(timeout_sec),
-            "ROBOTCI_GOAL_TOLERANCE_M": str(scenario.goal_tolerance_m),
-            "ROBOTCI_MIN_FEEDBACK_SAMPLES": str(scenario.min_feedback_samples),
-            "ROBOTCI_PYTHON": sys.executable,
-        }
-    )
+    dependency_path = os.pathsep.join(_native_python_dependency_paths())
 
     try:
-        completed = subprocess.run(
-            ["bash", str(script)],
-            cwd=runtime_root,
-            env=environment,
-            check=False,
-        )
+        with tempfile.TemporaryDirectory(prefix="robotci-pycache-") as pycache:
+            environment.update(
+                {
+                    "PYTHONHASHSEED": "0",
+                    "PYTHONNOUSERSITE": "1",
+                    "PYTHONPATH": dependency_path,
+                    "PYTHONPYCACHEPREFIX": pycache,
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                    "PYTHONUTF8": "1",
+                    "PATH": _NATIVE_PATH,
+                    "ROBOTCI_SCENARIO": scenario.name,
+                    "ROBOTCI_START_X": str(scenario.start.x),
+                    "ROBOTCI_START_Y": str(scenario.start.y),
+                    "ROBOTCI_START_YAW": str(scenario.start.yaw),
+                    "ROBOTCI_START_QZ": str(math.sin(half_yaw)),
+                    "ROBOTCI_START_QW": str(math.cos(half_yaw)),
+                    "ROBOTCI_GOAL_X": str(scenario.goal.x),
+                    "ROBOTCI_GOAL_Y": str(scenario.goal.y),
+                    "ROBOTCI_GOAL_YAW": str(scenario.goal.yaw),
+                    "ROBOTCI_MAP_ID": scenario.map_id or "unspecified",
+                    "ROBOTCI_RESULT_FILE": str(output.resolve()),
+                    "ROBOTCI_TIMEOUT_SEC": str(timeout_sec),
+                    "ROBOTCI_GOAL_TOLERANCE_M": str(scenario.goal_tolerance_m),
+                    "ROBOTCI_MIN_FEEDBACK_SAMPLES": str(scenario.min_feedback_samples),
+                    "ROBOTCI_PYTHON": sys.executable,
+                }
+            )
+            completed = subprocess.run(
+                ["bash", str(script)],
+                cwd=runtime_root,
+                env=environment,
+                check=False,
+            )
     except OSError as exc:
         raise RuntimeUnavailableError(f"failed to start native runtime: {exc}") from exc
 

@@ -566,8 +566,7 @@ def build_robotci_source_fingerprint(
                         f"RobotCI package source must not be a symlink: {child}"
                     )
                 if stat.S_ISDIR(child_stat.st_mode):
-                    if child.name != "__pycache__":
-                        visit(child)
+                    visit(child)
                 elif stat.S_ISREG(child_stat.st_mode):
                     if child.name.endswith(_IMPORT_SUFFIXES):
                         package_files.append(child)

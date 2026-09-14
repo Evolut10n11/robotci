@@ -199,6 +199,11 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
         captured["command"] = command
         captured["cwd"] = kwargs["cwd"]
         captured["env"] = kwargs["env"]
+        environment = kwargs["env"]
+        assert isinstance(environment, dict)
+        captured["pycache_exists_during_run"] = Path(
+            environment["PYTHONPYCACHEPREFIX"]
+        ).is_dir()
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setenv("BASH_ENV", str(tmp_path / "startup.sh"))
@@ -218,6 +223,11 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     monkeypatch.setenv("ROS_PYTHON_VERSION", "2")
     monkeypatch.setenv("ROS_VERSION", "2")
     monkeypatch.setenv("BASH_FUNC_injected%%", "() { return 0; }")
+    monkeypatch.setattr(
+        runner,
+        "_native_python_dependency_paths",
+        lambda: ("/trusted/python-packages",),
+    )
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
 
     exit_code = runner._run_native(tmp_path, scenario, output, 42.5)
@@ -242,12 +252,16 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert "BASH_ENV" not in environment
     assert "ENV" not in environment
     assert "PYTHONHOME" not in environment
-    assert "PYTHONPATH" not in environment
+    assert environment["PYTHONPATH"] == "/trusted/python-packages"
+    assert "untrusted-python" not in environment["PYTHONPATH"]
     assert "PYTHONSAFEPATH" not in environment
     assert "PYTHONWARNINGS" not in environment
     assert environment["PYTHONHASHSEED"] == "0"
     assert environment["PYTHONNOUSERSITE"] == "1"
+    assert environment["PYTHONDONTWRITEBYTECODE"] == "1"
     assert environment["PYTHONUTF8"] == "1"
+    assert captured["pycache_exists_during_run"] is True
+    assert not Path(environment["PYTHONPYCACHEPREFIX"]).exists()
     assert environment["PATH"] == runner._NATIVE_PATH
     assert "LD_LIBRARY_PATH" not in environment
     assert "AMENT_PREFIX_PATH" not in environment

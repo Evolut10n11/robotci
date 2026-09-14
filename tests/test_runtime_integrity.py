@@ -311,6 +311,15 @@ def test_runtime_scripts_respect_explicit_python(script_name: str) -> None:
     )
 
 
+def test_runtime_python_disables_site_startup_and_bytecode_writes() -> None:
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    wrapper = (scripts / "run_navigation_scenario.sh").read_text(encoding="utf-8")
+    attempt = (scripts / "run_navigation_attempt.sh").read_text(encoding="utf-8")
+
+    assert '"$PYTHON_BIN" -S -B -c' in wrapper
+    assert '"$PYTHON_BIN" -S -B -m robotci.ros.navigation_scenario' in attempt
+
+
 @pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
 def test_cleanup_python_ignores_sitecustomize_from_pythonpath(tmp_path: Path) -> None:
     wrapper = Path(__file__).resolve().parents[1] / "scripts/run_navigation_scenario.sh"

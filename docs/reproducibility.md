@@ -34,9 +34,11 @@ same image without rebuilding. Native execution strips Bash startup/function inj
 process-level `LD_AUDIT`/`LD_PRELOAD` injection, drops inherited executable,
 library, ROS overlay, setup identity, and Python search paths, and sets a
 package-managed system `PATH` without mutable local directories, a fixed hash
-seed, UTF-8, and no user site. The required `/opt/ros/jazzy/setup.bash` then
-rebuilds every setup-owned ROS path and identity. The cleanup helper uses Python
-isolated mode and adds
+seed, UTF-8, no user site, and a fresh private bytecode-cache prefix. Both
+Python layers use `-S -B`, so site/`.pth` startup hooks do not run and the
+suite cannot mutate local `__pycache__` files; explicit dependency paths and
+the required `/opt/ros/jazzy/setup.bash` rebuild the import environment. The
+cleanup helper adds
 the fingerprinted package only after interpreter startup, so checkout-level
 `sitecustomize.py` hooks cannot run. The attempt sources the packaged ROS Jazzy
 setup while Python resolves RobotCI from the fingerprinted runtime checkout. It honors the

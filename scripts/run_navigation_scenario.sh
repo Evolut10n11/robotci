@@ -16,7 +16,7 @@ fi
 clear_attempt_artifacts() {
   # Use the same helper and Python as the runtime; duplicating pathlib suffix
   # rules in Bash can leave stale replay files for unusual output names.
-  "$PYTHON_BIN" -I -c '
+  PYTHONPATH="$SCRIPT_DIR/.." "$PYTHON_BIN" -S -B -c '
 import sys
 from pathlib import Path
 
