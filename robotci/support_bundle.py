@@ -18,6 +18,15 @@ _PACKAGE_INSTALLED_MESSAGE = "package is installed"
 
 
 def _config_report(config_path: Path) -> dict[str, object]:
+    if not config_path.is_file():
+        return {
+            "status": "FAIL",
+            "runtime": None,
+            "scenario_count": 0,
+            "error_code": "config_not_found",
+            "error": _CONFIG_ERROR_MESSAGE,
+        }
+
     try:
         config = load_config(config_path)
     except ConfigError:
@@ -25,6 +34,7 @@ def _config_report(config_path: Path) -> dict[str, object]:
             "status": "FAIL",
             "runtime": None,
             "scenario_count": 0,
+            "error_code": "config_invalid",
             "error": _CONFIG_ERROR_MESSAGE,
         }
 
@@ -32,6 +42,7 @@ def _config_report(config_path: Path) -> dict[str, object]:
         "status": "PASS",
         "runtime": config.runtime,
         "scenario_count": len(config.scenarios),
+        "error_code": None,
         "error": None,
     }
 
