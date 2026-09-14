@@ -9,7 +9,12 @@ def test_build_report_passes_with_only_non_blocking_failures() -> None:
         [
             CheckResult("platform", True, "supported"),
             CheckResult("docker", False, "not available", blocking=False),
-            CheckResult("runtime", True, "auto runtime will use native ROS2 Jazzy/Nav2"),
+            CheckResult(
+                "runtime",
+                True,
+                "auto runtime will use native ROS2 Jazzy/Nav2",
+                value="native",
+            ),
         ]
     )
 
@@ -17,6 +22,7 @@ def test_build_report_passes_with_only_non_blocking_failures() -> None:
     assert report["status"] == "PASS"
     assert report["runtime"] == {
         "ok": True,
+        "selected": "native",
         "message": "auto runtime will use native ROS2 Jazzy/Nav2",
     }
 
@@ -25,11 +31,12 @@ def test_build_report_fails_on_blocking_failure() -> None:
     report = build_report(
         [
             CheckResult("platform", True, "supported"),
-            CheckResult("runtime", False, "no usable runtime found"),
+            CheckResult("runtime", False, "no usable runtime found", value="none"),
         ]
     )
 
     assert report["status"] == "FAIL"
+    assert report["runtime"]["selected"] == "none"
     assert report["checks"][1]["blocking"] is True
 
 
@@ -38,7 +45,7 @@ def test_main_writes_json_and_returns_success(monkeypatch, tmp_path) -> None:
         "robotci.doctor_report.run_doctor_checks",
         lambda require_ros=None: [
             CheckResult("platform", True, "supported"),
-            CheckResult("runtime", True, "auto runtime will use Docker"),
+            CheckResult("runtime", True, "auto runtime will use Docker", value="docker"),
         ],
     )
     output = tmp_path / "diagnostics" / "doctor.json"
@@ -48,6 +55,7 @@ def test_main_writes_json_and_returns_success(monkeypatch, tmp_path) -> None:
     assert exit_code == 0
     report = json.loads(output.read_text(encoding="utf-8"))
     assert report["status"] == "PASS"
+    assert report["runtime"]["selected"] == "docker"
     assert report["runtime"]["message"] == "auto runtime will use Docker"
 
 
@@ -56,7 +64,7 @@ def test_main_forwards_strict_native_mode(monkeypatch, tmp_path) -> None:
 
     def fake_checks(require_ros=None):
         received.append(require_ros)
-        return [CheckResult("runtime", False, "native runtime incomplete")]
+        return [CheckResult("runtime", False, "native runtime incomplete", value="none")]
 
     monkeypatch.setattr("robotci.doctor_report.run_doctor_checks", fake_checks)
 
@@ -71,7 +79,15 @@ def test_main_forwards_runtime_optional_mode(monkeypatch, tmp_path) -> None:
 
     def fake_checks(require_ros=None):
         received.append(require_ros)
-        return [CheckResult("runtime", False, "runtime unavailable", blocking=False)]
+        return [
+            CheckResult(
+                "runtime",
+                False,
+                "runtime unavailable",
+                blocking=False,
+                value="none",
+            )
+        ]
 
     monkeypatch.setattr("robotci.doctor_report.run_doctor_checks", fake_checks)
 
