@@ -11,6 +11,10 @@ replay. Docker also clears the host-side staging result/replay before starting t
 container. The native wrapper clears the result, replay, and race-detection log
 before **each** attempt, including a retry. A stale race log cannot trigger a retry.
 Failure to clear an artifact prevents that runtime attempt from starting.
+The wrapper invokes the shared Python `default_replay_path` helper for cleanup,
+using the same Python selection as the native attempt. It does not reimplement
+filename suffix rules in Bash; hidden, extensionless and unusual names follow
+the active Python version's rules exactly.
 
 A result must be a JSON object for the requested scenario, have a recognized
 status and a finite, non-negative numeric `duration_sec`, and agree with the

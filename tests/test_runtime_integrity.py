@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -205,7 +206,10 @@ def test_docker_still_publishes_fresh_result_and_replay(
 
 
 @pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
-@pytest.mark.parametrize("filename", ["result.json", "result", ".result", ".result.json"])
+@pytest.mark.parametrize("filename", [
+    "result.json", "result", ".result", ".result.json", "..json", "...json",
+    "..x.json", "result.", "...", "with spaces.json", "result.json\n",
+])
 def test_shell_retry_clears_first_attempt_result_and_replay(
     tmp_path: Path, filename: str,
 ) -> None:
@@ -233,7 +237,7 @@ exit 0
     env = {**os.environ, "ROBOTCI_ATTEMPT_SCRIPT": str(adapter),
            "ROBOTCI_RESULT_FILE": str(result), "ROBOTCI_LOG_FILE": str(log),
            "REPLAY_FILE": str(replay), "COUNT_FILE": str(counter),
-           "ROBOTCI_RETRY_DELAY_SEC": "0"}
+           "ROBOTCI_RETRY_DELAY_SEC": "0", "ROBOTCI_PYTHON": sys.executable}
     completed = subprocess.run(
         ["bash", str(wrapper)], cwd=tmp_path, env=env, capture_output=True, timeout=10,
     )
@@ -243,3 +247,42 @@ exit 0
     assert counter.exists()
     assert not result.exists()
     assert not replay.exists()
+
+
+@pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
+def test_wrapper_stops_when_cleanup_python_is_unavailable(tmp_path: Path) -> None:
+    wrapper = Path(__file__).resolve().parents[1] / "scripts/run_navigation_scenario.sh"
+    adapter = tmp_path / "adapter.sh"
+    marker = tmp_path / "started"
+    adapter.write_text('touch "$STARTED_FILE"\n', encoding="utf-8")
+    env = {**os.environ, "ROBOTCI_ATTEMPT_SCRIPT": str(adapter),
+           "ROBOTCI_PYTHON": str(tmp_path / "missing-python"),
+           "ROBOTCI_RESULT_FILE": str(tmp_path / "result.json"),
+           "ROBOTCI_LOG_FILE": str(tmp_path / "nav2.log"), "STARTED_FILE": str(marker)}
+    completed = subprocess.run(
+        ["bash", str(wrapper)], cwd=tmp_path, env=env, capture_output=True, timeout=10,
+    )
+    assert completed.returncode == 3
+    assert not marker.exists()
+
+
+@pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
+def test_stale_race_log_cannot_trigger_retry(tmp_path: Path) -> None:
+    wrapper = Path(__file__).resolve().parents[1] / "scripts/run_navigation_scenario.sh"
+    adapter = tmp_path / "adapter.sh"
+    counter = tmp_path / "attempts"
+    log = tmp_path / "nav2.log"
+    log.write_text(
+        "Received GetMap request but not in ACTIVE state, ignoring!\n"
+        "OverflowError: cannot convert float infinity to integer\n", encoding="utf-8",
+    )
+    adapter.write_text('echo attempt >> "$COUNT_FILE"\nexit 3\n', encoding="utf-8")
+    env = {**os.environ, "ROBOTCI_ATTEMPT_SCRIPT": str(adapter),
+           "ROBOTCI_PYTHON": sys.executable, "COUNT_FILE": str(counter),
+           "ROBOTCI_RESULT_FILE": str(tmp_path / "result.json"),
+           "ROBOTCI_LOG_FILE": str(log), "ROBOTCI_RETRY_DELAY_SEC": "0"}
+    completed = subprocess.run(
+        ["bash", str(wrapper)], cwd=tmp_path, env=env, capture_output=True, timeout=10,
+    )
+    assert completed.returncode == 3
+    assert counter.read_text(encoding="utf-8").splitlines() == ["attempt"]

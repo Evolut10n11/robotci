@@ -8,13 +8,24 @@ ATTEMPT_SCRIPT="${ROBOTCI_ATTEMPT_SCRIPT:-$SCRIPT_DIR/run_navigation_attempt.sh}
 RETRY_DELAY_SEC="${ROBOTCI_RETRY_DELAY_SEC:-1}"
 ACTIVE_ATTEMPT_PID=""
 RESULT_FILE="${ROBOTCI_RESULT_FILE:-artifacts/${SCENARIO}/result.json}"
-RESULT_NAME="${RESULT_FILE##*/}"
-# Match default_replay_path, including extensionless and dot-prefixed outputs.
-if [[ "$RESULT_NAME" == ?*.* && "$RESULT_NAME" != *. ]]; then
-  REPLAY_FILE="${RESULT_FILE%.*}.replay.${RESULT_FILE##*.}"
-else
-  REPLAY_FILE="${RESULT_FILE}.replay.json"
+PYTHON_BIN="${ROBOTCI_PYTHON:-python3}"
+if [ -x ".venv/bin/python" ]; then
+  PYTHON_BIN=".venv/bin/python"
 fi
+
+clear_attempt_artifacts() {
+  # Use the same helper and Python as the runtime; duplicating pathlib suffix
+  # rules in Bash can leave stale replay files for unusual output names.
+  PYTHONPATH="$SCRIPT_DIR/..${PYTHONPATH:+:$PYTHONPATH}" "$PYTHON_BIN" -c '
+import sys
+from pathlib import Path
+from robotci.replay import default_replay_path
+
+result = Path(sys.argv[1])
+for artifact in (result, default_replay_path(result), Path(sys.argv[2])):
+    artifact.unlink(missing_ok=True)
+' "$RESULT_FILE" "$LOG_FILE"
+}
 
 terminate_active_attempt() {
   local signal="$1"
@@ -39,7 +50,7 @@ is_known_loopback_map_race() {
 
 for attempt in 1 2; do
   # A retry is a new attempt: neither results nor race markers may survive it.
-  if ! rm -f -- "$RESULT_FILE" "$REPLAY_FILE" "$LOG_FILE"; then
+  if ! clear_attempt_artifacts; then
     echo "RobotCI runtime error: cannot clear previous attempt artifacts." >&2
     exit 3
   fi
