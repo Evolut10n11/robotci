@@ -88,15 +88,24 @@ def validate_command(
         raise typer.Exit(code=3) from exc
 
     table = Table(title="RobotCI configuration")
-    table.add_column("Scenario")
+    table.add_column("Scenario", no_wrap=True)
     table.add_column("Start")
     table.add_column("Goal")
     table.add_column("Timeout")
+    table.add_column("Goal tolerance")
+    table.add_column("Min feedback")
 
     for scenario in loaded.scenarios:
         start = f"({scenario.start.x}, {scenario.start.y}, {scenario.start.yaw})"
         goal = f"({scenario.goal.x}, {scenario.goal.y}, {scenario.goal.yaw})"
-        table.add_row(scenario.name, start, goal, f"{scenario.timeout_sec:g}s")
+        table.add_row(
+            scenario.name,
+            start,
+            goal,
+            f"{scenario.timeout_sec:g}s",
+            f"{scenario.goal_tolerance_m:g}m",
+            str(scenario.min_feedback_samples),
+        )
 
     console.print(f"Config: {context.config_path}", soft_wrap=True)
     console.print(f"Runtime: [cyan]{loaded.runtime}[/cyan]")
@@ -167,11 +176,13 @@ def plan_command(
         return
 
     table = Table(title="RobotCI execution plan")
-    table.add_column("Scenario")
+    table.add_column("Scenario", no_wrap=True)
     table.add_column("Map")
     table.add_column("Start")
     table.add_column("Goal")
     table.add_column("Timeout")
+    table.add_column("Goal tolerance")
+    table.add_column("Min feedback")
 
     for planned in plan.scenarios:
         start = f"({planned.start.x}, {planned.start.y}, {planned.start.yaw})"
@@ -182,6 +193,8 @@ def plan_command(
             start,
             goal,
             f"{planned.timeout_sec:g}s",
+            f"{planned.goal_tolerance_m:g}m",
+            str(planned.min_feedback_samples),
         )
 
     console.print(f"Config: {plan.config_path}", soft_wrap=True)

@@ -132,6 +132,8 @@ scenarios:
       y: -0.17
       yaw: 0.0
     timeout_sec: 60
+    goal_tolerance_m: 0.25
+    min_feedback_samples: 1
 
   - name: medium_route
     map_id: nav2-loopback
@@ -144,6 +146,8 @@ scenarios:
       y: -0.39
       yaw: 0.0
     timeout_sec: 90
+    goal_tolerance_m: 0.25
+    min_feedback_samples: 1
 
   - name: simple_route
     map_id: nav2-loopback
@@ -156,6 +160,8 @@ scenarios:
       y: -0.77
       yaw: 0.0
     timeout_sec: 120
+    goal_tolerance_m: 0.25
+    min_feedback_samples: 1
 ```
 
 Runtime values:
@@ -183,6 +189,12 @@ Validation rejects malformed YAML, duplicate or unknown keys, unsupported config
 versions, duplicate or unsafe scenario names, invalid or non-finite coordinates,
 invalid runtimes, and non-positive or non-finite timeouts before any robotics
 runtime starts.
+
+Each scenario also defines its deterministic PASS evidence policy.
+`goal_tolerance_m` is the maximum measured final distance to the goal, and
+`min_feedback_samples` is the minimum number of Nav2 feedback messages. Their
+defaults are `0.25` meters and `1`; set them explicitly when the test environment
+needs a calibrated tolerance.
 
 Set `map_id` to a stable map name or, preferably, a content digest. RobotCI includes
 the scenario name, start, goal, coordinate frame, and `map_id` in the task
@@ -233,6 +245,10 @@ Individual scenario results include the configured start and goal, verdict, dura
 ```json
 {
   "duration_sec": 19.2,
+  "evidence_policy": {
+    "goal_tolerance_m": 0.25,
+    "min_feedback_samples": 1
+  },
   "goal": {
     "x": 4.0,
     "y": -0.17,
@@ -247,13 +263,19 @@ Individual scenario results include the configured start and goal, verdict, dura
   },
   "navigation_result": "SUCCEEDED",
   "scenario": "short_route",
-  "schema_version": 1,
+  "schema_version": 2,
   "start": {
     "x": 0.0,
     "y": 0.0,
     "yaw": 0.0
   },
   "status": "PASS",
+  "telemetry_quality": {
+    "final_pose_valid": true,
+    "invalid_pose_samples": 0,
+    "received_feedback_samples": 181,
+    "valid_pose_samples": 181
+  },
   "task": {
     "fingerprint": "sha256:116dc24253afb5f8ddfb89d119a48f814e01fdf7aaf14f6f737f40fa8a3757f1",
     "frame_id": "map",
@@ -264,11 +286,12 @@ Individual scenario results include the configured start and goal, verdict, dura
 ```
 
 RobotCI uses one result reader for runtime finalization, baseline capture, and
-comparison. Result schema v1 is validated strictly, including finite numeric
-values, task identity, metrics, status, and navigation outcome. Legacy v0 files
-without `schema_version` can be read for inspection with incomplete provenance,
-but they cannot become a baseline or enter a regression comparison. Unknown
-future schema versions fail with an explicit compatibility error.
+comparison. Result schema v2 is validated strictly, including finite numeric
+values, task identity, metrics, telemetry quality, the evidence policy, status,
+and navigation outcome. Legacy v0 files and schema v1 files without evidence
+quality remain readable for inspection, but they cannot become a baseline or
+enter a regression comparison. Unknown future schema versions fail with an
+explicit compatibility error.
 When a runtime result is missing or malformed, RobotCI writes a current
 `INFRA_ERROR` result with `metrics: null` and a machine-readable `reason_code`
 instead of inventing zero-valued measurements.
@@ -278,10 +301,14 @@ Current M3 telemetry:
 - `path_length_m` — accumulated traveled distance with a small deadband to suppress pose jitter
 - `distance_to_goal_m` — latest Nav2 remaining distance, with geometric fallback
 - `stuck_events` — number of detected no-motion periods
-- `feedback_samples` — number of Nav2 feedback samples processed
+- `feedback_samples` — number of Nav2 feedback samples received
 - `recoveries` — highest recovery count reported by Nav2
 
-These metrics are collected now so the next regression milestone can compare candidate runs against a baseline instead of gating only on pass/fail.
+`telemetry_quality` records valid and invalid pose samples and whether the final
+feedback pose was valid. A Nav2 `SUCCEEDED` outcome becomes `PASS` only when the
+configured minimum feedback is present, no pose sample is invalid, the final pose
+is valid, and `distance_to_goal_m` is at or below `goal_tolerance_m`. Missing or
+invalid evidence is `INFRA_ERROR`; a measured goal-tolerance violation is `FAIL`.
 
 ## Verdicts and exit codes
 
@@ -647,6 +674,7 @@ robotci/
 │   ├── cli.py
 │   ├── config.py
 │   ├── doctor.py
+│   ├── evidence.py
 │   ├── metrics.py
 │   ├── paths.py
 │   ├── platform.py

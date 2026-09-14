@@ -26,6 +26,8 @@ scenarios:
       y: -0.17
       yaw: 0.5
     timeout_sec: 45
+    goal_tolerance_m: 0.4
+    min_feedback_samples: 3
 """.strip(),
         encoding="utf-8",
     )
@@ -46,6 +48,8 @@ scenarios:
     assert scenario.goal.yaw == 0.5
     assert scenario.timeout_sec == 45.0
     assert scenario.map_id == "warehouse-map@sha256:abc123"
+    assert scenario.goal_tolerance_m == 0.4
+    assert scenario.min_feedback_samples == 3
 
 
 def test_load_config_accepts_utf8_bom(tmp_path: Path) -> None:
@@ -145,6 +149,38 @@ scenarios:
     )
 
     with pytest.raises(ConfigError, match="timeout_sec must be greater than zero"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize("value", ["0", "-1", ".nan", ".inf"])
+def test_load_config_rejects_invalid_goal_tolerance(
+    tmp_path: Path,
+    value: str,
+) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        f"version: 1\nscenarios:\n  - name: route\n    start: {{x: 0, y: 0}}\n"
+        f"    goal: {{x: 1, y: 1}}\n    goal_tolerance_m: {value}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="goal_tolerance_m"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "1.5", "true"])
+def test_load_config_rejects_invalid_min_feedback_samples(
+    tmp_path: Path,
+    value: str,
+) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        f"version: 1\nscenarios:\n  - name: route\n    start: {{x: 0, y: 0}}\n"
+        f"    goal: {{x: 1, y: 1}}\n    min_feedback_samples: {value}\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="min_feedback_samples"):
         load_config(config_path)
 
 

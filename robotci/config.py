@@ -77,6 +77,8 @@ class ScenarioConfig:
     goal: PoseConfig
     timeout_sec: float
     map_id: str | None = None
+    goal_tolerance_m: float = 0.25
+    min_feedback_samples: int = 1
 
 
 @dataclass(frozen=True)
@@ -136,7 +138,15 @@ def _parse_scenario(value: object, index: int) -> ScenarioConfig:
     data = _require_mapping(value, prefix)
     _reject_unknown_keys(
         data,
-        allowed={"name", "map_id", "start", "goal", "timeout_sec"},
+        allowed={
+            "name",
+            "map_id",
+            "start",
+            "goal",
+            "timeout_sec",
+            "goal_tolerance_m",
+            "min_feedback_samples",
+        },
         name=prefix,
     )
 
@@ -162,6 +172,21 @@ def _parse_scenario(value: object, index: int) -> ScenarioConfig:
     if timeout_sec <= 0:
         raise ConfigError(f"{prefix}.timeout_sec must be greater than zero")
 
+    goal_tolerance_m = _require_number(
+        data.get("goal_tolerance_m", 0.25),
+        f"{prefix}.goal_tolerance_m",
+    )
+    if goal_tolerance_m <= 0:
+        raise ConfigError(f"{prefix}.goal_tolerance_m must be greater than zero")
+
+    min_feedback_samples = data.get("min_feedback_samples", 1)
+    if (
+        isinstance(min_feedback_samples, bool)
+        or not isinstance(min_feedback_samples, int)
+        or min_feedback_samples <= 0
+    ):
+        raise ConfigError(f"{prefix}.min_feedback_samples must be a positive integer")
+
     map_id = data.get("map_id")
     if map_id is not None:
         if not isinstance(map_id, str) or not map_id.strip():
@@ -176,6 +201,8 @@ def _parse_scenario(value: object, index: int) -> ScenarioConfig:
         goal=_parse_pose(data["goal"], f"{prefix}.goal"),
         timeout_sec=timeout_sec,
         map_id=map_id,
+        goal_tolerance_m=goal_tolerance_m,
+        min_feedback_samples=min_feedback_samples,
     )
 
 

@@ -30,11 +30,11 @@ def _payload(
     start = Pose2D(x=0.0, y=0.0, yaw=0.0)
     goal = Pose2D(x=goal_x, y=2.0, yaw=0.0)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "scenario": scenario,
         "status": status,
         "duration_sec": duration_sec,
-        "navigation_result": "SUCCEEDED",
+        "navigation_result": "SUCCEEDED" if status == "PASS" else status,
         "start": asdict(start),
         "goal": asdict(goal),
         "task": asdict(
@@ -52,6 +52,17 @@ def _payload(
             "feedback_samples": feedback_samples,
             "recoveries": recoveries,
         },
+        "telemetry_quality": {
+            "received_feedback_samples": feedback_samples,
+            "valid_pose_samples": feedback_samples,
+            "invalid_pose_samples": 0,
+            "final_pose_valid": True,
+        },
+        "evidence_policy": {
+            "goal_tolerance_m": 0.25,
+            "min_feedback_samples": 1,
+        },
+        **({"reason_code": status.lower()} if status != "PASS" else {}),
     }
 
 
@@ -133,6 +144,16 @@ def test_parse_rejects_legacy_result_with_migration_guidance() -> None:
     payload.pop("task")
 
     with pytest.raises(ComparisonInputError, match="legacy result schema v0"):
+        parse_scenario_result(payload)
+
+
+def test_parse_rejects_v1_result_without_evidence_quality() -> None:
+    payload = _payload()
+    payload["schema_version"] = 1
+    payload.pop("telemetry_quality")
+    payload.pop("evidence_policy")
+
+    with pytest.raises(ComparisonInputError, match="schema v1 lacks required"):
         parse_scenario_result(payload)
 
 

@@ -71,10 +71,10 @@ def test_capture_rejects_future_result_schema(tmp_path: Path) -> None:
     suite = _copy_fixture(tmp_path)
     result_path = suite.parent / "results" / "route.json"
     result = json.loads(result_path.read_text(encoding="utf-8"))
-    result["schema_version"] = 2
+    result["schema_version"] = 3
     result_path.write_text(json.dumps(result), encoding="utf-8")
 
-    with pytest.raises(BaselineError, match="unsupported result.schema_version 2"):
+    with pytest.raises(BaselineError, match="unsupported result.schema_version 3"):
         capture_baseline("future", suite, store_root=tmp_path / "baselines")
 
 

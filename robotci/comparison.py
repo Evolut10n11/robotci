@@ -20,10 +20,18 @@ ScenarioSnapshot = ValidatedScenarioResult
 
 
 def _require_comparable(result: ValidatedScenarioResult) -> ScenarioSnapshot:
-    if result.source_schema_version != RESULT_SCHEMA_VERSION:
+    if result.source_schema_version == 0:
         raise ComparisonInputError(
             "legacy result schema v0 has incomplete task provenance; "
             "rerun the scenario to create a current result before comparison"
+        )
+    if (
+        result.source_schema_version != RESULT_SCHEMA_VERSION
+        or not result.evidence_complete
+    ):
+        raise ComparisonInputError(
+            f"result schema v{result.source_schema_version} lacks required "
+            "telemetry-quality evidence; rerun the scenario before comparison"
         )
     if result.status != "PASS":
         raise ComparisonInputError(

@@ -7,10 +7,11 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Literal
 
-from robotci.metrics import NavigationMetrics
+from robotci.evidence import NavigationEvidencePolicy
+from robotci.metrics import NavigationMetrics, NavigationTelemetryQuality
 
 ScenarioStatus = Literal["PASS", "FAIL", "TIMEOUT", "INFRA_ERROR"]
-RESULT_SCHEMA_VERSION = 1
+RESULT_SCHEMA_VERSION = 2
 TASK_SCHEMA_VERSION = 1
 
 
@@ -82,7 +83,10 @@ class ScenarioResult:
     goal: Pose2D
     navigation_result: str
     metrics: NavigationMetrics
+    telemetry_quality: NavigationTelemetryQuality
+    evidence_policy: NavigationEvidencePolicy
     task: ScenarioTaskIdentity
+    reason_code: str | None = None
     schema_version: int = RESULT_SCHEMA_VERSION
 
 
@@ -114,6 +118,8 @@ def _write_json(payload: dict[str, object], path: str | Path) -> Path:
 
 def write_result(result: ScenarioResult, path: str | Path) -> Path:
     payload = asdict(result)
+    if payload["reason_code"] is None:
+        del payload["reason_code"]
     # Imported lazily because the reader owns validation and imports these types.
     from robotci.result_schema import validate_result_payload
 
