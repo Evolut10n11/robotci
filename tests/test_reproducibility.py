@@ -262,15 +262,15 @@ def test_debian_package_inventory_covers_installed_dependency_closure(
         ("ros-jazzy-navigation2",),
     )
     output = (
-        "ii \\tros-jazzy-navigation2\\t1.0\\tros-jazzy-rclpy, "
-        "rmw-implementation\\t\\t\\n"
-        "ii \\tros-jazzy-rclpy\\t2.0\\tpython3:any\\t\\t\\n"
-        "ii \\trmw-fastrtps-cpp\\t3.0\\tlibfastdds\\t\\t"
-        "rmw-implementation\\n"
-        "ii \\tlibfastdds:amd64\\t4.0\\t\\tlibc6\\t\\n"
-        "ii \\tpython3\\t3.12\\tlibc6\\t\\t\\n"
-        "ii \\tlibc6:amd64\\t2.39\\t\\t\\t\\n"
-        "ii \\tunrelated\\t9.9\\t\\t\\t\\n"
+        "ii \tros-jazzy-navigation2\t1.0\tros-jazzy-rclpy, "
+        "rmw-implementation\t\t\n"
+        "ii \tros-jazzy-rclpy\t2.0\tpython3:any\t\t\n"
+        "ii \trmw-fastrtps-cpp\t3.0\tlibfastdds\t\t"
+        "rmw-implementation\n"
+        "ii \tlibfastdds:amd64\t4.0\t\tlibc6\t\n"
+        "ii \tpython3\t3.12\tlibc6\t\t\n"
+        "ii \tlibc6:amd64\t2.39\t\t\t\n"
+        "ii \tunrelated\t9.9\t\t\t\n"
     )
 
     def fake_run(command, **kwargs):

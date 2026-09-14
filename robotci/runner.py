@@ -147,8 +147,7 @@ def _run_native(
     environment = {
         name: value
         for name, value in os.environ.items()
-        if name
-        not in {
+        if name not in {
             "BASH_ENV",
             "BASHOPTS",
             "ENV",
