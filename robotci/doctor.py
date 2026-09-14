@@ -14,6 +14,7 @@ class CheckResult:
     ok: bool
     message: str
     blocking: bool = True
+    value: str | None = None
 
 
 REQUIRED_ROS_PACKAGES = (
@@ -151,6 +152,7 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
 
     if strict_native_ros:
         runtime_ready = native_ready
+        selected_runtime = "native" if native_ready else "none"
         runtime_message = (
             "native ROS2 Jazzy/Nav2 runtime is ready"
             if native_ready
@@ -158,12 +160,15 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
         )
     elif native_ready:
         runtime_ready = True
+        selected_runtime = "native"
         runtime_message = "auto runtime will use native ROS2 Jazzy/Nav2"
     elif docker_ready:
         runtime_ready = True
+        selected_runtime = "docker"
         runtime_message = "auto runtime will use Docker"
     else:
         runtime_ready = False
+        selected_runtime = "none"
         runtime_message = (
             "no usable runtime found; install ROS2 Jazzy/Nav2 on Linux or start Docker"
         )
@@ -174,6 +179,7 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
             ok=runtime_ready,
             message=runtime_message,
             blocking=runtime_blocking,
+            value=selected_runtime,
         )
     )
 
