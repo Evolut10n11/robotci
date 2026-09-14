@@ -51,6 +51,24 @@ def test_metrics_tracker_falls_back_to_euclidean_goal_distance() -> None:
     assert metrics.distance_to_goal_m == 5.0
 
 
+def test_metrics_tracker_preserves_distance_precision_for_verdicts() -> None:
+    tracker = NavigationMetricsTracker(
+        start_x=0.0,
+        start_y=0.0,
+        started_at=0.0,
+    )
+    tracker.update(
+        x=0.75,
+        y=0.0,
+        now=1.0,
+        distance_remaining_m=0.2504,
+    )
+
+    metrics = tracker.snapshot(goal_x=1.0, goal_y=0.0)
+
+    assert metrics.distance_to_goal_m == 0.2504
+
+
 def test_metrics_tracker_records_one_stuck_event_until_motion_resumes() -> None:
     tracker = NavigationMetricsTracker(
         start_x=0.0,

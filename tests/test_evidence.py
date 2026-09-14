@@ -44,7 +44,7 @@ def test_evidence_passes_at_goal_tolerance_boundary() -> None:
 
 def test_goal_tolerance_violation_is_robot_failure() -> None:
     decision = evaluate_navigation_success(
-        metrics=_metrics(distance_to_goal_m=0.251),
+        metrics=_metrics(distance_to_goal_m=0.2504),
         telemetry_quality=_quality(),
         policy=NavigationEvidencePolicy(goal_tolerance_m=0.25),
     )

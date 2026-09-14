@@ -139,8 +139,8 @@ class NavigationMetricsTracker:
             distance_to_goal_m = self._distance_remaining_m
 
         return NavigationMetrics(
-            path_length_m=round(self._path_length_m, 3),
-            distance_to_goal_m=round(distance_to_goal_m, 3),
+            path_length_m=self._path_length_m,
+            distance_to_goal_m=distance_to_goal_m,
             stuck_events=self._stuck_events,
             feedback_samples=self._feedback_samples,
             recoveries=self._recoveries,

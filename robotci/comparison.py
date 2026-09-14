@@ -86,6 +86,11 @@ def compare_scenario_results(
             "baseline and candidate describe different tasks; "
             "scenario start, goal, frame and map must match"
         )
+    if baseline.evidence_policy != candidate.evidence_policy:
+        raise ComparisonInputError(
+            "baseline and candidate use different evidence policies; "
+            "goal tolerance and minimum feedback must match"
+        )
     if baseline.metrics is None or candidate.metrics is None:
         raise ComparisonInputError("both results must include navigation metrics")
 

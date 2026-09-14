@@ -123,6 +123,18 @@ def test_compare_rejects_changed_map_even_when_metrics_match() -> None:
         compare_scenario_results(baseline=baseline, candidate=candidate)
 
 
+def test_compare_rejects_changed_evidence_policy() -> None:
+    baseline = parse_scenario_result(_payload())
+    candidate_payload = _payload()
+    policy = candidate_payload["evidence_policy"]
+    assert isinstance(policy, dict)
+    policy["goal_tolerance_m"] = 0.5
+    candidate = parse_scenario_result(candidate_payload)
+
+    with pytest.raises(ComparisonInputError, match="different evidence policies"):
+        compare_scenario_results(baseline=baseline, candidate=candidate)
+
+
 def test_parse_rejects_tampered_task_fingerprint() -> None:
     payload = _payload()
     task = payload["task"]
