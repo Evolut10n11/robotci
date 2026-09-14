@@ -12,6 +12,7 @@
     "recoveries": 0,
     "stuck_events": 0
   },
+  "navigation_result": "SUCCEEDED",
   "scenario": "route",
   "schema_version": 1,
   "start": {

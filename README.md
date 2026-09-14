@@ -263,6 +263,16 @@ Individual scenario results include the configured start and goal, verdict, dura
 }
 ```
 
+RobotCI uses one result reader for runtime finalization, baseline capture, and
+comparison. Result schema v1 is validated strictly, including finite numeric
+values, task identity, metrics, status, and navigation outcome. Legacy v0 files
+without `schema_version` can be read for inspection with incomplete provenance,
+but they cannot become a baseline or enter a regression comparison. Unknown
+future schema versions fail with an explicit compatibility error.
+When a runtime result is missing or malformed, RobotCI writes a current
+`INFRA_ERROR` result with `metrics: null` and a machine-readable `reason_code`
+instead of inventing zero-valued measurements.
+
 Current M3 telemetry:
 
 - `path_length_m` — accumulated traveled distance with a small deadband to suppress pose jitter

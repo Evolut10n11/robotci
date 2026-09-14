@@ -12,6 +12,7 @@ import pytest
 
 from robotci import runner
 from robotci.replay import default_replay_path
+from robotci.result_schema import validate_result_payload
 from robotci.results import Pose2D, build_scenario_task
 
 
@@ -38,8 +39,16 @@ def _payload(status: str = "PASS") -> dict[str, object]:
         "scenario": "route",
         "status": status,
         "duration_sec": 1.5,
+        "navigation_result": "SUCCEEDED" if status == "PASS" else status,
         "start": asdict(start),
         "goal": asdict(goal),
+        "metrics": {
+            "path_length_m": 1.0,
+            "distance_to_goal_m": 0.0,
+            "stuck_events": 0,
+            "feedback_samples": 1,
+            "recoveries": 0,
+        },
         "task": asdict(
             build_scenario_task(
                 scenario="route",
@@ -140,6 +149,7 @@ def test_fresh_consistent_verdicts_are_preserved(
     {"scenario": "different_route"}, {"status": []}, {"duration_sec": float("nan")},
     {"duration_sec": float("inf")}, {"duration_sec": -1}, {"duration_sec": True},
     {"duration_sec": "1.5"}, {"duration_sec": 10**400},
+    {"schema_version": 2},
 ])
 def test_invalid_runtime_result_is_an_infrastructure_error(
     project: Path, monkeypatch: pytest.MonkeyPatch, change: dict[str, object],
@@ -152,6 +162,9 @@ def test_invalid_runtime_result_is_an_infrastructure_error(
     code, _, path = _invoke(project, "single")
     assert code == 3
     assert runner.read_result_status(path) == "INFRA_ERROR"
+    normalized = validate_result_payload(runner.read_result_payload(path))
+    assert normalized.source_schema_version == 1
+    assert normalized.metrics is None
 
 
 @pytest.mark.parametrize("contents", [b"not JSON", b"\xff\xfe", b"[]", b"null"])

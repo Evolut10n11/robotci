@@ -27,6 +27,7 @@ def _write_result(
                 "scenario": "simple_route",
                 "status": "PASS",
                 "duration_sec": duration_sec,
+                "navigation_result": "SUCCEEDED",
                 "start": asdict(start),
                 "goal": asdict(goal),
                 "task": asdict(

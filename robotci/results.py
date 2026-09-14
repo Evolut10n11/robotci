@@ -102,19 +102,24 @@ class SuiteResult:
     scenarios: tuple[SuiteScenarioResult, ...]
 
 
-def _write_json(payload: object, path: str | Path) -> Path:
+def _write_json(payload: dict[str, object], path: str | Path) -> Path:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
-        json.dumps(asdict(payload), indent=2, sort_keys=True) + "\n",
+        json.dumps(payload, allow_nan=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
     return output_path
 
 
 def write_result(result: ScenarioResult, path: str | Path) -> Path:
-    return _write_json(result, path)
+    payload = asdict(result)
+    # Imported lazily because the reader owns validation and imports these types.
+    from robotci.result_schema import validate_result_payload
+
+    validate_result_payload(payload)
+    return _write_json(payload, path)
 
 
 def write_suite_result(result: SuiteResult, path: str | Path) -> Path:
-    return _write_json(result, path)
+    return _write_json(asdict(result), path)

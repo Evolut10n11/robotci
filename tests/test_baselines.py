@@ -67,6 +67,17 @@ def test_capture_rejects_result_without_task_identity(tmp_path: Path) -> None:
         capture_baseline("missing-task", suite, store_root=tmp_path / "baselines")
 
 
+def test_capture_rejects_future_result_schema(tmp_path: Path) -> None:
+    suite = _copy_fixture(tmp_path)
+    result_path = suite.parent / "results" / "route.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result["schema_version"] = 2
+    result_path.write_text(json.dumps(result), encoding="utf-8")
+
+    with pytest.raises(BaselineError, match="unsupported result.schema_version 2"):
+        capture_baseline("future", suite, store_root=tmp_path / "baselines")
+
+
 def test_capture_rejects_unsafe_result_path(tmp_path: Path) -> None:
     suite = _copy_fixture(tmp_path)
     payload = json.loads(suite.read_text(encoding="utf-8"))

@@ -1,175 +1,60 @@
 from __future__ import annotations
 
-import json
-import math
-from dataclasses import dataclass
 from pathlib import Path
 
-from robotci.metrics import NavigationMetrics
 from robotci.regression import RegressionPolicy, RegressionReport, compare_navigation_metrics
-from robotci.results import (
-    RESULT_SCHEMA_VERSION,
-    TASK_SCHEMA_VERSION,
-    Pose2D,
-    ScenarioTaskIdentity,
-    build_scenario_task,
+from robotci.result_schema import (
+    ResultSchemaError,
+    ValidatedScenarioResult,
+    load_result,
+    validate_result_payload,
 )
+from robotci.results import RESULT_SCHEMA_VERSION
 
 
 class ComparisonInputError(ValueError):
     """Raised when a persisted result cannot be used for regression comparison."""
 
 
-@dataclass(frozen=True)
-class ScenarioSnapshot:
-    scenario: str
-    start: Pose2D
-    goal: Pose2D
-    task: ScenarioTaskIdentity
-    duration_sec: float
-    metrics: NavigationMetrics
+ScenarioSnapshot = ValidatedScenarioResult
 
 
-def _as_mapping(value: object, name: str) -> dict[str, object]:
-    if not isinstance(value, dict):
-        raise ComparisonInputError(f"{name} must be an object")
-    return value
-
-
-def _as_string(value: object, name: str) -> str:
-    if not isinstance(value, str) or not value:
-        raise ComparisonInputError(f"{name} must be a non-empty string")
-    return value
-
-
-def _as_non_negative_float(value: object, name: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        raise ComparisonInputError(f"{name} must be a number")
-    number = float(value)
-    if not math.isfinite(number) or number < 0:
-        raise ComparisonInputError(f"{name} must be finite and non-negative")
-    return number
-
-
-def _as_finite_float(value: object, name: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        raise ComparisonInputError(f"{name} must be a number")
-    number = float(value)
-    if not math.isfinite(number):
-        raise ComparisonInputError(f"{name} must be finite")
-    return number
-
-
-def _as_non_negative_int(value: object, name: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise ComparisonInputError(f"{name} must be a non-negative integer")
-    return value
-
-
-def _parse_pose(value: object, name: str) -> Pose2D:
-    pose = _as_mapping(value, name)
-    return Pose2D(
-        x=_as_finite_float(pose.get("x"), f"{name}.x"),
-        y=_as_finite_float(pose.get("y"), f"{name}.y"),
-        yaw=_as_finite_float(pose.get("yaw"), f"{name}.yaw"),
-    )
-
-
-def _parse_task(
-    value: object,
-    *,
-    scenario: str,
-    start: Pose2D,
-    goal: Pose2D,
-) -> ScenarioTaskIdentity:
-    task = _as_mapping(value, "task")
-    schema_version = task.get("schema_version")
-    if isinstance(schema_version, bool) or schema_version != TASK_SCHEMA_VERSION:
+def _require_comparable(result: ValidatedScenarioResult) -> ScenarioSnapshot:
+    if result.source_schema_version != RESULT_SCHEMA_VERSION:
         raise ComparisonInputError(
-            f"task.schema_version must be {TASK_SCHEMA_VERSION}"
+            "legacy result schema v0 has incomplete task provenance; "
+            "rerun the scenario to create a current result before comparison"
         )
-    frame_id = _as_string(task.get("frame_id"), "task.frame_id")
-    map_id = _as_string(task.get("map_id"), "task.map_id")
-    if map_id == "unspecified":
+    if result.status != "PASS":
+        raise ComparisonInputError(
+            f"scenario '{result.scenario}' must have PASS status before metrics "
+            "can be compared"
+        )
+    if result.task is None or not result.provenance_complete:
         raise ComparisonInputError(
             "task.map_id must identify the map before regression comparison"
         )
-    fingerprint = _as_string(task.get("fingerprint"), "task.fingerprint")
-    expected = build_scenario_task(
-        scenario=scenario,
-        start=start,
-        goal=goal,
-        map_id=map_id,
-        frame_id=frame_id,
-    )
-    if fingerprint != expected.fingerprint:
-        raise ComparisonInputError(
-            "task.fingerprint does not match scenario, start, goal, frame and map"
-        )
-    return expected
+    if result.metrics is None:
+        raise ComparisonInputError("PASS result must include navigation metrics")
+    return result
 
 
 def parse_scenario_result(payload: object) -> ScenarioSnapshot:
-    """Parse metrics and the immutable task identity needed for comparison."""
-    result = _as_mapping(payload, "result")
-    schema_version = result.get("schema_version")
-    if isinstance(schema_version, bool) or schema_version != RESULT_SCHEMA_VERSION:
-        raise ComparisonInputError(
-            f"result.schema_version must be {RESULT_SCHEMA_VERSION}"
-        )
-    scenario = _as_string(result.get("scenario"), "scenario")
-    status = _as_string(result.get("status"), "status")
-    if status != "PASS":
-        raise ComparisonInputError(
-            f"scenario '{scenario}' must have PASS status before metrics can be compared"
-        )
+    """Validate a result and require complete provenance for comparison."""
 
-    start = _parse_pose(result.get("start"), "start")
-    goal = _parse_pose(result.get("goal"), "goal")
-    task = _parse_task(
-        result.get("task"),
-        scenario=scenario,
-        start=start,
-        goal=goal,
-    )
-    duration_sec = _as_non_negative_float(result.get("duration_sec"), "duration_sec")
-    metrics_payload = _as_mapping(result.get("metrics"), "metrics")
-    metrics = NavigationMetrics(
-        path_length_m=_as_non_negative_float(
-            metrics_payload.get("path_length_m"), "metrics.path_length_m"
-        ),
-        distance_to_goal_m=_as_non_negative_float(
-            metrics_payload.get("distance_to_goal_m"), "metrics.distance_to_goal_m"
-        ),
-        stuck_events=_as_non_negative_int(
-            metrics_payload.get("stuck_events"), "metrics.stuck_events"
-        ),
-        feedback_samples=_as_non_negative_int(
-            metrics_payload.get("feedback_samples"), "metrics.feedback_samples"
-        ),
-        recoveries=_as_non_negative_int(
-            metrics_payload.get("recoveries"), "metrics.recoveries"
-        ),
-    )
-    return ScenarioSnapshot(
-        scenario=scenario,
-        start=start,
-        goal=goal,
-        task=task,
-        duration_sec=duration_sec,
-        metrics=metrics,
-    )
+    try:
+        result = validate_result_payload(payload)
+    except ResultSchemaError as exc:
+        raise ComparisonInputError(str(exc)) from exc
+    return _require_comparable(result)
 
 
 def load_scenario_result(path: str | Path) -> ScenarioSnapshot:
-    result_path = Path(path)
     try:
-        payload = json.loads(result_path.read_text(encoding="utf-8"))
-    except OSError as exc:
-        raise ComparisonInputError(f"cannot read result file '{result_path}': {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise ComparisonInputError(f"invalid JSON in result file '{result_path}': {exc}") from exc
-    return parse_scenario_result(payload)
+        result = load_result(path)
+    except ResultSchemaError as exc:
+        raise ComparisonInputError(str(exc)) from exc
+    return _require_comparable(result)
 
 
 def compare_scenario_results(
@@ -184,11 +69,17 @@ def compare_scenario_results(
             f"('{baseline.scenario}' != '{candidate.scenario}')"
         )
 
-    if baseline.task.fingerprint != candidate.task.fingerprint:
+    if (
+        baseline.task is None
+        or candidate.task is None
+        or baseline.task.fingerprint != candidate.task.fingerprint
+    ):
         raise ComparisonInputError(
             "baseline and candidate describe different tasks; "
             "scenario start, goal, frame and map must match"
         )
+    if baseline.metrics is None or candidate.metrics is None:
+        raise ComparisonInputError("both results must include navigation metrics")
 
     return compare_navigation_metrics(
         baseline_duration_sec=baseline.duration_sec,

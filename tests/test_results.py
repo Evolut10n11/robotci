@@ -7,6 +7,7 @@ from dataclasses import asdict
 import pytest
 
 from robotci.metrics import NavigationMetrics
+from robotci.result_schema import ResultSchemaError
 from robotci.results import (
     Pose2D,
     ScenarioResult,
@@ -120,3 +121,32 @@ def test_task_fingerprint_rejects_non_finite_pose() -> None:
             goal=Pose2D(x=1.0, y=2.0, yaw=0.0),
             map_id="warehouse-v1",
         )
+
+
+def test_write_result_rejects_non_finite_metrics(tmp_path) -> None:
+    start = Pose2D(x=0.0, y=0.0, yaw=0.0)
+    goal = Pose2D(x=1.0, y=0.0, yaw=0.0)
+    result = ScenarioResult(
+        scenario="route",
+        status="PASS",
+        duration_sec=1.0,
+        start=start,
+        goal=goal,
+        navigation_result="SUCCEEDED",
+        metrics=NavigationMetrics(
+            path_length_m=math.nan,
+            distance_to_goal_m=0.0,
+            stuck_events=0,
+            feedback_samples=1,
+            recoveries=0,
+        ),
+        task=build_scenario_task(
+            scenario="route",
+            start=start,
+            goal=goal,
+            map_id="warehouse-v1",
+        ),
+    )
+
+    with pytest.raises(ResultSchemaError, match="path_length_m must be finite"):
+        write_result(result, tmp_path / "result.json")
