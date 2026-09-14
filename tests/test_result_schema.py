@@ -63,10 +63,12 @@ def test_legacy_v0_is_adapted_for_read_only_inspection() -> None:
     payload = _payload()
     payload.pop("schema_version")
     payload.pop("task")
+    payload.pop("metrics")
 
     result = validate_result_payload(payload)
 
     assert result.source_schema_version == LEGACY_RESULT_SCHEMA_VERSION
+    assert result.metrics is None
     assert result.task is None
     assert result.provenance_complete is False
 

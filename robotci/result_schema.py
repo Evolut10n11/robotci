@@ -195,7 +195,10 @@ def validate_result_payload(payload: object) -> ValidatedScenarioResult:
     )
     metrics = _parse_metrics(
         result.get("metrics"),
-        allow_missing=source_version == RESULT_SCHEMA_VERSION and status != "PASS",
+        allow_missing=(
+            source_version == LEGACY_RESULT_SCHEMA_VERSION
+            or (source_version == RESULT_SCHEMA_VERSION and status != "PASS")
+        ),
     )
 
     if source_version == LEGACY_RESULT_SCHEMA_VERSION:
