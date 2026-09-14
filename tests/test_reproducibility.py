@@ -485,9 +485,11 @@ def test_robotci_source_fingerprint_covers_exported_python_import_roots(
     dependency_root = tmp_path / "site-packages"
     dependency_package = dependency_root / "dependency"
     namespace_package = dependency_root / "middleware_plugins"
+    data_namespace = dependency_root / "profiles"
     package.mkdir(parents=True)
     dependency_package.mkdir(parents=True)
     namespace_package.mkdir(parents=True)
+    data_namespace.mkdir(parents=True)
     (package / "runner.py").write_text("VALUE = 1\n", encoding="utf-8")
     shadow = dependency_root / "argparse.py"
     shadow.write_text("SHADOW = 1\n", encoding="utf-8")
@@ -496,6 +498,8 @@ def test_robotci_source_fingerprint_covers_exported_python_import_roots(
     data.write_text('{"value": 1}\n', encoding="utf-8")
     namespace_module = namespace_package / "transport.py"
     namespace_module.write_text("VALUE = 1\n", encoding="utf-8")
+    namespace_data = data_namespace / "config.json"
+    namespace_data.write_text('{"mode": 1}\n', encoding="utf-8")
 
     original = build_robotci_source_fingerprint(
         package,
@@ -516,10 +520,16 @@ def test_robotci_source_fingerprint_covers_exported_python_import_roots(
         package,
         python_dependency_roots=(dependency_root,),
     )
+    namespace_data.write_text('{"mode": 2}\n', encoding="utf-8")
+    data_namespace_changed = build_robotci_source_fingerprint(
+        package,
+        python_dependency_roots=(dependency_root,),
+    )
 
     assert original != shadow_changed
     assert shadow_changed != data_changed
     assert data_changed != namespace_changed
+    assert namespace_changed != data_namespace_changed
 
 
 def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(

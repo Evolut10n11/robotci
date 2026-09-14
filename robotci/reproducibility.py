@@ -561,8 +561,7 @@ def _ros_setup_python_roots() -> tuple[Path, ...]:
 def runtime_python_dependency_roots() -> tuple[Path, ...]:
     """Return every broad import root exported to isolated RobotCI processes."""
 
-    package_parent = Path(__file__).resolve().parent.parent
-    roots = [package_parent]
+    roots: list[Path] = []
     for name in _PYTHON_DISTRIBUTIONS:
         try:
             package = distribution(name)
@@ -821,10 +820,7 @@ def build_robotci_source_fingerprint(
                     for suffix in _IMPORT_SUFFIXES
                 )
                 if candidate.name.isidentifier() or has_package_init:
-                    import_sources = package_sources(
-                        candidate,
-                        namespace=not has_package_init,
-                    )
+                    import_sources = package_sources(candidate)
             if not import_sources:
                 continue
             if candidate.is_symlink():

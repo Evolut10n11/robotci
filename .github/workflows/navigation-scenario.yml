@@ -62,14 +62,14 @@ jobs:
       - name: Install RobotCI CLI into ROS Python
         run: |
           python3 -m pip install --break-system-packages -e .
-          python3 -m robotci.cli --help
+          robotci --help
 
       - name: Validate robotci.yaml
-        run: python3 -m robotci.cli validate --config robotci.yaml
+        run: robotci validate --config robotci.yaml
 
       - name: Run RobotCI YAML suite through CLI
         run: |
-          python3 -m robotci.cli run \
+          robotci run \
             --runtime native \
             --config robotci.yaml \
             --output artifacts/suite-result.json

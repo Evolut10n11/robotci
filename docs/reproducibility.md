@@ -24,8 +24,8 @@ an `execution` object with:
   subprocess package when their roots
   differ, plus runtime shell files and any
   top-level source, sourceless bytecode, native-extension module, or complete
-  regular or PEP 420 namespace package tree that can shadow ROS imports,
-  including every import candidate
+  regular or PEP 420 namespace package tree (including data-only resource
+  portions) that can shadow or feed ROS imports, including every import candidate
   exposed from explicit distribution roots and every Python root prepended by
   the clean, packaged ROS Jazzy setup;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
@@ -39,8 +39,8 @@ process-level `LD_AUDIT`/`LD_PRELOAD` injection, drops inherited executable,
 library, ROS overlay, setup identity, and Python search paths, and sets a
 package-managed system `PATH` without mutable local directories, a fixed hash
 seed, UTF-8, no user site, and a fresh private bytecode-cache prefix. Before
-application modules load, the public CLI relaunches itself with a sanitized
-Python environment and `-S -B -P`. POSIX uses process replacement so signals
+application modules load, every checked-in suite workflow enters through the
+public CLI, which relaunches itself with a sanitized Python environment and `-S -B -P`. POSIX uses process replacement so signals
 and ROS cleanup semantics are preserved; system/user site hooks, inherited Python
 controls, checkout-local generated caches, and the current working directory
 cannot affect orchestration. Both runtime Python layers also use `-S -B -P`,
