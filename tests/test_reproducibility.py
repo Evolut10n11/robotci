@@ -11,8 +11,8 @@ from robotci.config import PoseConfig, RobotCIConfig, ScenarioConfig
 from robotci.reproducibility import (
     RUNTIME_CONTRACT,
     ReproducibilityError,
-    _resolve_attempt_script,
     RuntimePackage,
+    _resolve_attempt_script,
     build_robotci_source_fingerprint,
     build_runtime_environment,
     build_suite_execution_identity,
