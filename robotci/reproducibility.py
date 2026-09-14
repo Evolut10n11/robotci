@@ -58,6 +58,7 @@ _RUNTIME_VARIABLE_NAMES = frozenset(
         "ROBOTCI_ATTEMPT_SCRIPT",
         "ROBOTCI_LOG_FILE",
         "ROBOTCI_RETRY_DELAY_SEC",
+        "SKIP_DEFAULT_XML",
         "TMPDIR",
     }
 )
@@ -845,6 +846,45 @@ def build_robotci_source_fingerprint(
                 )
                 for path in import_sources
             )
+
+    implicit_fastdds_profile = runtime / "DEFAULT_FASTDDS_PROFILES.xml"
+    try:
+        profile_stat = implicit_fastdds_profile.lstat()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise ReproducibilityError(
+            "cannot inspect implicit Fast DDS profile "
+            f"'{implicit_fastdds_profile}': {exc}"
+        ) from exc
+    else:
+        if stat.S_ISLNK(profile_stat.st_mode):
+            try:
+                target_stat = implicit_fastdds_profile.stat()
+            except FileNotFoundError:
+                # Preserve a broken lexical link as stable runtime input.
+                target_stat = None
+            except OSError as exc:
+                raise ReproducibilityError(
+                    "cannot inspect implicit Fast DDS profile target "
+                    f"'{implicit_fastdds_profile}': {exc}"
+                ) from exc
+            if target_stat is not None and not stat.S_ISREG(target_stat.st_mode):
+                raise ReproducibilityError(
+                    "implicit Fast DDS profile must reference a regular file: "
+                    f"{implicit_fastdds_profile}"
+                )
+        elif not stat.S_ISREG(profile_stat.st_mode):
+            raise ReproducibilityError(
+                "implicit Fast DDS profile must be a regular file: "
+                f"{implicit_fastdds_profile}"
+            )
+        sources.append(
+            (
+                "runtime-configuration/DEFAULT_FASTDDS_PROFILES.xml",
+                implicit_fastdds_profile,
+            )
+        )
 
     scripts = runtime / "scripts"
     if scripts.is_dir():
