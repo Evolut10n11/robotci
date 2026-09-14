@@ -173,3 +173,25 @@ def test_validate_command_reports_invalid_config(tmp_path: Path) -> None:
 
     assert result.exit_code == 3
     assert "RobotCI config error" in result.stdout
+
+
+def test_validate_command_reports_invalid_runtime_type_without_traceback(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        """
+version: 1
+runtime: []
+scenarios:
+  - name: smoke
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(cli.app, ["validate", "--config", str(config_path)])
+
+    assert result.exit_code == 3
+    assert "config.runtime must be one of" in result.stdout

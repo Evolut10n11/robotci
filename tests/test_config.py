@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from robotci.config import ConfigError, get_scenario, load_config
+from robotci.config import ConfigError, PoseConfig, get_scenario, load_config
 
 
 def test_load_config_reads_valid_robotci_yaml(tmp_path: Path) -> None:
@@ -190,3 +190,177 @@ scenarios:
 
     with pytest.raises(ConfigError, match="unknown scenario 'missing'"):
         get_scenario(config, "missing")
+
+
+def test_load_config_rejects_float_version(tmp_path: Path) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        "version: 1.0\nruntime: auto\nscenarios: []\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="version must be 1"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize("runtime", ["[]", "{}", "42", "true"])
+def test_load_config_rejects_non_string_runtime(tmp_path: Path, runtime: str) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        f"""
+version: 1
+runtime: {runtime}
+scenarios:
+  - name: route
+    start: {{x: 0, y: 0}}
+    goal: {{x: 1, y: 1}}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="runtime must be one of"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize("value", [".nan", ".inf", "-.inf"])
+def test_load_config_rejects_non_finite_pose_values(tmp_path: Path, value: str) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        f"""
+version: 1
+scenarios:
+  - name: route
+    start: {{x: {value}, y: 0}}
+    goal: {{x: 1, y: 1}}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match=r"scenarios\[0\]\.start\.x must be finite"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize("value", [".nan", ".inf", "-.inf"])
+def test_load_config_rejects_non_finite_timeout(tmp_path: Path, value: str) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        f"""
+version: 1
+scenarios:
+  - name: route
+    start: {{x: 0, y: 0}}
+    goal: {{x: 1, y: 1}}
+    timeout_sec: {value}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match=r"scenarios\[0\]\.timeout_sec must be finite"):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize(
+    ("document", "message"),
+    [
+        (
+            """
+version: 1
+controller: mppi
+scenarios:
+  - name: route
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
+""",
+            "config contains unknown keys: 'controller'",
+        ),
+        (
+            """
+version: 1
+scenarios:
+  - name: route
+    controller: mppi
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
+""",
+            r"scenarios\[0\] contains unknown keys: 'controller'",
+        ),
+        (
+            """
+version: 1
+scenarios:
+  - name: route
+    start: {x: 0, y: 0, z: 0}
+    goal: {x: 1, y: 1}
+""",
+            r"scenarios\[0\]\.start contains unknown keys: 'z'",
+        ),
+    ],
+)
+def test_load_config_rejects_unknown_keys(
+    tmp_path: Path,
+    document: str,
+    message: str,
+) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(document.strip(), encoding="utf-8")
+
+    with pytest.raises(ConfigError, match=message):
+        load_config(config_path)
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        """
+version: 1
+runtime: auto
+runtime: docker
+scenarios:
+  - name: route
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
+""",
+        """
+version: 1
+scenarios:
+  - name: route
+    name: duplicate
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
+""",
+        """
+version: 1
+scenarios:
+  - name: route
+    start: {x: 0, x: 2, y: 0}
+    goal: {x: 1, y: 1}
+""",
+    ],
+)
+def test_load_config_rejects_duplicate_yaml_keys(tmp_path: Path, document: str) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(document.strip(), encoding="utf-8")
+
+    with pytest.raises(ConfigError, match="duplicate key"):
+        load_config(config_path)
+
+
+def test_load_config_preserves_yaml_merge_overrides(tmp_path: Path) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        """
+version: 1
+scenarios:
+  - name: route
+    start: &origin {x: 0, y: 0, yaw: 0}
+    goal:
+      <<: *origin
+      x: 1
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.scenarios[0].start == PoseConfig(x=0.0, y=0.0, yaw=0.0)
+    assert config.scenarios[0].goal == PoseConfig(x=1.0, y=0.0, yaw=0.0)

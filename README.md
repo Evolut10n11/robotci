@@ -179,7 +179,10 @@ configuration name, RobotCI searches the current directory and its parents for
 that config's directory, while RobotCI's own runtime scripts remain installation
 resources.
 
-Validation rejects malformed YAML, unsupported config versions, duplicate or unsafe scenario names, invalid coordinates, invalid runtimes, and non-positive timeouts before any robotics runtime starts.
+Validation rejects malformed YAML, duplicate or unknown keys, unsupported config
+versions, duplicate or unsafe scenario names, invalid or non-finite coordinates,
+invalid runtimes, and non-positive or non-finite timeouts before any robotics
+runtime starts.
 
 Set `map_id` to a stable map name or, preferably, a content digest. RobotCI includes
 the scenario name, start, goal, coordinate frame, and `map_id` in the task
