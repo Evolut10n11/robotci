@@ -147,19 +147,25 @@ def _run_native(
     environment = {
         name: value
         for name, value in os.environ.items()
-        if name not in {
+        if name
+        not in {
             "BASH_ENV",
             "BASHOPTS",
             "ENV",
-            "PYTHONSAFEPATH",
+            "LD_AUDIT",
+            "LD_PRELOAD",
             "SHELLOPTS",
         }
         and not name.startswith("BASH_FUNC_")
+        and (name == "PYTHONPATH" or not name.startswith("PYTHON"))
     }
     half_yaw = scenario.start.yaw / 2.0
 
     environment.update(
         {
+            "PYTHONHASHSEED": "0",
+            "PYTHONNOUSERSITE": "1",
+            "PYTHONUTF8": "1",
             "ROBOTCI_SCENARIO": scenario.name,
             "ROBOTCI_START_X": str(scenario.start.x),
             "ROBOTCI_START_Y": str(scenario.start.y),
