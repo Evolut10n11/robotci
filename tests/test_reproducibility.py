@@ -532,6 +532,34 @@ def test_robotci_source_fingerprint_covers_exported_python_import_roots(
     assert namespace_changed != data_namespace_changed
 
 
+def test_robotci_source_fingerprint_records_broken_dependency_symlink(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "robotci"
+    dependency_root = tmp_path / "site-packages"
+    dependency_package = dependency_root / "debugger"
+    package.mkdir()
+    dependency_package.mkdir(parents=True)
+    (package / "runner.py").write_text("VALUE = 1\n", encoding="utf-8")
+    link = dependency_package / "libRuntime.so"
+    try:
+        link.symlink_to("missing-v1.so")
+    except OSError:
+        pytest.skip("symlinks are unavailable on this platform")
+
+    original = build_robotci_source_fingerprint(
+        package,
+        python_dependency_roots=(dependency_root,),
+    )
+    link.unlink()
+    link.symlink_to("missing-v2.so")
+
+    assert build_robotci_source_fingerprint(
+        package,
+        python_dependency_roots=(dependency_root,),
+    ) != original
+
+
 def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
     tmp_path: Path,
 ) -> None:

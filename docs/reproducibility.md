@@ -27,7 +27,8 @@ an `execution` object with:
   regular or PEP 420 namespace package tree (including data-only resource
   portions) that can shadow or feed ROS imports, including every import candidate
   exposed from explicit distribution roots and every Python root prepended by
-  the clean, packaged ROS Jazzy setup;
+  the clean, packaged ROS Jazzy setup; package-managed symlinks record both
+  their lexical target and reachable target content (or stable missing state);
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
 
 The runner captures metadata before the first attempt and verifies it again

@@ -723,6 +723,13 @@ def build_robotci_source_fingerprint(
                     if stat.S_ISLNK(child_stat.st_mode):
                         try:
                             target_stat = child.stat()
+                        except FileNotFoundError:
+                            # A broken package-managed link is still stable
+                            # executable/resource state and must be fingerprinted.
+                            package_files.append(child)
+                            if is_import_file(child):
+                                has_import_source = True
+                            continue
                         except OSError as exc:
                             raise ReproducibilityError(
                                 "cannot inspect runtime import symlink target "
@@ -730,6 +737,7 @@ def build_robotci_source_fingerprint(
                             ) from exc
                         if stat.S_ISDIR(target_stat.st_mode):
                             if child.name != "__pycache__":
+                                package_files.append(child)
                                 visit(child)
                         elif stat.S_ISREG(target_stat.st_mode):
                             package_files.append(child)
@@ -882,7 +890,33 @@ def build_robotci_source_fingerprint(
     files: list[dict[str, str]] = []
     for relative, path in sources:
         try:
-            digest = sha256(path.read_bytes()).hexdigest()
+            path_stat = path.lstat()
+            if stat.S_ISLNK(path_stat.st_mode):
+                link_target = os.readlink(path)
+                definition: dict[str, str] = {"link_target": link_target}
+                try:
+                    target_stat = path.stat()
+                except FileNotFoundError:
+                    definition["target_type"] = "missing"
+                else:
+                    if stat.S_ISDIR(target_stat.st_mode):
+                        definition["target_type"] = "directory"
+                    elif stat.S_ISREG(target_stat.st_mode):
+                        definition["target_type"] = "file"
+                        definition["target_sha256"] = sha256(
+                            path.read_bytes()
+                        ).hexdigest()
+                    else:
+                        definition["target_type"] = "special"
+                digest = sha256(
+                    json.dumps(
+                        definition,
+                        separators=(",", ":"),
+                        sort_keys=True,
+                    ).encode("utf-8")
+                ).hexdigest()
+            else:
+                digest = sha256(path.read_bytes()).hexdigest()
         except OSError as exc:
             raise ReproducibilityError(
                 f"cannot read RobotCI runtime source '{path}': {exc}"
