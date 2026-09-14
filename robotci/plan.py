@@ -15,6 +15,8 @@ class PlannedScenario:
     start: PoseConfig
     goal: PoseConfig
     timeout_sec: float
+    goal_tolerance_m: float
+    min_feedback_samples: int
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -31,6 +33,8 @@ class PlannedScenario:
                 "yaw": self.goal.yaw,
             },
             "timeout_sec": self.timeout_sec,
+            "goal_tolerance_m": self.goal_tolerance_m,
+            "min_feedback_samples": self.min_feedback_samples,
         }
 
 
@@ -80,6 +84,8 @@ def build_execution_plan(
             timeout_sec=(
                 definition.timeout_sec if timeout_sec is None else timeout_sec
             ),
+            goal_tolerance_m=definition.goal_tolerance_m,
+            min_feedback_samples=definition.min_feedback_samples,
         )
         for definition in definitions
     )

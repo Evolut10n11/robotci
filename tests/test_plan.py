@@ -55,6 +55,8 @@ def test_build_execution_plan_uses_config_defaults(tmp_path: Path) -> None:
         "office-v1",
         "warehouse-v2",
     ]
+    assert [scenario.goal_tolerance_m for scenario in plan.scenarios] == [0.25, 0.25]
+    assert [scenario.min_feedback_samples for scenario in plan.scenarios] == [1, 1]
 
 
 def test_build_execution_plan_applies_overrides_without_runtime_probe(tmp_path: Path) -> None:
@@ -152,6 +154,7 @@ def test_plan_command_prints_human_readable_dry_run(tmp_path: Path) -> None:
     assert "smoke" in result.stdout
     assert "office-v1" in result.stdout
     assert "15s" in result.stdout
+    assert "goal <= 0.25m; feedback >= 1" in result.stdout
     assert "no runtime started" in result.stdout
 
 
@@ -175,6 +178,8 @@ def test_plan_command_prints_machine_readable_json(tmp_path: Path) -> None:
                 "start": {"x": 0.0, "y": 0.0, "yaw": 0.0},
                 "goal": {"x": 1.0, "y": 2.0, "yaw": 0.0},
                 "timeout_sec": 10.0,
+                "goal_tolerance_m": 0.25,
+                "min_feedback_samples": 1,
             }
         ],
     }

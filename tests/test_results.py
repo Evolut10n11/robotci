@@ -6,7 +6,8 @@ from dataclasses import asdict
 
 import pytest
 
-from robotci.metrics import NavigationMetrics
+from robotci.evidence import NavigationEvidencePolicy
+from robotci.metrics import NavigationMetrics, NavigationTelemetryQuality
 from robotci.result_schema import ResultSchemaError
 from robotci.results import (
     Pose2D,
@@ -42,6 +43,13 @@ def test_write_result_creates_portable_json(tmp_path) -> None:
             feedback_samples=95,
             recoveries=0,
         ),
+        telemetry_quality=NavigationTelemetryQuality(
+            received_feedback_samples=95,
+            valid_pose_samples=95,
+            invalid_pose_samples=0,
+            final_pose_valid=True,
+        ),
+        evidence_policy=NavigationEvidencePolicy(goal_tolerance_m=0.25),
         task=task,
     )
 
@@ -64,9 +72,19 @@ def test_write_result_creates_portable_json(tmp_path) -> None:
         },
         "navigation_result": "SUCCEEDED",
         "scenario": "simple_route",
-        "schema_version": 1,
+        "schema_version": 2,
         "start": {"x": 0.0, "y": 0.0, "yaw": 0.0},
         "status": "PASS",
+        "telemetry_quality": {
+            "final_pose_valid": True,
+            "invalid_pose_samples": 0,
+            "received_feedback_samples": 95,
+            "valid_pose_samples": 95,
+        },
+        "evidence_policy": {
+            "goal_tolerance_m": 0.25,
+            "min_feedback_samples": 1,
+        },
         "task": asdict(task),
     }
 
@@ -140,6 +158,13 @@ def test_write_result_rejects_non_finite_metrics(tmp_path) -> None:
             feedback_samples=1,
             recoveries=0,
         ),
+        telemetry_quality=NavigationTelemetryQuality(
+            received_feedback_samples=1,
+            valid_pose_samples=1,
+            invalid_pose_samples=0,
+            final_pose_valid=True,
+        ),
+        evidence_policy=NavigationEvidencePolicy(),
         task=build_scenario_task(
             scenario="route",
             start=start,

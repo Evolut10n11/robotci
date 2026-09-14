@@ -35,7 +35,7 @@ def _payload(status: str = "PASS") -> dict[str, object]:
     start = Pose2D(x=0.0, y=0.0, yaw=0.0)
     goal = Pose2D(x=1.0, y=0.0, yaw=0.0)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "scenario": "route",
         "status": status,
         "duration_sec": 1.5,
@@ -49,6 +49,17 @@ def _payload(status: str = "PASS") -> dict[str, object]:
             "feedback_samples": 1,
             "recoveries": 0,
         },
+        "telemetry_quality": {
+            "received_feedback_samples": 1,
+            "valid_pose_samples": 1,
+            "invalid_pose_samples": 0,
+            "final_pose_valid": True,
+        },
+        "evidence_policy": {
+            "goal_tolerance_m": 0.25,
+            "min_feedback_samples": 1,
+        },
+        **({"reason_code": status.lower()} if status != "PASS" else {}),
         "task": asdict(
             build_scenario_task(
                 scenario="route",
@@ -149,7 +160,7 @@ def test_fresh_consistent_verdicts_are_preserved(
     {"scenario": "different_route"}, {"status": []}, {"duration_sec": float("nan")},
     {"duration_sec": float("inf")}, {"duration_sec": -1}, {"duration_sec": True},
     {"duration_sec": "1.5"}, {"duration_sec": 10**400},
-    {"schema_version": 2},
+    {"schema_version": 3},
 ])
 def test_invalid_runtime_result_is_an_infrastructure_error(
     project: Path, monkeypatch: pytest.MonkeyPatch, change: dict[str, object],
@@ -163,8 +174,33 @@ def test_invalid_runtime_result_is_an_infrastructure_error(
     assert code == 3
     assert runner.read_result_status(path) == "INFRA_ERROR"
     normalized = validate_result_payload(runner.read_result_payload(path))
-    assert normalized.source_schema_version == 1
+    assert normalized.source_schema_version == 2
     assert normalized.metrics is None
+
+
+def test_runtime_cannot_loosen_configured_evidence_policy(
+    project: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def misleading_result(root, scenario, output, timeout):
+        payload = _payload()
+        policy = payload["evidence_policy"]
+        assert isinstance(policy, dict)
+        policy["goal_tolerance_m"] = 0.5
+        metrics = payload["metrics"]
+        assert isinstance(metrics, dict)
+        metrics["distance_to_goal_m"] = 0.4
+        _write(output, payload)
+        return 0
+
+    monkeypatch.setattr(runner, "_run_native", misleading_result)
+
+    code, _, path = _invoke(project, "single")
+
+    assert code == 3
+    normalized = validate_result_payload(runner.read_result_payload(path))
+    assert normalized.status == "INFRA_ERROR"
+    assert normalized.reason_code == "runtime_result_invalid"
 
 
 @pytest.mark.parametrize("contents", [b"not JSON", b"\xff\xfe", b"[]", b"null"])

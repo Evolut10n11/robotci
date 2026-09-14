@@ -23,7 +23,7 @@ def _write_result(
     path.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "scenario": "simple_route",
                 "status": "PASS",
                 "duration_sec": duration_sec,
@@ -44,6 +44,16 @@ def _write_result(
                     "stuck_events": 0,
                     "feedback_samples": 20,
                     "recoveries": 0,
+                },
+                "telemetry_quality": {
+                    "received_feedback_samples": 20,
+                    "valid_pose_samples": 20,
+                    "invalid_pose_samples": 0,
+                    "final_pose_valid": True,
+                },
+                "evidence_policy": {
+                    "goal_tolerance_m": 0.25,
+                    "min_feedback_samples": 1,
                 },
             }
         ),

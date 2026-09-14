@@ -75,7 +75,7 @@ def _runtime_result_payload(
     goal = Pose2D(scenario.goal.x, scenario.goal.y, scenario.goal.yaw)
     task_map_id = map_id or scenario.map_id or "unspecified"
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "scenario": scenario.name,
         "status": status,
         "duration_sec": duration_sec,
@@ -89,6 +89,17 @@ def _runtime_result_payload(
             "feedback_samples": 1,
             "recoveries": 0,
         },
+        "telemetry_quality": {
+            "received_feedback_samples": 1,
+            "valid_pose_samples": 1,
+            "invalid_pose_samples": 0,
+            "final_pose_valid": True,
+        },
+        "evidence_policy": {
+            "goal_tolerance_m": scenario.goal_tolerance_m,
+            "min_feedback_samples": scenario.min_feedback_samples,
+        },
+        **({"reason_code": status.lower()} if status != "PASS" else {}),
         "task": asdict(
             build_scenario_task(
                 scenario=scenario.name,
@@ -180,6 +191,8 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert environment["ROBOTCI_MAP_ID"] == "warehouse-v1"
     assert environment["ROBOTCI_RESULT_FILE"] == str(output.resolve())
     assert environment["ROBOTCI_TIMEOUT_SEC"] == "42.5"
+    assert environment["ROBOTCI_GOAL_TOLERANCE_M"] == "0.25"
+    assert environment["ROBOTCI_MIN_FEEDBACK_SAMPLES"] == "1"
 
 
 def test_run_docker_mounts_config_and_copies_result(

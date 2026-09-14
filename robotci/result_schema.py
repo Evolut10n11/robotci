@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
-from robotci.metrics import NavigationMetrics
+from robotci.evidence import NavigationEvidencePolicy, evaluate_navigation_success
+from robotci.metrics import NavigationMetrics, NavigationTelemetryQuality
 from robotci.results import (
     RESULT_SCHEMA_VERSION,
     TASK_SCHEMA_VERSION,
@@ -17,6 +18,7 @@ from robotci.results import (
 )
 
 LEGACY_RESULT_SCHEMA_VERSION = 0
+PREVIOUS_RESULT_SCHEMA_VERSION = 1
 
 
 class ResultSchemaError(ValueError):
@@ -46,8 +48,12 @@ class ValidatedScenarioResult:
     goal: Pose2D
     navigation_result: str
     metrics: NavigationMetrics | None
+    telemetry_quality: NavigationTelemetryQuality | None
+    evidence_policy: NavigationEvidencePolicy | None
     task: ScenarioTaskIdentity | None
     provenance_complete: bool
+    evidence_complete: bool
+    reason_code: str | None
 
 
 def _as_mapping(value: object, name: str) -> dict[str, object]:
@@ -81,6 +87,18 @@ def _as_finite_float(value: object, name: str, *, non_negative: bool) -> float:
 def _as_non_negative_int(value: object, name: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ResultSchemaError(f"{name} must be a non-negative integer")
+    return value
+
+
+def _as_positive_int(value: object, name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ResultSchemaError(f"{name} must be a positive integer")
+    return value
+
+
+def _as_bool(value: object, name: str) -> bool:
+    if not isinstance(value, bool):
+        raise ResultSchemaError(f"{name} must be a boolean")
     return value
 
 
@@ -123,6 +141,52 @@ def _parse_metrics(value: object, *, allow_missing: bool) -> NavigationMetrics |
     )
 
 
+def _parse_telemetry_quality(
+    value: object,
+    *,
+    allow_missing: bool,
+) -> NavigationTelemetryQuality | None:
+    if value is None and allow_missing:
+        return None
+    quality = _as_mapping(value, "telemetry_quality")
+    return NavigationTelemetryQuality(
+        received_feedback_samples=_as_non_negative_int(
+            quality.get("received_feedback_samples"),
+            "telemetry_quality.received_feedback_samples",
+        ),
+        valid_pose_samples=_as_non_negative_int(
+            quality.get("valid_pose_samples"),
+            "telemetry_quality.valid_pose_samples",
+        ),
+        invalid_pose_samples=_as_non_negative_int(
+            quality.get("invalid_pose_samples"),
+            "telemetry_quality.invalid_pose_samples",
+        ),
+        final_pose_valid=_as_bool(
+            quality.get("final_pose_valid"),
+            "telemetry_quality.final_pose_valid",
+        ),
+    )
+
+
+def _parse_evidence_policy(value: object) -> NavigationEvidencePolicy:
+    policy = _as_mapping(value, "evidence_policy")
+    try:
+        return NavigationEvidencePolicy(
+            goal_tolerance_m=_as_finite_float(
+                policy.get("goal_tolerance_m"),
+                "evidence_policy.goal_tolerance_m",
+                non_negative=False,
+            ),
+            min_feedback_samples=_as_positive_int(
+                policy.get("min_feedback_samples"),
+                "evidence_policy.min_feedback_samples",
+            ),
+        )
+    except ValueError as exc:
+        raise ResultSchemaError(str(exc)) from exc
+
+
 def _parse_task(
     value: object,
     *,
@@ -163,17 +227,21 @@ def _result_version(result: dict[str, object]) -> int:
     version = result["schema_version"]
     if not isinstance(version, int) or isinstance(version, bool):
         raise ResultSchemaError("result.schema_version must be an integer")
-    if version not in {LEGACY_RESULT_SCHEMA_VERSION, RESULT_SCHEMA_VERSION}:
+    if version not in {
+        LEGACY_RESULT_SCHEMA_VERSION,
+        PREVIOUS_RESULT_SCHEMA_VERSION,
+        RESULT_SCHEMA_VERSION,
+    }:
         raise ResultSchemaError(
             f"unsupported result.schema_version {version}; supported versions are "
-            f"{LEGACY_RESULT_SCHEMA_VERSION} (legacy read-only) and "
-            f"{RESULT_SCHEMA_VERSION}"
+            f"{LEGACY_RESULT_SCHEMA_VERSION} and {PREVIOUS_RESULT_SCHEMA_VERSION} "
+            f"(read-only), and {RESULT_SCHEMA_VERSION}"
         )
     return version
 
 
 def validate_result_payload(payload: object) -> ValidatedScenarioResult:
-    """Validate a current result or adapt a legacy v0 result for read-only use."""
+    """Validate schema v2 or adapt v0/v1 results for read-only inspection."""
 
     result = _as_mapping(payload, "result")
     source_version = _result_version(result)
@@ -196,9 +264,19 @@ def validate_result_payload(payload: object) -> ValidatedScenarioResult:
     metrics = _parse_metrics(
         result.get("metrics"),
         allow_missing=(
-            source_version == LEGACY_RESULT_SCHEMA_VERSION
+            source_version in {
+                LEGACY_RESULT_SCHEMA_VERSION,
+                PREVIOUS_RESULT_SCHEMA_VERSION,
+            }
             or (source_version == RESULT_SCHEMA_VERSION and status != "PASS")
         ),
+    )
+
+    reason_code_value = result.get("reason_code")
+    reason_code = (
+        None
+        if reason_code_value is None
+        else _as_string(reason_code_value, "reason_code")
     )
 
     if source_version == LEGACY_RESULT_SCHEMA_VERSION:
@@ -215,8 +293,12 @@ def validate_result_payload(payload: object) -> ValidatedScenarioResult:
             goal=goal,
             navigation_result=navigation_result,
             metrics=metrics,
+            telemetry_quality=None,
+            evidence_policy=None,
             task=None,
             provenance_complete=False,
+            evidence_complete=False,
+            reason_code=reason_code,
         )
 
     task = _parse_task(
@@ -225,13 +307,58 @@ def validate_result_payload(payload: object) -> ValidatedScenarioResult:
         start=start,
         goal=goal,
     )
-    reason_code = result.get("reason_code")
-    if reason_code is not None:
-        _as_string(reason_code, "reason_code")
+    if source_version == PREVIOUS_RESULT_SCHEMA_VERSION:
+        return ValidatedScenarioResult(
+            source_schema_version=source_version,
+            scenario=scenario,
+            status=status,
+            duration_sec=duration_sec,
+            start=start,
+            goal=goal,
+            navigation_result=navigation_result,
+            metrics=metrics,
+            telemetry_quality=None,
+            evidence_policy=None,
+            task=task,
+            provenance_complete=task.map_id != "unspecified",
+            evidence_complete=False,
+            reason_code=reason_code,
+        )
+
+    evidence_policy = _parse_evidence_policy(result.get("evidence_policy"))
+    telemetry_quality = _parse_telemetry_quality(
+        result.get("telemetry_quality"),
+        allow_missing=status != "PASS",
+    )
+    if (metrics is None) != (telemetry_quality is None):
+        raise ResultSchemaError(
+            "metrics and telemetry_quality must either both be present or both be null"
+        )
+    if status != "PASS" and reason_code is None:
+        raise ResultSchemaError("a non-PASS result must include a non-empty reason_code")
     if metrics is None and reason_code is None:
         raise ResultSchemaError(
             "a result without metrics must include a non-empty reason_code"
         )
+    if navigation_result == "SUCCEEDED":
+        if metrics is None or telemetry_quality is None:
+            raise ResultSchemaError(
+                "a SUCCEEDED navigation result must include metrics and telemetry_quality"
+            )
+        decision = evaluate_navigation_success(
+            metrics=metrics,
+            telemetry_quality=telemetry_quality,
+            policy=evidence_policy,
+        )
+        if status != decision.status or reason_code != decision.reason_code:
+            expected = decision.reason_code or "sufficient_evidence"
+            raise ResultSchemaError(
+                "scenario status does not match navigation evidence: "
+                f"expected {decision.status} ({expected})"
+            )
+    elif status == "PASS":
+        raise ResultSchemaError("PASS requires navigation_result SUCCEEDED")
+
     return ValidatedScenarioResult(
         source_schema_version=source_version,
         scenario=scenario,
@@ -241,8 +368,12 @@ def validate_result_payload(payload: object) -> ValidatedScenarioResult:
         goal=goal,
         navigation_result=navigation_result,
         metrics=metrics,
+        telemetry_quality=telemetry_quality,
+        evidence_policy=evidence_policy,
         task=task,
         provenance_complete=task.map_id != "unspecified",
+        evidence_complete=True,
+        reason_code=reason_code,
     )
 
 
