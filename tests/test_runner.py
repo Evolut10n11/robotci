@@ -201,6 +201,9 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
         captured["env"] = kwargs["env"]
         return subprocess.CompletedProcess(command, 0)
 
+    monkeypatch.setenv("BASH_ENV", str(tmp_path / "startup.sh"))
+    monkeypatch.setenv("ENV", str(tmp_path / "posix-startup.sh"))
+    monkeypatch.setenv("BASH_FUNC_injected%%", "() { return 0; }")
     monkeypatch.setattr(runner.subprocess, "run", fake_run)
 
     exit_code = runner._run_native(tmp_path, scenario, output, 42.5)
@@ -222,6 +225,9 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert environment["ROBOTCI_TIMEOUT_SEC"] == "42.5"
     assert environment["ROBOTCI_GOAL_TOLERANCE_M"] == "0.25"
     assert environment["ROBOTCI_MIN_FEEDBACK_SAMPLES"] == "1"
+    assert "BASH_ENV" not in environment
+    assert "ENV" not in environment
+    assert "BASH_FUNC_injected%%" not in environment
 
 
 def test_run_docker_mounts_config_and_copies_result(

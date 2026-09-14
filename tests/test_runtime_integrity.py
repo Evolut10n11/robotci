@@ -298,6 +298,19 @@ def test_docker_still_publishes_fresh_result_and_replay(
     assert default_replay_path(_scenario_path(project, mode)).read_text() == "fresh"
 
 
+@pytest.mark.parametrize(
+    "script_name",
+    ["run_navigation_scenario.sh", "run_navigation_attempt.sh"],
+)
+def test_runtime_scripts_respect_explicit_python(script_name: str) -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / script_name
+
+    assert (
+        'if [ -z "${ROBOTCI_PYTHON:-}" ] && [ -x ".venv/bin/python" ]; then'
+        in script.read_text(encoding="utf-8")
+    )
+
+
 @pytest.mark.skipif(os.name == "nt" or shutil.which("bash") is None, reason="POSIX shell")
 @pytest.mark.parametrize("filename", [
     "result.json", "result", ".result", ".result.json", "..json", "...json",

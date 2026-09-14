@@ -34,7 +34,7 @@ GOAL_TOLERANCE_M="${ROBOTCI_GOAL_TOLERANCE_M:-0.25}"
 MIN_FEEDBACK_SAMPLES="${ROBOTCI_MIN_FEEDBACK_SAMPLES:-1}"
 
 PYTHON_BIN="${ROBOTCI_PYTHON:-python3}"
-if [ -x ".venv/bin/python" ]; then
+if [ -z "${ROBOTCI_PYTHON:-}" ] && [ -x ".venv/bin/python" ]; then
   PYTHON_BIN=".venv/bin/python"
 fi
 

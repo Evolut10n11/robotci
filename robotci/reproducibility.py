@@ -37,7 +37,6 @@ _FINGERPRINT_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _RUNTIME_VARIABLE_NAMES = frozenset(
     {
         "AMENT_PREFIX_PATH",
-        "BASH_ENV",
         "CMAKE_PREFIX_PATH",
         "COLCON_PREFIX_PATH",
         "HOME",
@@ -424,8 +423,16 @@ def build_robotci_source_fingerprint(
 ) -> str:
     """Hash the executable RobotCI Python and shell sources used by the runtime."""
 
-    package = (package_root or Path(__file__).resolve().parent).resolve()
-    runtime = (runtime_root or package.parent).resolve()
+    installed_package = (
+        package_root or Path(__file__).resolve().parent
+    ).resolve()
+    runtime = (runtime_root or installed_package.parent).resolve()
+    runtime_package = runtime / "robotci"
+    package = (
+        runtime_package.resolve()
+        if runtime_package.is_dir()
+        else installed_package
+    )
     sources = [
         (f"robotci/{path.relative_to(package).as_posix()}", path)
         for path in package.rglob("*.py")

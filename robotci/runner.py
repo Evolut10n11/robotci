@@ -144,7 +144,12 @@ def _run_native(
     timeout_sec: float,
 ) -> int:
     script = runtime_root / "scripts" / "run_navigation_scenario.sh"
-    environment = os.environ.copy()
+    environment = {
+        name: value
+        for name, value in os.environ.items()
+        if name not in {"BASH_ENV", "BASHOPTS", "ENV", "SHELLOPTS"}
+        and not name.startswith("BASH_FUNC_")
+    }
     half_yaw = scenario.start.yaw / 2.0
 
     environment.update(

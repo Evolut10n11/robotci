@@ -272,6 +272,39 @@ def test_robotci_source_fingerprint_uses_separate_runtime_root(tmp_path: Path) -
     )
 
 
+def test_robotci_source_fingerprint_prefers_runtime_package(
+    tmp_path: Path,
+) -> None:
+    installed_package = tmp_path / "site-packages" / "robotci"
+    runtime = tmp_path / "runtime"
+    runtime_package = runtime / "robotci"
+    installed_package.mkdir(parents=True)
+    runtime_package.mkdir(parents=True)
+    (runtime / "scripts").mkdir()
+    installed_source = installed_package / "runner.py"
+    runtime_source = runtime_package / "runner.py"
+    installed_source.write_text("INSTALLED = 1\n", encoding="utf-8")
+    runtime_source.write_text("RUNTIME = 1\n", encoding="utf-8")
+
+    original = build_robotci_source_fingerprint(
+        installed_package,
+        runtime_root=runtime,
+    )
+    installed_source.write_text("INSTALLED = 2\n", encoding="utf-8")
+    installed_changed = build_robotci_source_fingerprint(
+        installed_package,
+        runtime_root=runtime,
+    )
+    runtime_source.write_text("RUNTIME = 2\n", encoding="utf-8")
+    runtime_changed = build_robotci_source_fingerprint(
+        installed_package,
+        runtime_root=runtime,
+    )
+
+    assert original == installed_changed
+    assert original != runtime_changed
+
+
 def test_robotci_source_fingerprint_covers_external_attempt_script(
     tmp_path: Path,
 ) -> None:
