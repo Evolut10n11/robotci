@@ -85,6 +85,22 @@ def test_build_execution_plan_resolves_default_config_from_project_root(
     assert [scenario.name for scenario in plan.scenarios] == ["smoke", "long_route"]
 
 
+def test_build_execution_plan_uses_external_project_instead_of_package_checkout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    external_project = tmp_path / "pilot"
+    external_project.mkdir()
+    _write_config(external_project / "robotci.yaml")
+    monkeypatch.chdir(external_project)
+
+    plan = build_execution_plan()
+
+    assert plan.project_root == external_project.resolve()
+    assert plan.config_path == (external_project / "robotci.yaml").resolve()
+    assert [scenario.name for scenario in plan.scenarios] == ["smoke", "long_route"]
+
+
 @pytest.mark.parametrize("timeout_sec", [float("nan"), float("inf"), float("-inf"), 0.0, -1.0])
 def test_build_execution_plan_rejects_invalid_timeout_override(
     tmp_path: Path,

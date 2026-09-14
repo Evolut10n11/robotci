@@ -12,6 +12,7 @@ from robotci.comparison import ComparisonInputError, compare_scenario_result_fil
 from robotci.config import ConfigError, load_config
 from robotci.doctor import run_doctor_checks
 from robotci.plan import build_execution_plan
+from robotci.project import resolve_project_context
 from robotci.regression import RegressionPolicy
 from robotci.reporting import regression_report_payload, write_regression_report
 from robotci.runner import (
@@ -80,7 +81,8 @@ def validate_command(
 ) -> None:
     """Validate RobotCI YAML configuration without starting ROS."""
     try:
-        loaded = load_config(config)
+        context = resolve_project_context(config)
+        loaded = load_config(context.config_path)
     except ConfigError as exc:
         console.print(f"[red]RobotCI config error:[/red] {exc}")
         raise typer.Exit(code=3) from exc
@@ -96,7 +98,7 @@ def validate_command(
         goal = f"({scenario.goal.x}, {scenario.goal.y}, {scenario.goal.yaw})"
         table.add_row(scenario.name, start, goal, f"{scenario.timeout_sec:g}s")
 
-    console.print(f"Config: {Path(config)}", soft_wrap=True)
+    console.print(f"Config: {context.config_path}", soft_wrap=True)
     console.print(f"Runtime: [cyan]{loaded.runtime}[/cyan]")
     console.print(table)
     console.print("[green]Configuration valid[/green]")
@@ -175,7 +177,7 @@ def plan_command(
         goal = f"({planned.goal.x}, {planned.goal.y}, {planned.goal.yaw})"
         table.add_row(planned.name, start, goal, f"{planned.timeout_sec:g}s")
 
-    console.print(f"Config: {Path(config)}", soft_wrap=True)
+    console.print(f"Config: {plan.config_path}", soft_wrap=True)
     console.print(f"Runtime request: [cyan]{plan.runtime}[/cyan]")
     console.print(table)
     console.print("[green]Plan resolved; no runtime started[/green]")

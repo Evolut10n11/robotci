@@ -170,6 +170,12 @@ robotci validate
 robotci validate --config path/to/robotci.yaml
 ```
 
+`validate`, `plan`, and `run` resolve the same project context. With the default
+configuration name, RobotCI searches the current directory and its parents for
+`robotci.yaml`. An explicit config path anchors the default `.robotci` outputs to
+that config's directory, while RobotCI's own runtime scripts remain installation
+resources.
+
 Validation rejects malformed YAML, unsupported config versions, duplicate or unsafe scenario names, invalid coordinates, invalid runtimes, and non-positive timeouts before any robotics runtime starts.
 
 ## Running scenarios

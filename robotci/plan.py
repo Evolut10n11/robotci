@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from robotci.config import ConfigError, PoseConfig, RuntimeName, get_scenario, load_config
-from robotci.runner import _find_project_root, _resolve_config_path
+from robotci.project import resolve_project_context
 
 
 @dataclass(frozen=True)
@@ -36,6 +36,8 @@ class PlannedScenario:
 class ExecutionPlan:
     runtime: RuntimeName
     scenarios: tuple[PlannedScenario, ...]
+    project_root: Path
+    config_path: Path
 
     def as_dict(self) -> dict[str, object]:
         return {
@@ -58,9 +60,8 @@ def build_execution_plan(
     ):
         raise ConfigError("timeout must be a finite number greater than zero")
 
-    root = _find_project_root(project_root)
-    resolved_config = _resolve_config_path(root, config_path)
-    config = load_config(resolved_config)
+    context = resolve_project_context(config_path, project_root=project_root)
+    config = load_config(context.config_path)
     definitions = (
         (get_scenario(config, scenario),)
         if scenario is not None
@@ -80,4 +81,9 @@ def build_execution_plan(
         for definition in definitions
     )
 
-    return ExecutionPlan(runtime=selected_runtime, scenarios=planned)
+    return ExecutionPlan(
+        runtime=selected_runtime,
+        scenarios=planned,
+        project_root=context.project_root,
+        config_path=context.config_path,
+    )
