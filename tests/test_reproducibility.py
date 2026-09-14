@@ -162,6 +162,22 @@ def test_container_environment_normalizes_runtime_to_docker() -> None:
     assert execution.runtime_contract == RUNTIME_CONTRACT
 
 
+def test_execution_parser_rejects_noncanonical_container_runtime() -> None:
+    execution = build_suite_execution_identity(
+        runtime="native",
+        plan_fingerprint=build_suite_plan_fingerprint(_config(), timeout_sec=None),
+        environment=_environment(containerized=True),
+    )
+    payload = asdict(execution)
+    payload["runtime"] = "native"
+
+    with pytest.raises(
+        ReproducibilityError,
+        match="runtime is inconsistent with its environment",
+    ):
+        parse_suite_execution(payload)
+
+
 def test_capture_suite_execution_reads_environment_from_docker(
     tmp_path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:

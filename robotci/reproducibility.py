@@ -950,6 +950,10 @@ def parse_suite_execution(
         ),
         environment=environment,
     )
+    if runtime != execution.runtime:
+        raise ReproducibilityError(
+            f"{name}.runtime is inconsistent with its environment"
+        )
     supplied = _fingerprint_text(payload.get("fingerprint"), f"{name}.fingerprint")
     if supplied != execution.fingerprint:
         raise ReproducibilityError(f"{name}.fingerprint does not match its contents")
