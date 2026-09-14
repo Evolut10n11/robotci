@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 import sys
-from importlib.metadata import PackageNotFoundError, distribution
 import tempfile
 import time
+from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 from typing import NoReturn
 
