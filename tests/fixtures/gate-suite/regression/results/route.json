@@ -6,7 +6,7 @@
     "yaw": 0.0
   },
   "metrics": {
-    "distance_to_goal_m": 0.1,
+    "distance_to_goal_m": 0.21,
     "feedback_samples": 20,
     "path_length_m": 6.2,
     "recoveries": 1,

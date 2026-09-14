@@ -17,6 +17,7 @@ def _write_result(
     scenario: str,
     duration_sec: float = 10.0,
     path_length_m: float = 5.0,
+    distance_to_goal_m: float = 0.1,
     goal_x: float = 1.0,
     map_id: str = "nav2-loopback",
 ) -> None:
@@ -43,7 +44,7 @@ def _write_result(
                 ),
                 "metrics": {
                     "path_length_m": path_length_m,
-                    "distance_to_goal_m": 0.1,
+                    "distance_to_goal_m": distance_to_goal_m,
                     "stuck_events": 0,
                     "feedback_samples": 10,
                     "recoveries": 0,
@@ -119,6 +120,43 @@ def test_suite_comparison_regresses_when_any_scenario_regresses(tmp_path: Path) 
     assert report.status == "REGRESSION"
     assert report.scenarios[0].report.status == "PASS"
     assert report.scenarios[1].report.status == "REGRESSION"
+
+
+def test_suite_comparison_flags_distance_degradation(tmp_path: Path) -> None:
+    baseline = _make_suite(tmp_path / "baseline", {"a": (10.0, 5.0)})
+    candidate = _make_suite(tmp_path / "candidate", {"a": (10.0, 5.0)})
+    _write_result(
+        candidate.parent / "results" / "a.json",
+        scenario="a",
+        distance_to_goal_m=0.21,
+    )
+
+    report = compare_suite_result_files(
+        baseline_path=baseline,
+        candidate_path=candidate,
+    )
+
+    assert report.status == "REGRESSION"
+    assert [finding.metric for finding in report.scenarios[0].report.findings] == [
+        "distance_to_goal_m"
+    ]
+
+
+def test_suite_comparison_rejects_result_path_traversal(tmp_path: Path) -> None:
+    baseline = _make_suite(tmp_path / "baseline", {"a": (10.0, 5.0)})
+    candidate = _make_suite(tmp_path / "candidate", {"a": (10.0, 5.0)})
+    outside_result = tmp_path / "outside.json"
+    _write_result(outside_result, scenario="a")
+
+    payload = json.loads(candidate.read_text(encoding="utf-8"))
+    payload["scenarios"][0]["result_file"] = "../outside.json"
+    candidate.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ComparisonInputError, match="unsafe result_file path"):
+        compare_suite_result_files(
+            baseline_path=baseline,
+            candidate_path=candidate,
+        )
 
 
 def test_suite_comparison_requires_matching_scenario_sets(tmp_path: Path) -> None:

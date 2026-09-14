@@ -4,7 +4,7 @@ Local-first regression testing for ROS2 / Nav2.
 
 RobotCI is an open-source developer tool for running repeatable navigation scenarios in simulation, producing machine-readable results, and eventually comparing candidate robot behavior against a known-good baseline before changes reach a physical robot.
 
-> Status: early alpha. M0–M3 are complete. The runtime now emits deterministic navigation telemetry with evidence-quality checks; M4 regression workflows are the next milestone.
+> Status: early alpha. M0–M4 are complete. RobotCI now captures evidence-qualified navigation telemetry and deterministically gates candidate behavior against known-good baselines.
 
 ## Why RobotCI
 
@@ -29,7 +29,7 @@ code / config change
         ↓
  PASS / FAIL / TIMEOUT / INFRA_ERROR
         ↓
- later: baseline comparison → REGRESSION
+ baseline comparison → PASS / REGRESSION
 ```
 
 ## Current stack
@@ -310,6 +310,23 @@ feedback pose was valid. A Nav2 `SUCCEEDED` outcome becomes `PASS` only when the
 configured minimum feedback is present, no pose sample is invalid, the final pose
 is valid, and `distance_to_goal_m` is at or below `goal_tolerance_m`. Missing or
 invalid evidence is `INFRA_ERROR`; a measured goal-tolerance violation is `FAIL`.
+
+## Regression contract
+
+M4 compares only current, evidence-complete `PASS` results for the same scenario,
+start, goal, coordinate frame, map, and evidence policy. A mismatch is an input
+error rather than a behavioral verdict. The default deterministic policy flags:
+
+- duration increases above 10%;
+- path-length increases above 10%;
+- final distance-to-goal increases above 0.1 m;
+- any additional stuck event;
+- any additional recovery.
+
+Distance uses an absolute meter delta because percentage changes become unstable
+near a zero-distance baseline. Threshold equality is inclusive, while any excess
+produces `REGRESSION` and exit code `4`. Suite paths are confined to their own
+artifact directory before referenced scenario results are loaded.
 
 ## Verdicts and exit codes
 
@@ -614,8 +631,8 @@ robotci.yaml + validation + config-driven start/goal/timeout/runtime
 M3 — Metrics ✅
 duration + path length + distance-to-goal + stuck detection + recoveries
 
-M4 — Regression
-baseline + candidate comparison + REGRESSION verdict
+M4 — Regression ✅
+baseline + candidate comparison + deterministic REGRESSION verdict
 
 M5 — Reproducibility
 repeatable clean-environment execution

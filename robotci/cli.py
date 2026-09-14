@@ -254,6 +254,14 @@ def compare_command(
             help="Maximum allowed path-length increase in percent.",
         ),
     ] = 10.0,
+    max_distance_to_goal_increase_m: Annotated[
+        float,
+        typer.Option(
+            "--max-distance-to-goal-increase-m",
+            min=0.0,
+            help="Maximum allowed increase in final distance to goal, in meters.",
+        ),
+    ] = 0.1,
     max_stuck_events_increase: Annotated[
         int,
         typer.Option(
@@ -276,6 +284,7 @@ def compare_command(
         policy = RegressionPolicy(
             max_duration_increase_pct=max_duration_increase_pct,
             max_path_length_increase_pct=max_path_length_increase_pct,
+            max_distance_to_goal_increase_m=max_distance_to_goal_increase_m,
             max_stuck_events_increase=max_stuck_events_increase,
             max_recoveries_increase=max_recoveries_increase,
         )
@@ -323,7 +332,7 @@ def compare_command(
             table.add_column("Allowed", justify="right")
 
             for finding in report.findings:
-                suffix = "%" if finding.unit == "percent" else ""
+                suffix = {"percent": "%", "m": "m", "count": ""}[finding.unit]
                 table.add_row(
                     finding.metric,
                     f"{finding.baseline:g}",
