@@ -28,7 +28,7 @@ def _passing_checks() -> list[CheckResult]:
     return [
         CheckResult("platform", True, "platform ready"),
         CheckResult("docker", True, "docker daemon is available", blocking=False),
-        CheckResult("runtime", True, "auto runtime will use Docker"),
+        CheckResult("runtime", True, "auto runtime will use Docker", value="docker"),
     ]
 
 
@@ -36,6 +36,7 @@ def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monk
     config = tmp_path / "secret-project" / "robotci.yaml"
     config.parent.mkdir()
     _write_config(config)
+    monkeypatch.delenv("ROBOTCI_ATTEMPT_SCRIPT", raising=False)
     monkeypatch.setattr("robotci.support_bundle.run_doctor_checks", lambda **_: _passing_checks())
 
     bundle = build_support_bundle(config_path=config)
@@ -49,6 +50,7 @@ def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monk
         "error_code": None,
         "error": None,
     }
+    assert bundle["doctor"]["runtime"]["adapter_override"] is False
     assert "confidential_route" not in payload
     assert "secret-project" not in payload
     assert bundle["privacy"] == {
@@ -57,6 +59,22 @@ def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monk
         "includes_environment_variables": False,
         "includes_credentials": False,
     }
+
+
+def test_bundle_reports_adapter_override_without_leaking_path(tmp_path: Path, monkeypatch) -> None:
+    config = tmp_path / "robotci.yaml"
+    _write_config(config)
+    adapter_path = "/private-company-repo/scripts/robotci_adapter.sh"
+    monkeypatch.setenv("ROBOTCI_ATTEMPT_SCRIPT", adapter_path)
+    monkeypatch.setattr("robotci.support_bundle.run_doctor_checks", lambda **_: _passing_checks())
+
+    bundle = build_support_bundle(config_path=config)
+    payload = json.dumps(bundle)
+
+    assert bundle["doctor"]["runtime"]["adapter_override"] is True
+    assert adapter_path not in payload
+    assert "private-company-repo" not in payload
+    assert "robotci_adapter.sh" not in payload
 
 
 def test_bundle_redacts_ros_package_prefixes(tmp_path: Path, monkeypatch) -> None:
