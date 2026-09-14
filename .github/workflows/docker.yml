@@ -90,6 +90,21 @@ jobs:
                   raise SystemExit(f"{name} did not produce metrics: {result}")
               if not isinstance(quality, dict) or not isinstance(policy, dict):
                   raise SystemExit(f"{name} did not produce evidence metadata: {result}")
+              duration_sec = result.get("duration_sec")
+              if type(duration_sec) not in {int, float} or duration_sec <= 0:
+                  raise SystemExit(f"{name} did not record duration: {duration_sec}")
+              required_metrics = {
+                  "path_length_m",
+                  "distance_to_goal_m",
+                  "stuck_events",
+                  "feedback_samples",
+                  "recoveries",
+              }
+              missing_metrics = required_metrics.difference(metrics)
+              if missing_metrics:
+                  raise SystemExit(
+                      f"{name} is missing metrics: {sorted(missing_metrics)}"
+                  )
               if metrics.get("path_length_m", 0) <= 0:
                   raise SystemExit(f"{name} path length was not recorded: {metrics}")
               minimum = policy.get("min_feedback_samples", 1)
