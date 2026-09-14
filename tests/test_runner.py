@@ -223,6 +223,8 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     monkeypatch.setenv("ROS_ETC_DIR", "/opt/ros/humble/etc/ros")
     monkeypatch.setenv("ROS_PYTHON_VERSION", "2")
     monkeypatch.setenv("ROS_VERSION", "2")
+    monkeypatch.setenv("RCL_ASSERT_RMW_ID_MATCHES", "rmw_fastrtps_cpp")
+    monkeypatch.setenv("UNTRACKED_ROS_CONTROL", "unsafe")
     monkeypatch.setenv("BASH_FUNC_injected%%", "() { return 0; }")
     monkeypatch.setattr(
         runner,
@@ -274,6 +276,8 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert "ROS_ETC_DIR" not in environment
     assert "ROS_PYTHON_VERSION" not in environment
     assert "ROS_VERSION" not in environment
+    assert environment["RCL_ASSERT_RMW_ID_MATCHES"] == "rmw_fastrtps_cpp"
+    assert "UNTRACKED_ROS_CONTROL" not in environment
     assert "BASH_FUNC_injected%%" not in environment
 
 
