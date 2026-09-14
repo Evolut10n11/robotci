@@ -41,10 +41,13 @@ library, ROS overlay, setup identity, and Python search paths, and sets a
 package-managed system `PATH` without mutable local directories, a fixed hash
 seed, UTF-8, no user site, and a fresh private bytecode-cache prefix. Before
 application modules load, every checked-in suite workflow enters through the
-public CLI, which relaunches itself with a sanitized Python environment and `-S -B -P`. POSIX uses process replacement so signals
-and ROS cleanup semantics are preserved; system/user site hooks, inherited Python
-controls, checkout-local generated caches, and the current working directory
-cannot affect orchestration. Both runtime Python layers also use `-S -B -P`,
+public CLI, which relaunches itself with a sanitized Python environment and `-S -B -P`. A stdlib-only launcher loads the exact
+fingerprinted RobotCI package path without exporting its checkout parent, then
+appends audited distribution roots after the standard library. POSIX uses
+process replacement so signals and ROS cleanup semantics are preserved;
+system/user site hooks, inherited Python controls, sibling checkout modules,
+checkout-local generated caches, and the current working directory cannot
+affect orchestration. Both runtime Python layers also use `-S -B -P`,
 so site/`.pth` startup hooks do not run and the suite cannot mutate or execute
 local `__pycache__` files. Explicit dependency paths and the required
 `/opt/ros/jazzy/setup.bash` rebuild the import environment. The attempt sources the packaged ROS Jazzy

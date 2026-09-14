@@ -12,10 +12,32 @@ from typing import NoReturn
 _LOADER_INJECTION_VARIABLES = ("LD_AUDIT", "LD_PRELOAD")
 _REPLACE_PROCESS = os.name != "nt"
 _PYTHON_DISTRIBUTIONS = ("robotci", "PyYAML", "rich", "typer")
+_ISOLATED_LAUNCHER = """
+import importlib.util
+import os
+import runpy
+import sys
+
+package = os.environ.pop("ROBOTCI_BOOTSTRAP_PACKAGE")
+python_path = os.environ.pop("ROBOTCI_BOOTSTRAP_PYTHONPATH")
+sys.path.extend(path for path in python_path.split(os.pathsep) if path)
+spec = importlib.util.spec_from_file_location(
+    "robotci",
+    os.path.join(package, "__init__.py"),
+    submodule_search_locations=[package],
+)
+if spec is None or spec.loader is None:
+    raise RuntimeError("RobotCI package cannot be loaded")
+module = importlib.util.module_from_spec(spec)
+sys.modules["robotci"] = module
+spec.loader.exec_module(module)
+sys.argv[0] = "robotci"
+runpy.run_module("robotci.entrypoint", run_name="__main__")
+"""
 
 
 def _controlled_python_path() -> str:
-    roots = [str(Path(__file__).resolve().parent.parent)]
+    roots: list[str] = []
     for name in _PYTHON_DISTRIBUTIONS:
         try:
             package = distribution(name)
@@ -46,8 +68,9 @@ def _isolated_environment() -> dict[str, str]:
         {
             "PYTHONHASHSEED": "0",
             "PYTHONNOUSERSITE": "1",
-            "PYTHONPATH": python_path,
             "PYTHONPYCACHEPREFIX": str(cache_prefix),
+            "ROBOTCI_BOOTSTRAP_PACKAGE": str(Path(__file__).resolve().parent),
+            "ROBOTCI_BOOTSTRAP_PYTHONPATH": python_path,
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONUTF8": "1",
         }
@@ -76,8 +99,8 @@ def main() -> NoReturn:
             "-S",
             "-B",
             "-P",
-            "-m",
-            "robotci.entrypoint",
+            "-c",
+            _ISOLATED_LAUNCHER,
             *sys.argv[1:],
         ]
         if _REPLACE_PROCESS:

@@ -69,18 +69,19 @@ def test_entrypoint_relaunches_with_isolated_python(
         "-S",
         "-B",
         "-P",
-        "-m",
-        "robotci.entrypoint",
+        "-c",
+        bootstrap._ISOLATED_LAUNCHER,
         "run",
         "--runtime",
         "native",
     ]
     environment = captured["environment"]
     assert isinstance(environment, dict)
-    expected_root = str(Path(bootstrap.__file__).resolve().parent.parent)
-    assert environment["PYTHONPATH"] == os.pathsep.join(
+    expected_package = str(Path(bootstrap.__file__).resolve().parent)
+    assert "PYTHONPATH" not in environment
+    assert environment["ROBOTCI_BOOTSTRAP_PACKAGE"] == expected_package
+    assert environment["ROBOTCI_BOOTSTRAP_PYTHONPATH"] == os.pathsep.join(
         (
-            expected_root,
             str(Path("/trusted/site").resolve()),
             str(Path("/trusted/system").resolve()),
         )
@@ -92,7 +93,7 @@ def test_entrypoint_relaunches_with_isolated_python(
     assert environment["PYTHONPYCACHEPREFIX"].endswith(
         "robotci-pycache-123-456"
     )
-    assert "/untrusted" not in environment["PYTHONPATH"]
+    assert "/untrusted" not in environment["ROBOTCI_BOOTSTRAP_PYTHONPATH"]
     assert "PYTHONHOME" not in environment
     assert "PYTHONWARNINGS" not in environment
 
@@ -137,8 +138,8 @@ def test_entrypoint_replaces_process_on_posix(
             "-S",
             "-B",
             "-P",
-            "-m",
-            "robotci.entrypoint",
+            "-c",
+            bootstrap._ISOLATED_LAUNCHER,
             "run",
         ],
         "environment": environment,
