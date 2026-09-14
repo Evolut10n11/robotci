@@ -13,9 +13,10 @@ an `execution` object with:
   timeouts, and evidence policies;
 - the actual Ubuntu, architecture, Python, ROS distribution, container
   isolation, Python-package versions, and the installed transitive dependency
-  closure of the ROS/Nav2 Debian packages;
-- a safe whitelist of inherited ROS/RMW behavior, middleware, locale, and
-  runtime-wrapper variables, stored only as value SHA-256 digests;
+  closure of ROS/Nav2, the selected RMW implementation, and package-managed
+  shell/runtime tools;
+- a safe whitelist of inherited ROS/RMW behavior, RCUTILS logging, middleware,
+  locale, and runtime-wrapper variables, stored only as value SHA-256 digests;
 - content digests for file-backed middleware configuration;
 - a source digest of the executable RobotCI Python and runtime shell files;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.

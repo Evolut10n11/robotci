@@ -28,6 +28,10 @@ PackageManager = Literal["python", "deb"]
 
 _PYTHON_DISTRIBUTIONS = ("robotci", "PyYAML", "rich", "typer")
 _DEBIAN_PACKAGES = (
+    "bash",
+    "coreutils",
+    "grep",
+    "util-linux",
     "ros-jazzy-ros-base",
     "ros-jazzy-navigation2",
     "ros-jazzy-nav2-bringup",
@@ -36,6 +40,7 @@ _DEBIAN_PACKAGES = (
     "ros-jazzy-nav2-minimal-tb4-description",
 )
 _FINGERPRINT_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+_RMW_IMPLEMENTATION_RE = re.compile(r"^[a-z0-9_]+$")
 _RUNTIME_VARIABLE_NAMES = frozenset(
     {
         "HOME",
@@ -52,6 +57,7 @@ _RUNTIME_VARIABLE_PREFIXES = (
     "FASTDDS_",
     "FASTRTPS_",
     "LC_",
+    "RCUTILS_",
     "RMW_",
     "ROS_",
     "ZENOH_",
@@ -439,9 +445,18 @@ def _installed_debian_packages() -> tuple[RuntimePackage, ...]:
                     set(),
                 ).add(package)
 
+    roots = list(_DEBIAN_PACKAGES)
+    selected_rmw = os.environ.get("RMW_IMPLEMENTATION", "").strip()
+    if selected_rmw:
+        if not _RMW_IMPLEMENTATION_RE.fullmatch(selected_rmw):
+            raise ReproducibilityError(
+                "RMW_IMPLEMENTATION cannot be mapped to a Jazzy Debian package"
+            )
+        roots.append(f"ros-jazzy-{selected_rmw.replace('_', '-')}")
+
     pending: list[str] = []
     missing = []
-    for root in _DEBIAN_PACKAGES:
+    for root in dict.fromkeys(roots):
         matches = aliases.get(root, set())
         if not matches:
             missing.append(root)

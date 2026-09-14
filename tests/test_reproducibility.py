@@ -263,6 +263,7 @@ def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
     configuration.write_text("<CycloneDDS/>\n", encoding="utf-8")
     monkeypatch.setenv("CYCLONEDDS_URI", str(configuration))
     monkeypatch.setenv("ROS_API_TOKEN", "super-secret")
+    monkeypatch.setenv("RCUTILS_CONSOLE_OUTPUT_FORMAT", "{message}")
 
     first = {item.name: item.value for item in _runtime_variables(tmp_path)}
     serialized = json.dumps(first)
@@ -271,6 +272,8 @@ def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
     assert str(configuration) not in serialized
     assert first["ROS_API_TOKEN"].startswith("sha256:")
     assert len(first["ROS_API_TOKEN"]) == 71
+    assert first["RCUTILS_CONSOLE_OUTPUT_FORMAT"].startswith("sha256:")
+    assert "{message}" not in serialized
 
     configuration.write_text("<CycloneDDS><Domain/></CycloneDDS>\n", encoding="utf-8")
     changed = {item.name: item.value for item in _runtime_variables(tmp_path)}
@@ -311,6 +314,7 @@ def test_duplicate_runtime_packages_are_rejected() -> None:
 def test_debian_package_inventory_covers_installed_dependency_closure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.delenv("RMW_IMPLEMENTATION", raising=False)
     monkeypatch.setattr(
         "robotci.reproducibility._DEBIAN_PACKAGES",
         ("ros-jazzy-navigation2",),
@@ -342,6 +346,32 @@ def test_debian_package_inventory_covers_installed_dependency_closure(
         ("rmw-fastrtps-cpp", "3.0"),
         ("ros-jazzy-navigation2", "1.0"),
         ("ros-jazzy-rclpy", "2.0"),
+    ]
+
+
+def test_debian_package_inventory_includes_selected_rmw(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "robotci.reproducibility._DEBIAN_PACKAGES",
+        ("bash",),
+    )
+    monkeypatch.setenv("RMW_IMPLEMENTATION", "rmw_cyclonedds_cpp")
+    output = (
+        "ii \tbash\t5.2\t\t\t\n"
+        "ii \tros-jazzy-rmw-cyclonedds-cpp\t2.2\t\t\t\n"
+    )
+
+    def fake_run(command, **kwargs):
+        return subprocess.CompletedProcess(command, 0, stdout=output, stderr="")
+
+    monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
+
+    packages = _installed_debian_packages()
+
+    assert [(package.name, package.version) for package in packages] == [
+        ("bash", "5.2"),
+        ("ros-jazzy-rmw-cyclonedds-cpp", "2.2"),
     ]
 
 
