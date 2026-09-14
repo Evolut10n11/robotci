@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from robotci.config import ConfigError, get_scenario, load_config
+from robotci.config import ConfigError, PoseConfig, get_scenario, load_config
 
 
 def test_load_config_reads_valid_robotci_yaml(tmp_path: Path) -> None:
@@ -343,3 +343,24 @@ def test_load_config_rejects_duplicate_yaml_keys(tmp_path: Path, document: str) 
 
     with pytest.raises(ConfigError, match="duplicate key"):
         load_config(config_path)
+
+
+def test_load_config_preserves_yaml_merge_overrides(tmp_path: Path) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        """
+version: 1
+scenarios:
+  - name: route
+    start: &origin {x: 0, y: 0, yaw: 0}
+    goal:
+      <<: *origin
+      x: 1
+""".strip(),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert config.scenarios[0].start == PoseConfig(x=0.0, y=0.0, yaw=0.0)
+    assert config.scenarios[0].goal == PoseConfig(x=1.0, y=0.0, yaw=0.0)

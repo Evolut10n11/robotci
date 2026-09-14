@@ -25,12 +25,13 @@ def _construct_unique_mapping(
     node: yaml.MappingNode,
     deep: bool = False,
 ) -> dict[object, object]:
-    loader.flatten_mapping(node)
-    mapping: dict[object, object] = {}
-    for key_node, value_node in node.value:
-        key = loader.construct_object(key_node, deep=deep)
+    seen: dict[object, yaml.Node] = {}
+    merge_key = object()
+    for key_node, _value_node in node.value:
+        is_merge = key_node.tag == "tag:yaml.org,2002:merge"
+        key = merge_key if is_merge else loader.construct_object(key_node, deep=False)
         try:
-            duplicate = key in mapping
+            duplicate = key in seen
         except TypeError as exc:
             raise yaml.constructor.ConstructorError(
                 "while constructing a mapping",
@@ -39,14 +40,21 @@ def _construct_unique_mapping(
                 key_node.start_mark,
             ) from exc
         if duplicate:
+            display_key = "<<" if is_merge else repr(key)
             raise yaml.constructor.ConstructorError(
                 "while constructing a mapping",
                 node.start_mark,
-                f"found duplicate key {key!r}",
+                f"found duplicate key {display_key}",
                 key_node.start_mark,
             )
-        mapping[key] = loader.construct_object(value_node, deep=deep)
-    return mapping
+        seen[key] = key_node
+
+    loader.flatten_mapping(node)
+    return yaml.constructor.SafeConstructor.construct_mapping(
+        loader,
+        node,
+        deep=deep,
+    )
 
 
 _UniqueKeyLoader.add_constructor(
