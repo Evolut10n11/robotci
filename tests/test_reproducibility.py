@@ -261,7 +261,13 @@ def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
 ) -> None:
     configuration = tmp_path / "cyclonedds.xml"
     configuration.write_text("<CycloneDDS/>\n", encoding="utf-8")
+    keystore = tmp_path / "keystore"
+    enclave = keystore / "enclaves" / "robotci"
+    enclave.mkdir(parents=True)
+    certificate = enclave / "cert.pem"
+    certificate.write_text("certificate-v1\n", encoding="utf-8")
     monkeypatch.setenv("CYCLONEDDS_URI", str(configuration))
+    monkeypatch.setenv("ROS_SECURITY_KEYSTORE", str(keystore))
     monkeypatch.setenv("ROS_API_TOKEN", "super-secret")
     monkeypatch.setenv("RCUTILS_CONSOLE_OUTPUT_FORMAT", "{message}")
 
@@ -270,16 +276,19 @@ def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
 
     assert "super-secret" not in serialized
     assert str(configuration) not in serialized
+    assert str(keystore) not in serialized
     assert first["ROS_API_TOKEN"].startswith("sha256:")
     assert len(first["ROS_API_TOKEN"]) == 71
     assert first["RCUTILS_CONSOLE_OUTPUT_FORMAT"].startswith("sha256:")
     assert "{message}" not in serialized
 
     configuration.write_text("<CycloneDDS><Domain/></CycloneDDS>\n", encoding="utf-8")
+    certificate.write_text("certificate-v2\n", encoding="utf-8")
     changed = {item.name: item.value for item in _runtime_variables(tmp_path)}
 
     assert first["ROS_API_TOKEN"] == changed["ROS_API_TOKEN"]
     assert first["CYCLONEDDS_URI"] != changed["CYCLONEDDS_URI"]
+    assert first["ROS_SECURITY_KEYSTORE"] != changed["ROS_SECURITY_KEYSTORE"]
 
 
 def test_runtime_variables_reject_remote_configuration(

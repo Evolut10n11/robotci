@@ -4,6 +4,7 @@ import json
 import os
 import platform
 import re
+import stat
 import subprocess
 import sys
 from collections.abc import Mapping, Sequence
@@ -81,6 +82,7 @@ _FILE_BACKED_RUNTIME_VARIABLES = frozenset(
     }
 )
 _FILE_BACKED_RUNTIME_SUFFIXES = ("_FILE", "_URI")
+_DIRECTORY_BACKED_RUNTIME_VARIABLES = frozenset({"ROS_SECURITY_KEYSTORE"})
 
 
 
@@ -609,15 +611,18 @@ def _runtime_configuration_path(
     value: str,
     runtime_root: Path,
 ) -> Path | None:
+    directory_backed = name in _DIRECTORY_BACKED_RUNTIME_VARIABLES
     file_backed = name in _FILE_BACKED_RUNTIME_VARIABLES or (
         name.startswith(_RUNTIME_VARIABLE_PREFIXES)
         and name.endswith(_FILE_BACKED_RUNTIME_SUFFIXES)
     )
-    if not file_backed:
+    if not file_backed and not directory_backed:
         return None
 
     stripped = value.strip()
-    if not stripped or stripped.startswith(("<", "{", "[")):
+    if not stripped:
+        return None
+    if file_backed and stripped.startswith(("<", "{", "[")):
         return None
 
     direct_path = Path(stripped)
@@ -640,11 +645,87 @@ def _runtime_configuration_path(
         raise ReproducibilityError(
             f"cannot resolve file-backed runtime variable {name}: {exc}"
         ) from exc
-    if not resolved.is_file():
+    expected_type = "directory" if directory_backed else "regular file"
+    if directory_backed and not resolved.is_dir():
+        raise ReproducibilityError(
+            f"directory-backed runtime variable {name} must reference a directory"
+        )
+    if file_backed and not resolved.is_file():
         raise ReproducibilityError(
             f"file-backed runtime variable {name} must reference a regular file"
         )
+    if not resolved.exists():
+        raise ReproducibilityError(
+            f"runtime variable {name} must reference an existing {expected_type}"
+        )
     return resolved
+
+
+def _runtime_configuration_fingerprint(path: Path, name: str) -> str:
+    def mode(item: Path) -> int:
+        try:
+            return stat.S_IMODE(item.stat().st_mode)
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot inspect path-backed runtime variable {name}: {exc}"
+            ) from exc
+
+    if path.is_file():
+        try:
+            digest = sha256(path.read_bytes()).hexdigest()
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot read path-backed runtime variable {name}: {exc}"
+            ) from exc
+        return _fingerprint(
+            {
+                "type": "file",
+                "mode": mode(path),
+                "sha256": digest,
+            }
+        )
+
+    entries: list[dict[str, object]] = []
+    try:
+        children = sorted(path.rglob("*"), key=lambda item: item.relative_to(path).as_posix())
+    except OSError as exc:
+        raise ReproducibilityError(
+            f"cannot walk directory-backed runtime variable {name}: {exc}"
+        ) from exc
+    for child in children:
+        relative = child.relative_to(path).as_posix()
+        if child.is_symlink():
+            raise ReproducibilityError(
+                f"directory-backed runtime variable {name} contains a symlink"
+            )
+        if child.is_dir():
+            entries.append({"path": relative, "type": "directory", "mode": mode(child)})
+            continue
+        if not child.is_file():
+            raise ReproducibilityError(
+                f"directory-backed runtime variable {name} contains a special file"
+            )
+        try:
+            digest = sha256(child.read_bytes()).hexdigest()
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot read directory-backed runtime variable {name}: {exc}"
+            ) from exc
+        entries.append(
+            {
+                "path": relative,
+                "type": "file",
+                "mode": mode(child),
+                "sha256": digest,
+            }
+        )
+    return _fingerprint(
+        {
+            "type": "directory",
+            "mode": mode(path),
+            "entries": entries,
+        }
+    )
 
 
 def _runtime_variable_value_fingerprint(
@@ -655,12 +736,10 @@ def _runtime_variable_value_fingerprint(
     definition: dict[str, object] = {"value": value}
     configuration = _runtime_configuration_path(name, value, runtime_root)
     if configuration is not None:
-        try:
-            definition["file_sha256"] = sha256(configuration.read_bytes()).hexdigest()
-        except OSError as exc:
-            raise ReproducibilityError(
-                f"cannot read file-backed runtime variable {name}: {exc}"
-            ) from exc
+        definition["configuration_fingerprint"] = _runtime_configuration_fingerprint(
+            configuration,
+            name,
+        )
     return _fingerprint(definition)
 
 
