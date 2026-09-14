@@ -69,8 +69,11 @@ The JSON bundle is schema-versioned and contains only compact setup information:
 - RobotCI version;
 - operating-system family and Python version;
 - the same runtime-readiness checks used by `robotci doctor`, with ROS package installation paths redacted;
+- `doctor.runtime.adapter_override`, a boolean indicating whether an external native runtime adapter override is active;
 - config validity, selected runtime, scenario count, and a safe config failure code;
 - an overall PASS/FAIL verdict.
+
+`doctor.runtime.adapter_override` is intentionally only `true` or `false`. RobotCI never includes the value of `ROBOTCI_ATTEMPT_SCRIPT` or the adapter's filesystem path in the support bundle.
 
 When config validation fails, `config.error_code` is one of:
 
@@ -85,6 +88,7 @@ A valid config reports `error_code: null`. These codes are intended for CI/suppo
 The bundle does not include:
 
 - repository or project paths;
+- the external adapter script path or any environment-variable value;
 - ROS package installation prefixes or other local runtime filesystem locations emitted by package discovery;
 - scenario names, poses, routes, or maps;
 - source code or configuration contents;
