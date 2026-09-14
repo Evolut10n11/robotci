@@ -662,67 +662,86 @@ def _runtime_configuration_path(
 
 
 def _runtime_configuration_fingerprint(path: Path, name: str) -> str:
-    def mode(item: Path) -> int:
+    def inspect(item: Path, *, follow_symlinks: bool = True) -> os.stat_result:
         try:
-            return stat.S_IMODE(item.stat().st_mode)
+            return item.stat() if follow_symlinks else item.lstat()
         except OSError as exc:
             raise ReproducibilityError(
                 f"cannot inspect path-backed runtime variable {name}: {exc}"
             ) from exc
 
-    if path.is_file():
+    def digest(item: Path) -> str:
         try:
-            digest = sha256(path.read_bytes()).hexdigest()
+            return sha256(item.read_bytes()).hexdigest()
         except OSError as exc:
             raise ReproducibilityError(
                 f"cannot read path-backed runtime variable {name}: {exc}"
             ) from exc
+
+    root_stat = inspect(path)
+    if stat.S_ISREG(root_stat.st_mode):
         return _fingerprint(
             {
                 "type": "file",
-                "mode": mode(path),
-                "sha256": digest,
+                "mode": stat.S_IMODE(root_stat.st_mode),
+                "sha256": digest(path),
             }
+        )
+    if not stat.S_ISDIR(root_stat.st_mode):
+        raise ReproducibilityError(
+            f"path-backed runtime variable {name} contains a special file"
         )
 
     entries: list[dict[str, object]] = []
-    try:
-        children = sorted(path.rglob("*"), key=lambda item: item.relative_to(path).as_posix())
-    except OSError as exc:
-        raise ReproducibilityError(
-            f"cannot walk directory-backed runtime variable {name}: {exc}"
-        ) from exc
-    for child in children:
-        relative = child.relative_to(path).as_posix()
-        if child.is_symlink():
-            raise ReproducibilityError(
-                f"directory-backed runtime variable {name} contains a symlink"
-            )
-        if child.is_dir():
-            entries.append({"path": relative, "type": "directory", "mode": mode(child)})
-            continue
-        if not child.is_file():
-            raise ReproducibilityError(
-                f"directory-backed runtime variable {name} contains a special file"
-            )
+
+    def visit(directory: Path) -> None:
         try:
-            digest = sha256(child.read_bytes()).hexdigest()
+            with os.scandir(directory) as scanner:
+                children = sorted(
+                    ((entry.name, Path(entry.path)) for entry in scanner),
+                    key=lambda item: item[0],
+                )
         except OSError as exc:
             raise ReproducibilityError(
-                f"cannot read directory-backed runtime variable {name}: {exc}"
+                f"cannot walk directory-backed runtime variable {name}: {exc}"
             ) from exc
-        entries.append(
-            {
-                "path": relative,
-                "type": "file",
-                "mode": mode(child),
-                "sha256": digest,
-            }
-        )
+
+        for _, child in children:
+            child_stat = inspect(child, follow_symlinks=False)
+            relative = child.relative_to(path).as_posix()
+            child_mode = stat.S_IMODE(child_stat.st_mode)
+            if stat.S_ISLNK(child_stat.st_mode):
+                raise ReproducibilityError(
+                    f"directory-backed runtime variable {name} contains a symlink"
+                )
+            if stat.S_ISDIR(child_stat.st_mode):
+                entries.append(
+                    {
+                        "path": relative,
+                        "type": "directory",
+                        "mode": child_mode,
+                    }
+                )
+                visit(child)
+                continue
+            if not stat.S_ISREG(child_stat.st_mode):
+                raise ReproducibilityError(
+                    f"directory-backed runtime variable {name} contains a special file"
+                )
+            entries.append(
+                {
+                    "path": relative,
+                    "type": "file",
+                    "mode": child_mode,
+                    "sha256": digest(child),
+                }
+            )
+
+    visit(path)
     return _fingerprint(
         {
             "type": "directory",
-            "mode": mode(path),
+            "mode": stat.S_IMODE(root_stat.st_mode),
             "entries": entries,
         }
     )

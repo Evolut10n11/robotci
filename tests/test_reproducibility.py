@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -289,6 +290,20 @@ def test_runtime_variables_hide_values_and_hash_file_backed_configuration(
     assert first["ROS_API_TOKEN"] == changed["ROS_API_TOKEN"]
     assert first["CYCLONEDDS_URI"] != changed["CYCLONEDDS_URI"]
     assert first["ROS_SECURITY_KEYSTORE"] != changed["ROS_SECURITY_KEYSTORE"]
+
+    real_scandir = os.scandir
+
+    def deny_enclave(path):
+        if Path(path) == enclave:
+            raise PermissionError("keystore directory cannot be enumerated")
+        return real_scandir(path)
+
+    monkeypatch.setattr("robotci.reproducibility.os.scandir", deny_enclave)
+    with pytest.raises(
+        ReproducibilityError,
+        match="cannot walk directory-backed runtime variable ROS_SECURITY_KEYSTORE",
+    ):
+        _runtime_variables(tmp_path)
 
 
 def test_runtime_variables_reject_remote_configuration(

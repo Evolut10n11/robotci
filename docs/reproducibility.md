@@ -17,8 +17,8 @@ an `execution` object with:
   shell/runtime tools;
 - a safe whitelist of inherited ROS/RMW behavior, RCUTILS logging, middleware,
   locale, and runtime-wrapper variables, stored only as value SHA-256 digests;
-- content digests for file-backed middleware configuration and recursive,
-  permission-aware ROS security keystore fingerprints;
+- content digests for file-backed middleware configuration and explicit,
+  permission-aware ROS security keystore walks that fail on unreadable nodes;
 - a source digest of the executable RobotCI Python and runtime shell files;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
 
