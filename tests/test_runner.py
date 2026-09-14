@@ -89,13 +89,13 @@ def test_native_runtime_is_rejected_on_windows(monkeypatch: pytest.MonkeyPatch) 
         runner.select_runtime("native")
 
 
-def test_find_project_root_walks_up_from_nested_directory(tmp_path: Path) -> None:
+def test_find_runtime_root_walks_up_from_nested_directory(tmp_path: Path) -> None:
     root = tmp_path / "robotci"
     nested = root / "some" / "nested" / "directory"
     nested.mkdir(parents=True)
     _make_project_root(root)
 
-    assert runner._find_project_root(nested) == root
+    assert runner._find_runtime_root(nested) == root
 
 
 def test_run_native_passes_yaml_pose_and_timeout_to_script(
@@ -281,6 +281,48 @@ def test_run_suite_uses_configured_scenarios_and_timeouts(
         ("medium_route", 22.0),
         ("simple_route", 33.0),
     ]
+
+
+def test_run_suite_keeps_outputs_in_external_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    external_project = tmp_path / "pilot"
+    external_project.mkdir()
+    _write_config(external_project, runtime="native")
+    monkeypatch.chdir(external_project)
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+    runtime_root = Path(runner.__file__).resolve().parent.parent
+    observed_runtime_roots: list[Path] = []
+
+    def fake_run_native(
+        project_root: Path,
+        scenario: ScenarioConfig,
+        output: Path,
+        timeout_sec: float,
+    ) -> int:
+        observed_runtime_roots.append(project_root)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(
+                {
+                    "scenario": scenario.name,
+                    "status": "PASS",
+                    "duration_sec": timeout_sec / 10,
+                }
+            ),
+            encoding="utf-8",
+        )
+        return 0
+
+    monkeypatch.setattr(runner, "_run_native", fake_run_native)
+
+    exit_code, selected, result_path = runner.run_suite()
+
+    assert exit_code == 0
+    assert selected == "native"
+    assert result_path == (external_project / ".robotci" / "suite-result.json").resolve()
+    assert observed_runtime_roots == [runtime_root, runtime_root, runtime_root]
 
 
 def test_run_suite_cli_timeout_overrides_yaml_timeouts(

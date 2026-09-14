@@ -19,6 +19,7 @@ from robotci.config import (
     load_config,
 )
 from robotci.native_runtime import probe_native_ros
+from robotci.project import DEFAULT_CONFIG_PATH, resolve_project_context
 from robotci.replay import default_replay_path
 from robotci.results import (
     ScenarioStatus,
@@ -27,7 +28,6 @@ from robotci.results import (
     write_suite_result,
 )
 
-DEFAULT_CONFIG_PATH = Path("robotci.yaml")
 DEFAULT_RESULT_PATH = Path(".robotci") / "result.json"
 DEFAULT_SUITE_RESULT_PATH = Path(".robotci") / "suite-result.json"
 
@@ -102,7 +102,9 @@ def select_runtime(requested: RuntimeName = "auto") -> Literal["native", "docker
     )
 
 
-def _find_project_root(start: Path | None = None) -> Path:
+def _find_runtime_root(start: Path | None = None) -> Path:
+    """Find RobotCI-owned scripts and Compose files independently of user data."""
+
     candidates: list[Path] = []
 
     current = (start or Path.cwd()).resolve()
@@ -119,24 +121,18 @@ def _find_project_root(start: Path | None = None) -> Path:
             return candidate
 
     raise RuntimeUnavailableError(
-        "RobotCI project files were not found; run the command from a RobotCI checkout"
+        "RobotCI runtime assets were not found; install a complete RobotCI package "
+        "or run from a RobotCI checkout"
     )
 
 
-def _resolve_config_path(project_root: Path, config_path: str | Path) -> Path:
-    path = Path(config_path)
-    if not path.is_absolute():
-        path = project_root / path
-    return path.resolve()
-
-
 def _run_native(
-    project_root: Path,
+    runtime_root: Path,
     scenario: ScenarioConfig,
     output: Path,
     timeout_sec: float,
 ) -> int:
-    script = project_root / "scripts" / "run_navigation_scenario.sh"
+    script = runtime_root / "scripts" / "run_navigation_scenario.sh"
     environment = os.environ.copy()
     half_yaw = scenario.start.yaw / 2.0
 
@@ -161,7 +157,7 @@ def _run_native(
     try:
         completed = subprocess.run(
             ["bash", str(script)],
-            cwd=project_root,
+            cwd=runtime_root,
             env=environment,
             check=False,
         )
@@ -172,14 +168,14 @@ def _run_native(
 
 
 def _run_docker(
-    project_root: Path,
+    runtime_root: Path,
     scenario: ScenarioConfig,
     output: Path,
     timeout_sec: float,
     config_path: Path,
 ) -> int:
     container_result = f"/workspace/artifacts/{scenario.name}/result.json"
-    host_result = project_root / "artifacts" / scenario.name / "result.json"
+    host_result = runtime_root / "artifacts" / scenario.name / "result.json"
     host_replay = default_replay_path(host_result)
     _clear_result_artifacts(host_result)
     _clear_result_artifacts(output)
@@ -209,7 +205,7 @@ def _run_docker(
     ]
 
     try:
-        completed = subprocess.run(command, cwd=project_root, check=False)
+        completed = subprocess.run(command, cwd=runtime_root, check=False)
     except OSError as exc:
         raise RuntimeUnavailableError(f"failed to start Docker runtime: {exc}") from exc
 
@@ -308,9 +304,9 @@ def run_scenario(
     config_path: str | Path = DEFAULT_CONFIG_PATH,
     project_root: Path | None = None,
 ) -> tuple[int, Literal["native", "docker"], Path]:
-    root = _find_project_root(project_root)
-    resolved_config = _resolve_config_path(root, config_path)
-    config = load_config(resolved_config)
+    context = resolve_project_context(config_path, project_root=project_root)
+    runtime_root = _find_runtime_root(context.project_root)
+    config = load_config(context.config_path)
     definition = get_scenario(config, scenario)
 
     requested_runtime = runtime or config.runtime
@@ -321,19 +317,19 @@ def run_scenario(
 
     result_path = Path(output)
     if not result_path.is_absolute():
-        result_path = root / result_path
+        result_path = context.project_root / result_path
     result_path = result_path.resolve()
     _clear_result_artifacts(result_path)
 
     if selected == "native":
-        exit_code = _run_native(root, definition, result_path, effective_timeout)
+        exit_code = _run_native(runtime_root, definition, result_path, effective_timeout)
     else:
         exit_code = _run_docker(
-            root,
+            runtime_root,
             definition,
             result_path,
             effective_timeout,
-            resolved_config,
+            context.config_path,
         )
 
     exit_code, _, _ = _finalize_result(result_path, definition.name, exit_code)
@@ -348,9 +344,9 @@ def run_suite(
     config_path: str | Path = DEFAULT_CONFIG_PATH,
     project_root: Path | None = None,
 ) -> tuple[int, Literal["native", "docker"], Path]:
-    root = _find_project_root(project_root)
-    resolved_config = _resolve_config_path(root, config_path)
-    config = load_config(resolved_config)
+    context = resolve_project_context(config_path, project_root=project_root)
+    runtime_root = _find_runtime_root(context.project_root)
+    config = load_config(context.config_path)
 
     requested_runtime = runtime or config.runtime
     selected = select_runtime(requested_runtime)
@@ -360,7 +356,7 @@ def run_suite(
 
     suite_path = Path(output)
     if not suite_path.is_absolute():
-        suite_path = root / suite_path
+        suite_path = context.project_root / suite_path
     suite_path = suite_path.resolve()
     try:
         suite_path.unlink(missing_ok=True)
@@ -378,14 +374,16 @@ def run_suite(
         _clear_result_artifacts(result_path)
 
         if selected == "native":
-            exit_code = _run_native(root, definition, result_path, effective_timeout)
+            exit_code = _run_native(
+                runtime_root, definition, result_path, effective_timeout,
+            )
         else:
             exit_code = _run_docker(
-                root,
+                runtime_root,
                 definition,
                 result_path,
                 effective_timeout,
-                resolved_config,
+                context.config_path,
             )
 
         normalized_exit, status, duration = _finalize_result(
