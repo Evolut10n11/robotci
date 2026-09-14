@@ -77,7 +77,11 @@ def test_entrypoint_relaunches_with_isolated_python(
     assert isinstance(environment, dict)
     expected_root = str(Path(bootstrap.__file__).resolve().parent.parent)
     assert environment["PYTHONPATH"] == os.pathsep.join(
-        (expected_root, "/trusted/site", "/trusted/system")
+        (
+            expected_root,
+            str(Path("/trusted/site").resolve()),
+            str(Path("/trusted/system").resolve()),
+        )
     )
     assert environment["PYTHONHASHSEED"] == "0"
     assert environment["PYTHONNOUSERSITE"] == "1"
