@@ -543,6 +543,35 @@ def build_robotci_source_fingerprint(
         for label, package in package_roots
         for path in package.rglob("*.py")
     ]
+
+    try:
+        runtime_children = sorted(runtime.iterdir(), key=lambda item: item.name)
+    except OSError as exc:
+        raise ReproducibilityError(
+            f"cannot inspect RobotCI runtime root '{runtime}': {exc}"
+        ) from exc
+    for candidate in runtime_children:
+        if candidate.name == "robotci":
+            continue
+        import_sources: list[Path] = []
+        if candidate.suffix == ".py" and candidate.is_file():
+            import_sources = [candidate]
+        elif candidate.is_dir() and (candidate / "__init__.py").is_file():
+            import_sources = list(candidate.rglob("*.py"))
+        if not import_sources:
+            continue
+        if candidate.is_symlink():
+            raise ReproducibilityError(
+                f"runtime import candidate must not be a symlink: {candidate}"
+            )
+        sources.extend(
+            (
+                f"runtime-imports/{path.relative_to(runtime).as_posix()}",
+                path,
+            )
+            for path in import_sources
+        )
+
     scripts = runtime / "scripts"
     if scripts.is_dir():
         sources.extend(

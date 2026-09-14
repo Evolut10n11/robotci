@@ -20,7 +20,8 @@ an `execution` object with:
 - content digests for file-backed middleware configuration and explicit,
   permission-aware ROS security keystore walks that fail on unreadable nodes;
 - source digests of both the outer RobotCI runner package and the subprocess
-  package when they come from different roots, plus runtime shell files;
+  package when they come from different roots, runtime shell files, and any
+  top-level Python module/package that can shadow ROS imports;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
 
 The runner captures metadata before the first attempt and verifies it again

@@ -445,8 +445,10 @@ def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
     (runtime / "scripts").mkdir()
     installed_source = installed_package / "runner.py"
     runtime_source = runtime_package / "runner.py"
+    shadow_source = runtime / "rclpy.py"
     installed_source.write_text("INSTALLED = 1\n", encoding="utf-8")
     runtime_source.write_text("RUNTIME = 1\n", encoding="utf-8")
+    shadow_source.write_text("SHADOW = 1\n", encoding="utf-8")
 
     original = build_robotci_source_fingerprint(
         installed_package,
@@ -462,9 +464,15 @@ def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
         installed_package,
         runtime_root=runtime,
     )
+    shadow_source.write_text("SHADOW = 2\n", encoding="utf-8")
+    shadow_changed = build_robotci_source_fingerprint(
+        installed_package,
+        runtime_root=runtime,
+    )
 
     assert original != installed_changed
     assert installed_changed != runtime_changed
+    assert runtime_changed != shadow_changed
 
 
 def test_robotci_source_fingerprint_covers_external_attempt_script(
