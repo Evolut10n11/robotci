@@ -338,6 +338,7 @@ def build_robotci_source_fingerprint(
     package_root: Path | None = None,
     *,
     runtime_root: Path | None = None,
+    attempt_script: Path | None = None,
 ) -> str:
     """Hash the executable RobotCI Python and shell sources used by the runtime."""
 
@@ -353,6 +354,14 @@ def build_robotci_source_fingerprint(
             (f"scripts/{path.relative_to(scripts).as_posix()}", path)
             for path in scripts.glob("*.sh")
         )
+    if attempt_script is not None:
+        selected_attempt = attempt_script.resolve()
+        if not selected_attempt.is_file():
+            raise ReproducibilityError(
+                f"selected runtime attempt script does not exist: {selected_attempt}"
+            )
+        if selected_attempt not in {path.resolve() for _, path in sources}:
+            sources.append(("selected-attempt-script", selected_attempt))
     sources = sorted(sources, key=lambda item: item[0])
     if not sources:
         raise ReproducibilityError("RobotCI runtime source files are unavailable")
@@ -375,6 +384,16 @@ def collect_runtime_environment(
     """Capture the actual process environment used to execute the Nav2 suite."""
 
     os_id, os_version = _read_os_release()
+    runtime = (
+        runtime_root or Path(__file__).resolve().parent.parent
+    ).resolve()
+    attempt_value = os.environ.get("ROBOTCI_ATTEMPT_SCRIPT", "")
+    attempt_script = Path(attempt_value).expanduser() if attempt_value else (
+        runtime / "scripts" / "run_navigation_attempt.sh"
+    )
+    if not attempt_script.is_absolute():
+        attempt_script = runtime / attempt_script
+
     ros_distro = os.environ.get("ROS_DISTRO", "")
     if not ros_distro and Path("/opt/ros/jazzy").is_dir():
         ros_distro = "jazzy"
@@ -389,7 +408,10 @@ def collect_runtime_environment(
         architecture=platform.machine(),
         python_version=platform.python_version(),
         ros_distro=ros_distro,
-        robotci_build=build_robotci_source_fingerprint(runtime_root=runtime_root),
+        robotci_build=build_robotci_source_fingerprint(
+            runtime_root=runtime,
+            attempt_script=attempt_script,
+        ),
         containerized=Path("/.dockerenv").exists()
         or Path("/run/.containerenv").exists(),
         packages=(*_installed_python_packages(), *_installed_debian_packages()),

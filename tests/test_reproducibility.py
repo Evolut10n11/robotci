@@ -204,6 +204,32 @@ def test_robotci_source_fingerprint_uses_separate_runtime_root(tmp_path: Path) -
     )
 
 
+def test_robotci_source_fingerprint_covers_external_attempt_script(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "robotci"
+    runtime = tmp_path / "runtime"
+    package.mkdir()
+    (runtime / "scripts").mkdir(parents=True)
+    (package / "runner.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (runtime / "scripts" / "run.sh").write_text("exit 0\n", encoding="utf-8")
+    attempt = tmp_path / "adapter.sh"
+    attempt.write_text("exit 0\n", encoding="utf-8")
+
+    original = build_robotci_source_fingerprint(
+        package,
+        runtime_root=runtime,
+        attempt_script=attempt,
+    )
+    attempt.write_text("exit 1\n", encoding="utf-8")
+
+    assert original != build_robotci_source_fingerprint(
+        package,
+        runtime_root=runtime,
+        attempt_script=attempt,
+    )
+
+
 def test_boolean_provenance_schema_versions_are_rejected() -> None:
     environment_payload = asdict(_environment())
     environment_payload["schema_version"] = True
