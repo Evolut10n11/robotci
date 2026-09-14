@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -9,26 +10,21 @@ import pytest
 from robotci import bootstrap
 
 
-class _ExecCalled(Exception):
-    pass
-
-
 def test_entrypoint_relaunches_with_isolated_python(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
 
-    def fake_execve(
-        executable: str,
+    def fake_run(
         command: list[str],
-        environment: dict[str, str],
-    ) -> None:
+        **kwargs: object,
+    ) -> subprocess.CompletedProcess[str]:
         captured.update(
-            executable=executable,
             command=command,
-            environment=environment,
+            environment=kwargs["env"],
+            check=kwargs["check"],
         )
-        raise _ExecCalled
+        return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setenv("PYTHONPATH", "/untrusted/python")
     monkeypatch.setenv("PYTHONHOME", "/untrusted/home")
@@ -56,12 +52,13 @@ def test_entrypoint_relaunches_with_isolated_python(
     )
     monkeypatch.setattr(bootstrap.os, "getpid", lambda: 123)
     monkeypatch.setattr(bootstrap.time, "monotonic_ns", lambda: 456)
-    monkeypatch.setattr(bootstrap.os, "execve", fake_execve)
+    monkeypatch.setattr(bootstrap.subprocess, "run", fake_run)
 
-    with pytest.raises(_ExecCalled):
+    with pytest.raises(SystemExit) as exc_info:
         bootstrap.main()
 
-    assert captured["executable"] == "/trusted/python"
+    assert exc_info.value.code == 0
+    assert captured["check"] is False
     assert captured["command"] == [
         "/trusted/python",
         "-S",
@@ -101,12 +98,12 @@ def test_entrypoint_rejects_loader_injection_before_relaunch(
 ) -> None:
     called = False
 
-    def fake_execve(*args: object) -> None:
+    def fake_run(*args: object, **kwargs: object) -> None:
         nonlocal called
         called = True
 
     monkeypatch.setenv("LD_PRELOAD", "/untrusted/inject.so")
-    monkeypatch.setattr(bootstrap.os, "execve", fake_execve)
+    monkeypatch.setattr(bootstrap.subprocess, "run", fake_run)
 
     with pytest.raises(SystemExit) as exc_info:
         bootstrap.main()

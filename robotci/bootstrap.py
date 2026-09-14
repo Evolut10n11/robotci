@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import tempfile
 import time
@@ -69,18 +70,19 @@ def main() -> NoReturn:
 
     try:
         environment = _isolated_environment()
-        os.execve(
+        command = [
             sys.executable,
-            [
-                sys.executable,
-                "-S",
-                "-B",
-                "-P",
-                "-m",
-                "robotci.entrypoint",
-                *sys.argv[1:],
-            ],
-            environment,
+            "-S",
+            "-B",
+            "-P",
+            "-m",
+            "robotci.entrypoint",
+            *sys.argv[1:],
+        ]
+        completed = subprocess.run(
+            command,
+            env=environment,
+            check=False,
         )
     except OSError as exc:
         print(
@@ -88,7 +90,7 @@ def main() -> NoReturn:
             file=sys.stderr,
         )
         raise SystemExit(3) from exc
-    raise RuntimeError("isolated CLI process unexpectedly returned")
+    raise SystemExit(completed.returncode)
 
 
 if __name__ == "__main__":
