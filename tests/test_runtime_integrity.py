@@ -20,6 +20,16 @@ from robotci.reproducibility import (
 from robotci.result_schema import validate_result_payload
 from robotci.results import Pose2D, build_scenario_task
 
+_AUDITED_COMPOSE = """services:
+  robotci:
+    build:
+      context: .
+    image: robotci:dev
+    init: true
+    volumes:
+      - ./artifacts:/workspace/artifacts
+"""
+
 _TEST_EXECUTION = build_suite_execution_identity(
     runtime="native",
     plan_fingerprint="sha256:" + "1" * 64,
@@ -41,6 +51,7 @@ def project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (tmp_path / "scripts").mkdir()
     (tmp_path / "scripts/run_navigation_scenario.sh").touch()
     (tmp_path / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    (tmp_path / "compose.yaml").write_text(_AUDITED_COMPOSE, encoding="utf-8")
     (tmp_path / "robotci.yaml").write_text(
         "version: 1\nruntime: native\nscenarios:\n"
         "  - name: route\n    start: {x: 0, y: 0}\n"
