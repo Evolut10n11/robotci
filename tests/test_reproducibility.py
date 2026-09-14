@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 from dataclasses import asdict, replace
+from importlib.machinery import EXTENSION_SUFFIXES
 from pathlib import Path
 
 import pytest
@@ -446,9 +447,19 @@ def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
     installed_source = installed_package / "runner.py"
     runtime_source = runtime_package / "runner.py"
     shadow_source = runtime / "rclpy.py"
+    shadow_bytecode = runtime / "rclpy.pyc"
+    shadow_extension = runtime / f"rclpy{EXTENSION_SUFFIXES[0]}"
+    shadow_package = runtime / "nav2_simple_commander"
+    shadow_package.mkdir()
+    shadow_init = shadow_package / "__init__.pyc"
+    shadow_data = shadow_package / "profile.xml"
     installed_source.write_text("INSTALLED = 1\n", encoding="utf-8")
     runtime_source.write_text("RUNTIME = 1\n", encoding="utf-8")
     shadow_source.write_text("SHADOW = 1\n", encoding="utf-8")
+    shadow_bytecode.write_bytes(b"BYTECODE-1")
+    shadow_extension.write_bytes(b"EXTENSION-1")
+    shadow_init.write_bytes(b"PACKAGE-1")
+    shadow_data.write_text("<profile>1</profile>\n", encoding="utf-8")
 
     original = build_robotci_source_fingerprint(
         installed_package,
@@ -469,10 +480,28 @@ def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
         installed_package,
         runtime_root=runtime,
     )
+    shadow_bytecode.write_bytes(b"BYTECODE-2")
+    bytecode_changed = build_robotci_source_fingerprint(
+        installed_package,
+        runtime_root=runtime,
+    )
+    shadow_extension.write_bytes(b"EXTENSION-2")
+    extension_changed = build_robotci_source_fingerprint(
+        installed_package,
+        runtime_root=runtime,
+    )
+    shadow_data.write_text("<profile>2</profile>\n", encoding="utf-8")
+    package_data_changed = build_robotci_source_fingerprint(
+        installed_package,
+        runtime_root=runtime,
+    )
 
     assert original != installed_changed
     assert installed_changed != runtime_changed
     assert runtime_changed != shadow_changed
+    assert shadow_changed != bytecode_changed
+    assert bytecode_changed != extension_changed
+    assert extension_changed != package_data_changed
 
 
 def test_robotci_source_fingerprint_covers_external_attempt_script(

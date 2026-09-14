@@ -10,6 +10,7 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from hashlib import sha256
+from importlib.machinery import all_suffixes
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as distribution_version
 from pathlib import Path
@@ -42,6 +43,7 @@ _DEBIAN_PACKAGES = (
 )
 _FINGERPRINT_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _RMW_IMPLEMENTATION_RE = re.compile(r"^[a-z0-9_]+$")
+_IMPORT_SUFFIXES = tuple(all_suffixes())
 _RUNTIME_VARIABLE_NAMES = frozenset(
     {
         "HOME",
@@ -550,14 +552,58 @@ def build_robotci_source_fingerprint(
         raise ReproducibilityError(
             f"cannot inspect RobotCI runtime root '{runtime}': {exc}"
         ) from exc
+
+    def is_import_file(path: Path) -> bool:
+        return path.name.endswith(_IMPORT_SUFFIXES)
+
+    def package_sources(package: Path) -> list[Path]:
+        package_files: list[Path] = []
+
+        def visit(directory: Path) -> None:
+            try:
+                with os.scandir(directory) as scanner:
+                    children = sorted(
+                        (Path(entry.path) for entry in scanner),
+                        key=lambda item: item.name,
+                    )
+            except OSError as exc:
+                raise ReproducibilityError(
+                    f"cannot inspect runtime import package '{package}': {exc}"
+                ) from exc
+            for child in children:
+                try:
+                    child_stat = child.lstat()
+                except OSError as exc:
+                    raise ReproducibilityError(
+                        f"cannot inspect runtime import candidate '{child}': {exc}"
+                    ) from exc
+                if stat.S_ISLNK(child_stat.st_mode):
+                    raise ReproducibilityError(
+                        f"runtime import candidate must not be a symlink: {child}"
+                    )
+                if stat.S_ISDIR(child_stat.st_mode):
+                    visit(child)
+                elif stat.S_ISREG(child_stat.st_mode):
+                    package_files.append(child)
+                else:
+                    raise ReproducibilityError(
+                        f"runtime import package contains a special file: {child}"
+                    )
+
+        visit(package)
+        return package_files
+
     for candidate in runtime_children:
         if candidate.name == "robotci":
             continue
         import_sources: list[Path] = []
-        if candidate.suffix == ".py" and candidate.is_file():
+        if candidate.is_file() and is_import_file(candidate):
             import_sources = [candidate]
-        elif candidate.is_dir() and (candidate / "__init__.py").is_file():
-            import_sources = list(candidate.rglob("*.py"))
+        elif candidate.is_dir() and any(
+            (candidate / f"__init__{suffix}").is_file()
+            for suffix in _IMPORT_SUFFIXES
+        ):
+            import_sources = package_sources(candidate)
         if not import_sources:
             continue
         if candidate.is_symlink():
