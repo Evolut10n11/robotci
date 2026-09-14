@@ -34,6 +34,14 @@ A custom config and destination can be selected explicitly:
 robotci-support-bundle --config robotci.yaml --output .robotci/support-bundle.json
 ```
 
+For CI pipelines or support tooling that should consume the JSON directly instead of creating a file, use `-` as the output destination:
+
+```bash
+robotci-support-bundle --output -
+```
+
+The command still returns exit code `0` for a PASS bundle and `1` for a FAIL bundle, so the JSON can be piped to another process without losing the readiness verdict.
+
 The module form remains available for source checkouts or environments where console scripts are not on `PATH`:
 
 ```bash

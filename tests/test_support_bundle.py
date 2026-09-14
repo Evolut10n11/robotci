@@ -126,3 +126,18 @@ def test_runtime_optional_allows_inventory_bundle(tmp_path: Path, monkeypatch) -
     assert exit_code == 0
     assert seen["require_ros"] is False
     assert json.loads(output.read_text(encoding="utf-8"))["status"] == "PASS"
+
+
+def test_output_dash_writes_bundle_to_stdout(tmp_path: Path, monkeypatch, capsys) -> None:
+    config = tmp_path / "robotci.yaml"
+    _write_config(config)
+    monkeypatch.setattr("robotci.support_bundle.run_doctor_checks", lambda **_: _passing_checks())
+
+    exit_code = main(["--config", str(config), "--output", "-"])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert exit_code == 0
+    assert payload["status"] == "PASS"
+    assert payload["config"]["scenario_count"] == 1
+    assert not (tmp_path / "-").exists()
