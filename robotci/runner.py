@@ -10,7 +10,6 @@ import sys
 import tempfile
 import time
 from dataclasses import asdict
-from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 from typing import Literal, cast
 
@@ -25,7 +24,11 @@ from robotci.evidence import NavigationEvidencePolicy
 from robotci.native_runtime import probe_native_ros
 from robotci.project import DEFAULT_CONFIG_PATH, resolve_project_context
 from robotci.replay import default_replay_path
-from robotci.reproducibility import ReproducibilityError, capture_suite_execution
+from robotci.reproducibility import (
+    ReproducibilityError,
+    capture_suite_execution,
+    runtime_python_dependency_roots,
+)
 from robotci.result_schema import (
     ResultSchemaError,
     ValidatedScenarioResult,
@@ -53,7 +56,6 @@ _EXIT_BY_STATUS = {
 _STATUS_BY_EXIT = {code: status for status, code in _EXIT_BY_STATUS.items()}
 
 _NATIVE_PATH = "/usr/sbin:/usr/bin:/sbin:/bin"
-_NATIVE_PYTHON_DISTRIBUTIONS = ("PyYAML", "rich", "typer")
 _NATIVE_SETUP_VARIABLES = frozenset(
     {
         "AMENT_PREFIX_PATH",
@@ -157,16 +159,10 @@ def _find_runtime_root(start: Path | None = None) -> Path:
 
 
 def _native_python_dependency_paths() -> tuple[str, ...]:
-    roots: set[str] = set()
-    for name in _NATIVE_PYTHON_DISTRIBUTIONS:
-        try:
-            package = distribution(name)
-        except PackageNotFoundError as exc:
-            raise RuntimeUnavailableError(
-                f"native runtime is missing Python distribution metadata for {name}"
-            ) from exc
-        roots.add(str(Path(package.locate_file("")).resolve()))
-    return tuple(sorted(roots))
+    try:
+        return tuple(str(root) for root in runtime_python_dependency_roots())
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(str(exc)) from exc
 
 
 def _run_native(

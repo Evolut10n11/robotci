@@ -24,7 +24,8 @@ an `execution` object with:
   subprocess package when their roots
   differ, plus runtime shell files and any
   top-level source, sourceless bytecode, native-extension module, or complete
-  package tree that can shadow ROS imports;
+  package tree that can shadow ROS imports, including every import candidate
+  exposed from the explicit Python dependency roots;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
 
 The runner captures metadata before the first attempt and verifies it again

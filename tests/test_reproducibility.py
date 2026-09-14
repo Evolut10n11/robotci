@@ -451,6 +451,40 @@ def test_robotci_source_fingerprint_ignores_generated_bytecode_cache(
     assert build_robotci_source_fingerprint(package) == original
 
 
+def test_robotci_source_fingerprint_covers_exported_python_import_roots(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "runtime" / "robotci"
+    dependency_root = tmp_path / "site-packages"
+    dependency_package = dependency_root / "dependency"
+    package.mkdir(parents=True)
+    dependency_package.mkdir(parents=True)
+    (package / "runner.py").write_text("VALUE = 1\n", encoding="utf-8")
+    shadow = dependency_root / "argparse.py"
+    shadow.write_text("SHADOW = 1\n", encoding="utf-8")
+    (dependency_package / "__init__.py").write_text("VALUE = 1\n", encoding="utf-8")
+    data = dependency_package / "runtime-data.json"
+    data.write_text('{"value": 1}\n', encoding="utf-8")
+
+    original = build_robotci_source_fingerprint(
+        package,
+        python_dependency_roots=(dependency_root,),
+    )
+    shadow.write_text("SHADOW = 2\n", encoding="utf-8")
+    shadow_changed = build_robotci_source_fingerprint(
+        package,
+        python_dependency_roots=(dependency_root,),
+    )
+    data.write_text('{"value": 2}\n', encoding="utf-8")
+    data_changed = build_robotci_source_fingerprint(
+        package,
+        python_dependency_roots=(dependency_root,),
+    )
+
+    assert original != shadow_changed
+    assert shadow_changed != data_changed
+
+
 def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
     tmp_path: Path,
 ) -> None:

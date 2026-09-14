@@ -11,8 +11,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from hashlib import sha256
 from importlib.machinery import all_suffixes
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as distribution_version
+from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 from typing import Literal, cast
 from urllib.parse import unquote, urlparse
@@ -498,11 +497,29 @@ def _installed_debian_packages() -> tuple[RuntimePackage, ...]:
     )
 
 
+def runtime_python_dependency_roots() -> tuple[Path, ...]:
+    """Return every broad import root exported to isolated RobotCI processes."""
+
+    package_parent = Path(__file__).resolve().parent.parent
+    roots = [package_parent]
+    for name in _PYTHON_DISTRIBUTIONS:
+        try:
+            package = distribution(name)
+        except PackageNotFoundError as exc:
+            raise ReproducibilityError(
+                f"runtime is missing Python distribution metadata for {name}"
+            ) from exc
+        root = Path(package.locate_file("")).resolve()
+        if root not in roots:
+            roots.append(root)
+    return tuple(roots)
+
+
 def _installed_python_packages() -> tuple[RuntimePackage, ...]:
     packages: list[RuntimePackage] = []
     for name in _PYTHON_DISTRIBUTIONS:
         try:
-            package_version = distribution_version(name)
+            package_version = distribution(name).version
         except PackageNotFoundError as exc:
             raise ReproducibilityError(
                 f"runtime is missing Python distribution metadata for {name}"
@@ -519,6 +536,7 @@ def build_robotci_source_fingerprint(
     runtime_root: Path | None = None,
     attempt_script: Path | None = None,
     attempt_script_identity: str | None = None,
+    python_dependency_roots: Sequence[Path] = (),
 ) -> str:
     """Hash the executable RobotCI Python and shell sources used by the runtime."""
 
@@ -663,6 +681,48 @@ def build_robotci_source_fingerprint(
             )
             for path in import_sources
         )
+
+    unique_dependency_roots: list[Path] = []
+    for root in python_dependency_roots:
+        resolved_root = root.resolve()
+        if resolved_root not in unique_dependency_roots:
+            unique_dependency_roots.append(resolved_root)
+    for index, import_root in enumerate(unique_dependency_roots):
+        try:
+            root_children = sorted(
+                import_root.iterdir(),
+                key=lambda item: item.name,
+            )
+        except OSError as exc:
+            raise ReproducibilityError(
+                f"cannot inspect Python dependency root '{import_root}': {exc}"
+            ) from exc
+        for candidate in root_children:
+            if candidate.name in {"__pycache__", "robotci"}:
+                continue
+            import_sources = []
+            if candidate.is_file() and is_import_file(candidate):
+                import_sources = [candidate]
+            elif candidate.is_dir() and any(
+                (candidate / f"__init__{suffix}").is_file()
+                for suffix in _IMPORT_SUFFIXES
+            ):
+                import_sources = package_sources(candidate)
+            if not import_sources:
+                continue
+            if candidate.is_symlink():
+                raise ReproducibilityError(
+                    "Python dependency import candidate must not be a symlink: "
+                    f"{candidate}"
+                )
+            sources.extend(
+                (
+                    "python-import-roots/"
+                    f"{index}/{path.relative_to(import_root).as_posix()}",
+                    path,
+                )
+                for path in import_sources
+            )
 
     scripts = runtime / "scripts"
     if scripts.is_dir():
@@ -953,6 +1013,7 @@ def collect_runtime_environment(
             runtime_root=runtime,
             attempt_script=attempt_script,
             attempt_script_identity=attempt_script_identity,
+            python_dependency_roots=runtime_python_dependency_roots(),
         ),
         containerized=Path("/.dockerenv").exists()
         or Path("/run/.containerenv").exists(),
