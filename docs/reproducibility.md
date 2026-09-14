@@ -37,11 +37,15 @@ The runner captures metadata before the first attempt and verifies it again
 after the final attempt. It fails closed if the environment cannot be inspected
 or if any fingerprinted input changes during the suite. Docker metadata is
 collected inside one image built before the suite; every scenario uses that
-same image without rebuilding. Native execution strips Bash startup/function injection variables, rejects
-process-level `LD_AUDIT`/`LD_PRELOAD` injection, drops inherited executable,
-library, ROS overlay, setup identity, and Python search paths, and sets a
-package-managed system `PATH` without mutable local directories, a fixed hash
-seed, UTF-8, no user site, and a fresh private bytecode-cache prefix. Before
+same image without rebuilding. Native execution rebuilds the child environment
+from the exact inherited allowlist recorded in provenance: locale, runtime
+wrapper, ROS/RCL/RMW/RCUTILS, and supported middleware controls. Unlisted and
+Bash startup/function variables are removed, process-level
+`LD_AUDIT`/`LD_PRELOAD` injection is rejected, and executable, library, ROS
+overlay, setup identity, and Python search paths are rebuilt. The resulting
+environment uses a package-managed system `PATH` without mutable local
+directories, a fixed hash seed, UTF-8, no user site, and a fresh private
+bytecode-cache prefix. Before
 application modules load, every checked-in suite workflow enters through the
 public CLI, which relaunches itself with a sanitized Python environment and `-S -B -P`. A stdlib-only launcher loads the exact
 fingerprinted RobotCI package path without exporting its checkout parent, then
