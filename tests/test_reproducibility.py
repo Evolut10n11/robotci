@@ -560,6 +560,50 @@ def test_robotci_source_fingerprint_records_broken_dependency_symlink(
     ) != original
 
 
+
+def test_robotci_source_fingerprint_covers_linked_dependency_package_root(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "runtime" / "robotci"
+    dependency_root = tmp_path / "site-packages"
+    first_target = tmp_path / "lldb-18"
+    second_target = tmp_path / "lldb-19"
+    package.mkdir(parents=True)
+    dependency_root.mkdir()
+    first_target.mkdir()
+    second_target.mkdir()
+    (package / "runner.py").write_text("VALUE = 1\n", encoding="utf-8")
+    for target in (first_target, second_target):
+        (target / "__init__.py").write_text("VALUE = 1\n", encoding="utf-8")
+        (target / "commands.json").write_text('{"version": 1}\n', encoding="utf-8")
+    link = dependency_root / "lldb"
+    try:
+        link.symlink_to(first_target, target_is_directory=True)
+    except OSError:
+        pytest.skip("directory symlinks are unavailable on this platform")
+
+    original = build_robotci_source_fingerprint(
+        package,
+        python_dependency_roots=(dependency_root,),
+    )
+    link.unlink()
+    link.symlink_to(second_target, target_is_directory=True)
+    retargeted = build_robotci_source_fingerprint(
+        package,
+        python_dependency_roots=(dependency_root,),
+    )
+    (second_target / "commands.json").write_text(
+        '{"version": 2}\n',
+        encoding="utf-8",
+    )
+
+    assert original != retargeted
+    assert retargeted != build_robotci_source_fingerprint(
+        package,
+        python_dependency_roots=(dependency_root,),
+    )
+
+
 def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
     tmp_path: Path,
 ) -> None:
