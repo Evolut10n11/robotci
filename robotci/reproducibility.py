@@ -16,6 +16,8 @@ from pathlib import Path
 from typing import Literal, cast
 from urllib.parse import unquote, urlparse
 
+import yaml
+
 from robotci.config import RobotCIConfig
 from robotci.native_runtime import ROS_SETUP
 
@@ -50,6 +52,16 @@ _DEBIAN_PACKAGES = (
 _FINGERPRINT_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _RMW_IMPLEMENTATION_RE = re.compile(r"^[a-z0-9_]+$")
 _IMPORT_SUFFIXES = tuple(all_suffixes())
+_DOCKER_COMPOSE_MODEL = {
+    "services": {
+        "robotci": {
+            "build": {"context": "."},
+            "image": "robotci:dev",
+            "init": True,
+            "volumes": ["./artifacts:/workspace/artifacts"],
+        }
+    }
+}
 _RUNTIME_VARIABLE_NAMES = frozenset(
     {
         "HOME",
@@ -1377,14 +1389,82 @@ def validate_suite_execution(
     return execution
 
 
+def _docker_compose_fingerprint(runtime_root: Path) -> str:
+    compose_path = runtime_root / "compose.yaml"
+    try:
+        compose_stat = compose_path.lstat()
+        payload = compose_path.read_bytes()
+    except OSError as exc:
+        raise ReproducibilityError(
+            f"cannot read audited Docker Compose configuration: {exc}"
+        ) from exc
+    if not stat.S_ISREG(compose_stat.st_mode):
+        raise ReproducibilityError(
+            "audited Docker Compose configuration must be a regular file"
+        )
+    try:
+        model = yaml.safe_load(payload.decode("utf-8"))
+    except (UnicodeDecodeError, yaml.YAMLError) as exc:
+        raise ReproducibilityError(
+            f"audited Docker Compose configuration is invalid: {exc}"
+        ) from exc
+    if model != _DOCKER_COMPOSE_MODEL:
+        raise ReproducibilityError(
+            "Docker Compose configuration does not match the audited "
+            "RobotCI service model"
+        )
+    return _fingerprint(
+        {
+            "path": "compose.yaml",
+            "sha256": sha256(payload).hexdigest(),
+        }
+    )
+
+
+def docker_compose_command_prefix(runtime_root: Path) -> list[str]:
+    """Return the only Compose invocation admitted by RobotCI."""
+
+    _docker_compose_fingerprint(runtime_root)
+    return [
+        "docker",
+        "compose",
+        "--file",
+        str((runtime_root / "compose.yaml").absolute()),
+        "--project-name",
+        "robotci",
+    ]
+
+
+def _bind_docker_compose(
+    environment: RuntimeEnvironment,
+    compose_fingerprint: str,
+) -> RuntimeEnvironment:
+    return build_runtime_environment(
+        os_id=environment.os_id,
+        os_version=environment.os_version,
+        architecture=environment.architecture,
+        python_version=environment.python_version,
+        ros_distro=environment.ros_distro,
+        robotci_build=_fingerprint(
+            {
+                "container_robotci_build": environment.robotci_build,
+                "docker_compose": compose_fingerprint,
+            }
+        ),
+        containerized=environment.containerized,
+        packages=environment.packages,
+        runtime_variables=environment.runtime_variables,
+    )
+
+
 def _collect_docker_environment(
     runtime_root: Path,
     *,
     build_image: bool = False,
 ) -> RuntimeEnvironment:
+    compose_before = _docker_compose_fingerprint(runtime_root)
     command = [
-        "docker",
-        "compose",
+        *docker_compose_command_prefix(runtime_root),
         "run",
         "--rm",
         "--no-deps",
@@ -1412,6 +1492,11 @@ def _collect_docker_environment(
         raise ReproducibilityError(
             f"cannot capture Docker runtime environment: {exc}"
         ) from exc
+    compose_after = _docker_compose_fingerprint(runtime_root)
+    if compose_after != compose_before:
+        raise ReproducibilityError(
+            "Docker Compose configuration changed while capturing the runtime"
+        )
     if completed.returncode != 0:
         detail = completed.stderr.strip() or f"exit {completed.returncode}"
         raise ReproducibilityError(
@@ -1423,7 +1508,11 @@ def _collect_docker_environment(
         raise ReproducibilityError(
             "Docker runtime returned invalid environment metadata"
         ) from exc
-    return parse_runtime_environment(payload, name="Docker runtime environment")
+    environment = parse_runtime_environment(
+        payload,
+        name="Docker runtime environment",
+    )
+    return _bind_docker_compose(environment, compose_before)
 
 
 def capture_suite_execution(
