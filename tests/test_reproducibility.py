@@ -265,7 +265,41 @@ def test_attempt_script_resolution_preserves_literal_tilde(
 ) -> None:
     monkeypatch.setenv("ROBOTCI_ATTEMPT_SCRIPT", "~/adapter.sh")
 
-    assert _resolve_attempt_script(tmp_path) == tmp_path / "~" / "adapter.sh"
+    attempt_script, identity = _resolve_attempt_script(tmp_path)
+
+    assert attempt_script == tmp_path / "~" / "adapter.sh"
+    assert identity == "environment:~/adapter.sh"
+
+
+def test_robotci_source_fingerprint_preserves_selected_symlink(
+    tmp_path: Path,
+) -> None:
+    package = tmp_path / "robotci"
+    runtime = tmp_path / "runtime"
+    scripts = runtime / "scripts"
+    package.mkdir()
+    scripts.mkdir(parents=True)
+    (package / "runner.py").write_text("VALUE = 1\n", encoding="utf-8")
+    target = scripts / "target.sh"
+    alias = scripts / "alias.sh"
+    target.write_text("exit 0\n", encoding="utf-8")
+    try:
+        alias.symlink_to(target.name)
+    except OSError:
+        pytest.skip("symlinks are unavailable on this platform")
+
+    target_selected = build_robotci_source_fingerprint(
+        package,
+        runtime_root=runtime,
+        attempt_script=target,
+    )
+    alias_selected = build_robotci_source_fingerprint(
+        package,
+        runtime_root=runtime,
+        attempt_script=alias,
+    )
+
+    assert target_selected != alias_selected
 
 
 def test_boolean_provenance_schema_versions_are_rejected() -> None:

@@ -339,6 +339,7 @@ def build_robotci_source_fingerprint(
     *,
     runtime_root: Path | None = None,
     attempt_script: Path | None = None,
+    attempt_script_identity: str | None = None,
 ) -> str:
     """Hash the executable RobotCI Python and shell sources used by the runtime."""
 
@@ -356,19 +357,36 @@ def build_robotci_source_fingerprint(
         )
     selected_attempt_label: str | None = None
     if attempt_script is not None:
-        selected_attempt = attempt_script.resolve()
+        lexical_attempt = attempt_script.absolute()
+        selected_attempt = lexical_attempt.resolve()
         if not selected_attempt.is_file():
             raise ReproducibilityError(
                 f"selected runtime attempt script does not exist: {selected_attempt}"
             )
-        try:
-            selected_attempt_label = (
-                "scripts/" + selected_attempt.relative_to(scripts.resolve()).as_posix()
-            )
-        except ValueError:
-            selected_attempt_label = "selected-attempt-script"
+        if attempt_script_identity is not None:
+            if not isinstance(attempt_script_identity, str) or not attempt_script_identity:
+                raise ReproducibilityError(
+                    "attempt script identity must be a non-empty string"
+                )
+            selected_attempt_label = attempt_script_identity
+        else:
+            try:
+                selected_attempt_label = (
+                    "scripts/"
+                    + lexical_attempt.relative_to(scripts.absolute()).as_posix()
+                )
+            except ValueError:
+                selected_attempt_label = "selected-attempt-script"
+
         if selected_attempt not in {path.resolve() for _, path in sources}:
-            sources.append((selected_attempt_label, selected_attempt))
+            try:
+                source_label = (
+                    "scripts/"
+                    + selected_attempt.relative_to(scripts.resolve()).as_posix()
+                )
+            except ValueError:
+                source_label = "selected-attempt-script"
+            sources.append((source_label, selected_attempt))
     sources = sorted(sources, key=lambda item: item[0])
     if not sources:
         raise ReproducibilityError("RobotCI runtime source files are unavailable")
@@ -390,16 +408,17 @@ def build_robotci_source_fingerprint(
     )
 
 
-def _resolve_attempt_script(runtime: Path) -> Path:
+def _resolve_attempt_script(runtime: Path) -> tuple[Path, str]:
     attempt_value = os.environ.get("ROBOTCI_ATTEMPT_SCRIPT", "")
-    attempt_script = (
-        Path(attempt_value)
-        if attempt_value
-        else runtime / "scripts" / "run_navigation_attempt.sh"
-    )
+    if attempt_value:
+        attempt_script = Path(attempt_value)
+        attempt_identity = f"environment:{attempt_value}"
+    else:
+        attempt_script = runtime / "scripts" / "run_navigation_attempt.sh"
+        attempt_identity = "default:scripts/run_navigation_attempt.sh"
     if not attempt_script.is_absolute():
         attempt_script = runtime / attempt_script
-    return attempt_script
+    return attempt_script, attempt_identity
 
 
 def collect_runtime_environment(
@@ -411,7 +430,7 @@ def collect_runtime_environment(
     runtime = (
         runtime_root or Path(__file__).resolve().parent.parent
     ).resolve()
-    attempt_script = _resolve_attempt_script(runtime)
+    attempt_script, attempt_script_identity = _resolve_attempt_script(runtime)
 
     ros_distro = os.environ.get("ROS_DISTRO", "")
     if not ros_distro and Path("/opt/ros/jazzy").is_dir():
@@ -430,6 +449,7 @@ def collect_runtime_environment(
         robotci_build=build_robotci_source_fingerprint(
             runtime_root=runtime,
             attempt_script=attempt_script,
+            attempt_script_identity=attempt_script_identity,
         ),
         containerized=Path("/.dockerenv").exists()
         or Path("/run/.containerenv").exists(),
