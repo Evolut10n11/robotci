@@ -20,10 +20,12 @@ version: 1
 runtime: docker
 scenarios:
   - name: smoke
+    map_id: office-v1
     start: {x: 0, y: 0}
     goal: {x: 1, y: 2}
     timeout_sec: 10
   - name: long_route
+    map_id: warehouse-v2
     start: {x: 1, y: 2, yaw: 0.5}
     goal: {x: 5, y: 8, yaw: 1.0}
     timeout_sec: 30
@@ -49,6 +51,10 @@ def test_build_execution_plan_uses_config_defaults(tmp_path: Path) -> None:
     assert plan.runtime == "docker"
     assert [scenario.name for scenario in plan.scenarios] == ["smoke", "long_route"]
     assert [scenario.timeout_sec for scenario in plan.scenarios] == [10.0, 30.0]
+    assert [scenario.map_id for scenario in plan.scenarios] == [
+        "office-v1",
+        "warehouse-v2",
+    ]
 
 
 def test_build_execution_plan_applies_overrides_without_runtime_probe(tmp_path: Path) -> None:
@@ -144,6 +150,7 @@ def test_plan_command_prints_human_readable_dry_run(tmp_path: Path) -> None:
     assert "Runtime request" in result.stdout
     assert "native" in result.stdout
     assert "smoke" in result.stdout
+    assert "office-v1" in result.stdout
     assert "15s" in result.stdout
     assert "no runtime started" in result.stdout
 
@@ -164,6 +171,7 @@ def test_plan_command_prints_machine_readable_json(tmp_path: Path) -> None:
         "scenarios": [
             {
                 "name": "smoke",
+                "map_id": "office-v1",
                 "start": {"x": 0.0, "y": 0.0, "yaw": 0.0},
                 "goal": {"x": 1.0, "y": 2.0, "yaw": 0.0},
                 "timeout_sec": 10.0,

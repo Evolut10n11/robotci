@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
 
 from robotci import runner
 from robotci.config import PoseConfig, ScenarioConfig
+from robotci.results import Pose2D, build_scenario_task
 
 
 def _make_project_root(path: Path) -> None:
@@ -28,6 +30,7 @@ version: 1
 runtime: {runtime}
 scenarios:
   - name: short_route
+    map_id: warehouse-v1
     start:
       x: 1.0
       y: 2.0
@@ -38,6 +41,7 @@ scenarios:
       yaw: 0.25
     timeout_sec: 11
   - name: medium_route
+    map_id: warehouse-v1
     start:
       x: 0.0
       y: 0.0
@@ -46,6 +50,7 @@ scenarios:
       y: -0.39
     timeout_sec: 22
   - name: simple_route
+    map_id: warehouse-v1
     start:
       x: 0.0
       y: 0.0
@@ -57,6 +62,34 @@ scenarios:
         encoding="utf-8",
     )
     return config_path
+
+
+def _runtime_result_payload(
+    scenario: ScenarioConfig,
+    *,
+    status: str = "PASS",
+    duration_sec: float = 1.0,
+    map_id: str | None = None,
+) -> dict[str, object]:
+    start = Pose2D(scenario.start.x, scenario.start.y, scenario.start.yaw)
+    goal = Pose2D(scenario.goal.x, scenario.goal.y, scenario.goal.yaw)
+    task_map_id = map_id or scenario.map_id or "unspecified"
+    return {
+        "schema_version": 1,
+        "scenario": scenario.name,
+        "status": status,
+        "duration_sec": duration_sec,
+        "start": asdict(start),
+        "goal": asdict(goal),
+        "task": asdict(
+            build_scenario_task(
+                scenario=scenario.name,
+                start=start,
+                goal=goal,
+                map_id=task_map_id,
+            )
+        ),
+    }
 
 
 def test_auto_runtime_prefers_native_ros_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -207,7 +240,7 @@ def test_run_scenario_uses_yaml_runtime_pose_and_timeout(
         captured["timeout"] = timeout_sec
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
-            json.dumps({"scenario": scenario.name, "status": "PASS", "duration_sec": 1.0}),
+            json.dumps(_runtime_result_payload(scenario)),
             encoding="utf-8",
         )
         return 0
@@ -230,6 +263,42 @@ def test_run_scenario_uses_yaml_runtime_pose_and_timeout(
     assert captured["timeout"] == 11.0
 
 
+def test_run_scenario_rejects_adapter_pass_for_different_task(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path, runtime="native")
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+
+    def fake_run_native(
+        project_root: Path,
+        scenario: ScenarioConfig,
+        output: Path,
+        timeout_sec: float,
+    ) -> int:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(
+                _runtime_result_payload(scenario, map_id="different-warehouse")
+            ),
+            encoding="utf-8",
+        )
+        return 0
+
+    monkeypatch.setattr(runner, "_run_native", fake_run_native)
+
+    exit_code, _, result_path = runner.run_scenario(
+        scenario="short_route",
+        project_root=tmp_path,
+    )
+
+    payload = json.loads(result_path.read_text(encoding="utf-8"))
+    assert exit_code == 3
+    assert payload["status"] == "INFRA_ERROR"
+    assert payload["error"] == "missing, invalid or inconsistent runtime result"
+
+
 def test_run_suite_uses_configured_scenarios_and_timeouts(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -249,13 +318,7 @@ def test_run_suite_uses_configured_scenarios_and_timeouts(
         executed.append((scenario.name, timeout_sec))
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
-            json.dumps(
-                {
-                    "scenario": scenario.name,
-                    "status": "PASS",
-                    "duration_sec": 1.5,
-                }
-            ),
+            json.dumps(_runtime_result_payload(scenario, duration_sec=1.5)),
             encoding="utf-8",
         )
         return 0
@@ -305,11 +368,10 @@ def test_run_suite_keeps_outputs_in_external_project(
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
             json.dumps(
-                {
-                    "scenario": scenario.name,
-                    "status": "PASS",
-                    "duration_sec": timeout_sec / 10,
-                }
+                _runtime_result_payload(
+                    scenario,
+                    duration_sec=timeout_sec / 10,
+                )
             ),
             encoding="utf-8",
         )
@@ -343,7 +405,7 @@ def test_run_suite_cli_timeout_overrides_yaml_timeouts(
         observed_timeouts.append(timeout_sec)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
-            json.dumps({"scenario": scenario.name, "status": "PASS", "duration_sec": 1.0}),
+            json.dumps(_runtime_result_payload(scenario)),
             encoding="utf-8",
         )
         return 0
@@ -381,7 +443,9 @@ def test_run_suite_propagates_worst_verdict(
         status, exit_code = statuses[scenario.name]
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
-            json.dumps({"scenario": scenario.name, "status": status, "duration_sec": 1.0}),
+            json.dumps(
+                _runtime_result_payload(scenario, status=status)
+            ),
             encoding="utf-8",
         )
         return exit_code
