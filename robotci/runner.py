@@ -8,12 +8,12 @@ import shutil
 import subprocess
 import sys
 import time
+from dataclasses import asdict
 from pathlib import Path
 from typing import Literal, cast
 
 from robotci.config import (
     ConfigError,
-    PoseConfig,
     RuntimeName,
     ScenarioConfig,
     get_scenario,
@@ -22,9 +22,13 @@ from robotci.config import (
 from robotci.native_runtime import probe_native_ros
 from robotci.project import DEFAULT_CONFIG_PATH, resolve_project_context
 from robotci.replay import default_replay_path
+from robotci.result_schema import (
+    ResultSchemaError,
+    ValidatedScenarioResult,
+    load_result,
+)
 from robotci.results import (
     RESULT_SCHEMA_VERSION,
-    TASK_SCHEMA_VERSION,
     Pose2D,
     ScenarioStatus,
     SuiteResult,
@@ -260,58 +264,24 @@ def _clear_result_artifacts(path: Path) -> None:
         raise RuntimeUnavailableError(f"cannot prepare fresh result artifacts: {exc}") from exc
 
 
-def _pose_matches(value: object, expected: PoseConfig) -> bool:
-    if not isinstance(value, dict) or set(value) != {"x", "y", "yaw"}:
-        return False
-    for field in ("x", "y", "yaw"):
-        coordinate = value[field]
-        if isinstance(coordinate, bool) or not isinstance(coordinate, int | float):
-            return False
-        try:
-            number = float(coordinate)
-        except OverflowError:
-            return False
-        if not math.isfinite(number) or number != getattr(expected, field):
-            return False
-    return True
-
-
-def _result_matches_task(payload: dict[str, object], scenario: ScenarioConfig) -> bool:
-    task = payload.get("task")
-    if not isinstance(task, dict) or set(task) != {
-        "schema_version",
-        "frame_id",
-        "map_id",
-        "fingerprint",
-    }:
-        return False
-    task_version = task.get("schema_version")
-    result_version = payload.get("schema_version")
-    if (
-        not isinstance(task_version, int)
-        or isinstance(task_version, bool)
-        or task_version != TASK_SCHEMA_VERSION
-        or not isinstance(result_version, int)
-        or isinstance(result_version, bool)
-        or result_version != RESULT_SCHEMA_VERSION
-    ):
-        return False
-
-    try:
-        expected_task = build_scenario_task(
-            scenario=scenario.name,
-            start=Pose2D(scenario.start.x, scenario.start.y, scenario.start.yaw),
-            goal=Pose2D(scenario.goal.x, scenario.goal.y, scenario.goal.yaw),
-            map_id=scenario.map_id or "unspecified",
-        )
-    except (OverflowError, ValueError):
-        return False
+def _result_matches_task(
+    result: ValidatedScenarioResult,
+    scenario: ScenarioConfig,
+) -> bool:
+    start = Pose2D(scenario.start.x, scenario.start.y, scenario.start.yaw)
+    goal = Pose2D(scenario.goal.x, scenario.goal.y, scenario.goal.yaw)
+    expected_task = build_scenario_task(
+        scenario=scenario.name,
+        start=start,
+        goal=goal,
+        map_id=scenario.map_id or "unspecified",
+    )
     return (
-        _pose_matches(payload.get("start"), scenario.start)
-        and _pose_matches(payload.get("goal"), scenario.goal)
-        and task.get("frame_id") == expected_task.frame_id
-        and task.get("map_id") == expected_task.map_id
-        and task.get("fingerprint") == expected_task.fingerprint
+        result.source_schema_version == RESULT_SCHEMA_VERSION
+        and result.scenario == scenario.name
+        and result.start == start
+        and result.goal == goal
+        and result.task == expected_task
     )
 
 
@@ -319,38 +289,49 @@ def _finalize_result(
     path: Path, scenario: ScenarioConfig, exit_code: int,
 ) -> tuple[int, ScenarioStatus, float]:
     """Keep process, scenario artifact and suite verdicts consistent, failing closed."""
-    payload = read_result_payload(path)
-    status = payload.get("status") if payload else None
-    duration = payload.get("duration_sec") if payload else None
-    valid_duration = (
-        not isinstance(duration, bool)
-        and isinstance(duration, int | float)
-        and 0 <= duration <= sys.float_info.max
-    )
-    valid_status = isinstance(status, str) and status in _EXIT_BY_STATUS
+    try:
+        result = load_result(path)
+    except ResultSchemaError:
+        result = None
     if (
-        payload is not None
-        and payload.get("scenario") == scenario.name
-        and valid_status
-        and valid_duration
-        and _EXIT_BY_STATUS[status] == exit_code
-        and _result_matches_task(payload, scenario)
+        result is not None
+        and _EXIT_BY_STATUS[result.status] == exit_code
+        and _result_matches_task(result, scenario)
     ):
-        return exit_code, cast(ScenarioStatus, status), float(duration)
+        return exit_code, result.status, result.duration_sec
 
     # Do not preserve a misleading PASS on disk when the process failed, or a
     # malformed/foreign result when an adapter violated its result contract.
+    start = Pose2D(scenario.start.x, scenario.start.y, scenario.start.yaw)
+    goal = Pose2D(scenario.goal.x, scenario.goal.y, scenario.goal.yaw)
     error_payload = {
+        "schema_version": RESULT_SCHEMA_VERSION,
         "scenario": scenario.name,
         "status": "INFRA_ERROR",
         "duration_sec": 0.0,
+        "start": asdict(start),
+        "goal": asdict(goal),
+        "navigation_result": "RUNTIME_RESULT_INVALID",
+        "metrics": None,
+        "task": asdict(
+            build_scenario_task(
+                scenario=scenario.name,
+                start=start,
+                goal=goal,
+                map_id=scenario.map_id or "unspecified",
+            )
+        ),
+        "reason_code": "runtime_result_invalid",
         "runtime_exit_code": exit_code,
         "error": "missing, invalid or inconsistent runtime result",
     }
     try:
         default_replay_path(path).unlink(missing_ok=True)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(error_payload, indent=2) + "\n", encoding="utf-8")
+        path.write_text(
+            json.dumps(error_payload, allow_nan=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
     except OSError as exc:
         raise RuntimeUnavailableError(f"cannot write runtime failure result: {exc}") from exc
     return 3, "INFRA_ERROR", 0.0

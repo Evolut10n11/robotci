@@ -31,6 +31,7 @@ def _write_result(
                 "scenario": scenario,
                 "status": status,
                 "duration_sec": duration_sec,
+                "navigation_result": "SUCCEEDED" if status == "PASS" else status,
                 "start": asdict(start),
                 "goal": asdict(goal),
                 "task": asdict(

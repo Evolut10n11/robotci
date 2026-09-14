@@ -79,8 +79,16 @@ def _runtime_result_payload(
         "scenario": scenario.name,
         "status": status,
         "duration_sec": duration_sec,
+        "navigation_result": "SUCCEEDED" if status == "PASS" else status,
         "start": asdict(start),
         "goal": asdict(goal),
+        "metrics": {
+            "path_length_m": 1.0,
+            "distance_to_goal_m": 0.0,
+            "stuck_events": 0,
+            "feedback_samples": 1,
+            "recoveries": 0,
+        },
         "task": asdict(
             build_scenario_task(
                 scenario=scenario.name,

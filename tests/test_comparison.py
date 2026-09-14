@@ -34,6 +34,7 @@ def _payload(
         "scenario": scenario,
         "status": status,
         "duration_sec": duration_sec,
+        "navigation_result": "SUCCEEDED",
         "start": asdict(start),
         "goal": asdict(goal),
         "task": asdict(
@@ -124,6 +125,15 @@ def test_parse_rejects_tampered_task_fingerprint() -> None:
 def test_parse_requires_map_identity_for_comparison() -> None:
     with pytest.raises(ComparisonInputError, match="must identify the map"):
         parse_scenario_result(_payload(map_id="unspecified"))
+
+
+def test_parse_rejects_legacy_result_with_migration_guidance() -> None:
+    payload = _payload()
+    payload.pop("schema_version")
+    payload.pop("task")
+
+    with pytest.raises(ComparisonInputError, match="legacy result schema v0"):
+        parse_scenario_result(payload)
 
 
 def test_compare_allows_controller_metadata_to_change() -> None:
