@@ -4,7 +4,7 @@ Local-first regression testing for ROS2 / Nav2.
 
 RobotCI is an open-source developer tool for running repeatable navigation scenarios in simulation, producing machine-readable results, and eventually comparing candidate robot behavior against a known-good baseline before changes reach a physical robot.
 
-> Status: early alpha. M0–M2 are complete. M3 is in progress and adds runtime navigation telemetry such as path length, distance to goal, stuck events, feedback samples, and recoveries.
+> Status: early alpha. M0–M3 are complete. The runtime now emits deterministic navigation telemetry with evidence-quality checks; M4 regression workflows are the next milestone.
 
 ## Why RobotCI
 
@@ -296,13 +296,14 @@ When a runtime result is missing or malformed, RobotCI writes a current
 `INFRA_ERROR` result with `metrics: null` and a machine-readable `reason_code`
 instead of inventing zero-valued measurements.
 
-Current M3 telemetry:
+M3 telemetry contract:
 
-- `path_length_m` — accumulated traveled distance with a small deadband to suppress pose jitter
-- `distance_to_goal_m` — latest Nav2 remaining distance, with geometric fallback
-- `stuck_events` — number of detected no-motion periods
-- `feedback_samples` — number of Nav2 feedback samples received
-- `recoveries` — highest recovery count reported by Nav2
+- `duration_sec` — monotonic wall-clock time from goal dispatch to the terminal navigation result; pre-dispatch infrastructure errors record elapsed setup time for diagnostics
+- `path_length_m` — accumulated distance between valid feedback poses, with a small deadband to suppress pose jitter
+- `distance_to_goal_m` — straight-line distance from the latest valid feedback pose to the configured goal
+- `stuck_events` — number of no-motion periods detected after goal dispatch
+- `feedback_samples` — number of distinct Nav2 feedback messages received
+- `recoveries` — highest cumulative recovery count reported by Nav2, including feedback whose pose is invalid
 
 `telemetry_quality` records valid and invalid pose samples and whether the final
 feedback pose was valid. A Nav2 `SUCCEEDED` outcome becomes `PASS` only when the
@@ -610,7 +611,7 @@ robotci run + multiple scenarios + suite-result.json
 M2 — Configuration ✅
 robotci.yaml + validation + config-driven start/goal/timeout/runtime
 
-M3 — Metrics 🚧
+M3 — Metrics ✅
 duration + path length + distance-to-goal + stuck detection + recoveries
 
 M4 — Regression

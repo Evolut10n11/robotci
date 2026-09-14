@@ -84,7 +84,6 @@ def _record_feedback(
         y=float(position.y),
         yaw=yaw,
         now=now,
-        distance_remaining_m=float(feedback.distance_remaining),
         recoveries=int(feedback.number_of_recoveries),
     )
     if pose_is_valid:
@@ -135,6 +134,21 @@ def run_navigation_scenario(
         navigator = BasicNavigator(node_name=node_name)
 
         goal_pose = _pose_stamped(navigator, goal)
+
+        # Runtime setup is not robot behavior. Start duration, replay timestamps,
+        # timeout accounting, and stuck detection at goal dispatch.
+        started_at = time.monotonic()
+        tracker = NavigationMetricsTracker(
+            start_x=start.x,
+            start_y=start.y,
+            started_at=started_at,
+        )
+        recorder = ReplayRecorder(
+            scenario=scenario_name,
+            start=start,
+            goal=goal,
+            started_at=started_at,
+        )
         accepted = navigator.goToPose(goal_pose)
 
         if not accepted:
