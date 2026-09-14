@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from collections.abc import Sequence
 from pathlib import Path
 
 from robotci.doctor import CheckResult, run_doctor_checks
 
 SCHEMA_VERSION = 1
+
+
+def _adapter_override_enabled() -> bool:
+    return bool(os.environ.get("ROBOTCI_ATTEMPT_SCRIPT"))
 
 
 def build_report(checks: list[CheckResult]) -> dict[str, object]:
@@ -21,6 +26,7 @@ def build_report(checks: list[CheckResult]) -> dict[str, object]:
             "ok": runtime.ok,
             "selected": runtime.value,
             "message": runtime.message,
+            "adapter_override": _adapter_override_enabled(),
         }
         if runtime is not None
         else None,
