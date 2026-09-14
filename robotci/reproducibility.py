@@ -540,10 +540,49 @@ def build_robotci_source_fingerprint(
             ("runtime-package/robotci", runtime_package),
         )
     )
+    def package_import_sources(package: Path) -> list[Path]:
+        package_files: list[Path] = []
+
+        def visit(directory: Path) -> None:
+            try:
+                with os.scandir(directory) as scanner:
+                    children = sorted(
+                        (Path(entry.path) for entry in scanner),
+                        key=lambda item: item.name,
+                    )
+            except OSError as exc:
+                raise ReproducibilityError(
+                    f"cannot inspect RobotCI package '{package}': {exc}"
+                ) from exc
+            for child in children:
+                try:
+                    child_stat = child.lstat()
+                except OSError as exc:
+                    raise ReproducibilityError(
+                        f"cannot inspect RobotCI package source '{child}': {exc}"
+                    ) from exc
+                if stat.S_ISLNK(child_stat.st_mode):
+                    raise ReproducibilityError(
+                        f"RobotCI package source must not be a symlink: {child}"
+                    )
+                if stat.S_ISDIR(child_stat.st_mode):
+                    if child.name != "__pycache__":
+                        visit(child)
+                elif stat.S_ISREG(child_stat.st_mode):
+                    if child.name.endswith(_IMPORT_SUFFIXES):
+                        package_files.append(child)
+                else:
+                    raise ReproducibilityError(
+                        f"RobotCI package contains a special file: {child}"
+                    )
+
+        visit(package)
+        return package_files
+
     sources = [
         (f"{label}/{path.relative_to(package).as_posix()}", path)
         for label, package in package_roots
-        for path in package.rglob("*.py")
+        for path in package_import_sources(package)
     ]
 
     try:

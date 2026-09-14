@@ -446,6 +446,7 @@ def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
     (runtime / "scripts").mkdir()
     installed_source = installed_package / "runner.py"
     runtime_source = runtime_package / "runner.py"
+    runtime_extension = runtime_package / f"_native{EXTENSION_SUFFIXES[0]}"
     shadow_source = runtime / "rclpy.py"
     shadow_bytecode = runtime / "rclpy.pyc"
     shadow_extension = runtime / f"rclpy{EXTENSION_SUFFIXES[0]}"
@@ -455,6 +456,7 @@ def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
     shadow_data = shadow_package / "profile.xml"
     installed_source.write_text("INSTALLED = 1\n", encoding="utf-8")
     runtime_source.write_text("RUNTIME = 1\n", encoding="utf-8")
+    runtime_extension.write_bytes(b"ROBOTCI-EXTENSION-1")
     shadow_source.write_text("SHADOW = 1\n", encoding="utf-8")
     shadow_bytecode.write_bytes(b"BYTECODE-1")
     shadow_extension.write_bytes(b"EXTENSION-1")
@@ -495,6 +497,11 @@ def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
         installed_package,
         runtime_root=runtime,
     )
+    runtime_extension.write_bytes(b"ROBOTCI-EXTENSION-2")
+    robotci_extension_changed = build_robotci_source_fingerprint(
+        installed_package,
+        runtime_root=runtime,
+    )
 
     assert original != installed_changed
     assert installed_changed != runtime_changed
@@ -502,6 +509,7 @@ def test_robotci_source_fingerprint_covers_runner_and_runtime_packages(
     assert shadow_changed != bytecode_changed
     assert bytecode_changed != extension_changed
     assert extension_changed != package_data_changed
+    assert package_data_changed != robotci_extension_changed
 
 
 def test_robotci_source_fingerprint_covers_external_attempt_script(

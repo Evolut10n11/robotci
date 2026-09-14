@@ -19,8 +19,9 @@ an `execution` object with:
   locale, and runtime-wrapper variables, stored only as value SHA-256 digests;
 - content digests for file-backed middleware configuration and explicit,
   permission-aware ROS security keystore walks that fail on unreadable nodes;
-- source digests of both the outer RobotCI runner package and the subprocess
-  package when they come from different roots, runtime shell files, and any
+- source, sourceless bytecode, and native-extension digests from both the
+  outer RobotCI runner package and the subprocess package when their roots
+  differ, plus runtime shell files and any
   top-level source, sourceless bytecode, native-extension module, or complete
   package tree that can shadow ROS imports;
 - a SHA-256 environment fingerprint and a combined execution fingerprint.
