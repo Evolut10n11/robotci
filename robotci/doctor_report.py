@@ -19,6 +19,7 @@ def build_report(checks: list[CheckResult]) -> dict[str, object]:
         "status": "PASS" if not blocking_failures else "FAIL",
         "runtime": {
             "ok": runtime.ok,
+            "selected": runtime.value,
             "message": runtime.message,
         }
         if runtime is not None
