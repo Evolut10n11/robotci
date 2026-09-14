@@ -50,6 +50,16 @@ def test_build_report_reports_adapter_override_without_path(monkeypatch) -> None
     assert "robotci_adapter.sh" not in payload
 
 
+def test_build_report_ignores_adapter_override_for_docker(monkeypatch) -> None:
+    monkeypatch.setenv("ROBOTCI_ATTEMPT_SCRIPT", "/private/company/robotci_adapter.sh")
+
+    report = build_report(
+        [CheckResult("runtime", True, "auto runtime will use Docker", value="docker")]
+    )
+
+    assert report["runtime"]["adapter_override"] is False
+
+
 def test_build_report_fails_on_blocking_failure(monkeypatch) -> None:
     monkeypatch.delenv("ROBOTCI_ATTEMPT_SCRIPT", raising=False)
     report = build_report(
