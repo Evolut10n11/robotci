@@ -8,11 +8,10 @@ from rich.console import Console
 from rich.table import Table
 
 from robotci import __version__
+from robotci.application import RobotCIApplication
 from robotci.comparison import ComparisonInputError, compare_scenario_result_files
-from robotci.config import ConfigError, load_config
-from robotci.doctor import run_doctor_checks
+from robotci.config import ConfigError
 from robotci.plan import build_execution_plan
-from robotci.project import resolve_project_context
 from robotci.regression import RegressionPolicy
 from robotci.reporting import regression_report_payload, write_regression_report
 from robotci.runner import (
@@ -43,20 +42,18 @@ def version() -> None:
 @app.command()
 def doctor() -> None:
     """Check whether the local machine is ready to run RobotCI."""
-    checks = run_doctor_checks()
+    report = RobotCIApplication().get_diagnostics()
 
     table = Table(title="RobotCI environment")
     table.add_column("Check")
     table.add_column("Status")
     table.add_column("Details")
 
-    failed = False
-    for check in checks:
+    for check in report.checks:
         if check.ok:
             status = "[green]PASS[/green]"
         elif check.blocking:
             status = "[red]FAIL[/red]"
-            failed = True
         else:
             status = "[yellow]WARN[/yellow]"
 
@@ -64,7 +61,7 @@ def doctor() -> None:
 
     console.print(table)
 
-    if failed:
+    if report.status == "FAIL":
         raise typer.Exit(code=1)
 
 
@@ -81,11 +78,12 @@ def validate_command(
 ) -> None:
     """Validate RobotCI YAML configuration without starting ROS."""
     try:
-        context = resolve_project_context(config)
-        loaded = load_config(context.config_path)
+        project = RobotCIApplication(config_path=config).get_project_info()
     except ConfigError as exc:
         console.print(f"[red]RobotCI config error:[/red] {exc}")
         raise typer.Exit(code=3) from exc
+
+    loaded = project.config
 
     table = Table(title="RobotCI configuration")
     table.add_column("Scenario", no_wrap=True)
@@ -103,7 +101,7 @@ def validate_command(
             f"{scenario.timeout_sec:g}s",
         )
 
-    console.print(f"Config: {context.config_path}", soft_wrap=True)
+    console.print(f"Config: {project.config_path}", soft_wrap=True)
     console.print(f"Runtime: [cyan]{loaded.runtime}[/cyan]")
     console.print(table)
     for scenario in loaded.scenarios:
