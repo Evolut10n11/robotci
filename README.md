@@ -112,6 +112,21 @@ docker compose run --rm robotci
 cat artifacts/suite-result.json
 ```
 
+## Read-only MCP server
+
+Install the optional MCP support and start the local stdio server:
+
+```bash
+pip install -e ".[mcp]"
+robotci-mcp
+```
+
+The server exposes project information, configured scenarios, diagnostics, the
+latest suite and scenario results, and named-baseline comparison through six
+read-only tools. It uses the current directory as the RobotCI project root by
+default. Set `ROBOTCI_PROJECT_ROOT` or pass `--project-root PATH` to select a
+different project; the command-line option takes precedence.
+
 ## Configuration
 
 RobotCI uses `robotci.yaml` as the source of truth for scenarios:

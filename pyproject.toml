@@ -19,7 +19,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+mcp = [
+    "mcp>=2.0,<3.0",
+]
 dev = [
+    "mcp>=2.0,<3.0",
     "pytest>=8.0,<9.0",
     "ruff>=0.8,<1.0",
 ]
@@ -30,6 +34,7 @@ robotci-init = "robotci.init_cli:app"
 robotci-baseline = "robotci.baseline_cli:app"
 robotci-suite-gate = "robotci.suite_cli:app"
 robotci-doctor = "robotci.doctor_report:main"
+robotci-mcp = "robotci.mcp.server:main"
 robotci-support-bundle = "robotci.support_bundle:main"
 
 [tool.hatch.build.targets.wheel]
