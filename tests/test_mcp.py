@@ -284,11 +284,10 @@ import robotci.cli
 @pytest.mark.anyio
 async def test_stdio_server_round_trip_has_clean_protocol(tmp_path: Path) -> None:
     project = _project_with_results(tmp_path)
-    executable_name = "robotci-mcp.exe" if sys.platform == "win32" else "robotci-mcp"
-    server_command = Path(sys.executable).with_name(executable_name)
-    assert server_command.is_file()
+    server_command = shutil.which("robotci-mcp")
+    assert server_command is not None
     parameters = StdioServerParameters(
-        command=str(server_command),
+        command=server_command,
         args=["--project-root", str(project)],
         cwd=Path(__file__).parents[1],
         env={"PYTHONUNBUFFERED": "1"},
