@@ -34,6 +34,10 @@ RESULT_FILE="${ROBOTCI_RESULT_FILE:-artifacts/${SCENARIO}/result.json}"
 TIMEOUT_SEC="${ROBOTCI_TIMEOUT_SEC:-120}"
 GOAL_TOLERANCE_M="${ROBOTCI_GOAL_TOLERANCE_M:-0.25}"
 MIN_FEEDBACK_SAMPLES="${ROBOTCI_MIN_FEEDBACK_SAMPLES:-1}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=nav2_lifecycle_startup.sh
+source "$SCRIPT_DIR/nav2_lifecycle_startup.sh"
 
 PYTHON_BIN="${ROBOTCI_PYTHON:-python3}"
 if [ -z "${ROBOTCI_PYTHON:-}" ] && [ -x ".venv/bin/python" ]; then
@@ -187,13 +191,7 @@ fail_with_log() {
 }
 
 wait_for_node /loopback_simulator || fail_with_log "Loopback simulator did not appear"
-wait_for_service /lifecycle_manager_map_server/manage_nodes \
-  || fail_with_log "Map lifecycle manager service did not appear"
-wait_for_service /lifecycle_manager_navigation/manage_nodes \
-  || fail_with_log "Navigation lifecycle manager service did not appear"
-
-echo "Starting map server lifecycle..."
-call_startup /lifecycle_manager_map_server/manage_nodes \
+start_lifecycle_with_retry /lifecycle_manager_map_server/manage_nodes "Map server" \
   || fail_with_log "Map server lifecycle startup failed"
 
 for attempt in $(seq 1 30); do
@@ -216,8 +214,7 @@ publish_initial_pose \
 
 sleep 2
 
-echo "Starting navigation lifecycle..."
-call_startup /lifecycle_manager_navigation/manage_nodes \
+start_lifecycle_with_retry /lifecycle_manager_navigation/manage_nodes "Navigation" \
   || fail_with_log "Navigation lifecycle startup failed"
 
 READY=0
