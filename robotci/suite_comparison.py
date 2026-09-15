@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -11,10 +10,11 @@ from robotci.comparison import (
     load_scenario_result,
 )
 from robotci.regression import RegressionPolicy, RegressionReport
-from robotci.reproducibility import (
-    ReproducibilityError,
-    SuiteExecutionIdentity,
-    validate_suite_execution,
+from robotci.reproducibility import SuiteExecutionIdentity
+from robotci.suite_schema import (
+    SuiteResultError,
+    ValidatedSuiteResult,
+    load_suite_result,
 )
 
 
@@ -32,99 +32,19 @@ class SuiteRegressionReport:
     scenarios: tuple[SuiteScenarioComparison, ...]
 
 
-@dataclass(frozen=True)
-class _SuiteEntry:
-    scenario: str
-    result_path: Path
-
-
-def _load_json_object(path: Path, name: str) -> dict[str, object]:
+def _load_suite(path: str | Path, name: str) -> ValidatedSuiteResult:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except OSError as exc:
-        raise ComparisonInputError(f"cannot read {name} '{path}': {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise ComparisonInputError(f"invalid JSON in {name} '{path}': {exc}") from exc
-    if not isinstance(payload, dict):
-        raise ComparisonInputError(f"{name} must contain a JSON object")
-    return payload
-
-
-def _safe_result_path(
-    *,
-    suite_path: Path,
-    result_file: str,
-    suite_name: str,
-) -> Path:
-    relative = Path(result_file)
-    if relative.is_absolute() or ".." in relative.parts:
-        raise ComparisonInputError(
-            f"{suite_name} contains unsafe result_file path: {result_file}"
-        )
-
-    suite_root = suite_path.parent.resolve()
-    resolved = (suite_root / relative).resolve()
-    try:
-        resolved.relative_to(suite_root)
-    except ValueError as exc:
-        raise ComparisonInputError(
-            f"{suite_name} result_file escapes suite directory: {result_file}"
-        ) from exc
-    return resolved
-
-
-def _load_suite_entries(
-    path: str | Path,
-    name: str,
-) -> tuple[tuple[_SuiteEntry, ...], SuiteExecutionIdentity]:
-    suite_path = Path(path)
-    payload = _load_json_object(suite_path, name)
-    try:
-        execution = validate_suite_execution(payload, name=name)
-    except ReproducibilityError as exc:
-        raise ComparisonInputError(str(exc)) from exc
-    if payload.get("status") != "PASS":
+        suite = load_suite_result(path)
+    except SuiteResultError as exc:
+        raise ComparisonInputError(f"{name}: {exc}") from exc
+    if suite.status != "PASS":
         raise ComparisonInputError(f"{name} must have PASS status before regression comparison")
-
-    raw_scenarios = payload.get("scenarios")
-    if not isinstance(raw_scenarios, list) or not raw_scenarios:
-        raise ComparisonInputError(f"{name}.scenarios must be a non-empty array")
-
-    entries: list[_SuiteEntry] = []
-    seen: set[str] = set()
-    for index, raw_entry in enumerate(raw_scenarios):
-        if not isinstance(raw_entry, dict):
-            raise ComparisonInputError(f"{name}.scenarios[{index}] must be an object")
-        scenario = raw_entry.get("scenario")
-        result_file = raw_entry.get("result_file")
-        status = raw_entry.get("status")
-        if not isinstance(scenario, str) or not scenario:
+    for entry in suite.scenarios:
+        if entry.status != "PASS":
             raise ComparisonInputError(
-                f"{name}.scenarios[{index}].scenario must be a non-empty string"
+                f"{name} scenario '{entry.scenario}' must have PASS status before comparison"
             )
-        if scenario in seen:
-            raise ComparisonInputError(f"{name} contains duplicate scenario '{scenario}'")
-        if status != "PASS":
-            raise ComparisonInputError(
-                f"{name} scenario '{scenario}' must have PASS status before comparison"
-            )
-        if not isinstance(result_file, str) or not result_file:
-            raise ComparisonInputError(
-                f"{name}.scenarios[{index}].result_file must be a non-empty string"
-            )
-        seen.add(scenario)
-        entries.append(
-            _SuiteEntry(
-                scenario=scenario,
-                result_path=_safe_result_path(
-                    suite_path=suite_path,
-                    result_file=result_file,
-                    suite_name=name,
-                ),
-            )
-        )
-
-    return tuple(entries), execution
+    return suite
 
 
 def _execution_mismatch(
@@ -151,12 +71,12 @@ def compare_suite_result_files(
 ) -> SuiteRegressionReport:
     """Compare every matching scenario in two successful suite result files."""
     selected_policy = policy or RegressionPolicy()
-    baseline_entries, baseline_execution = _load_suite_entries(
-        baseline_path, "baseline suite"
-    )
-    candidate_entries, candidate_execution = _load_suite_entries(
-        candidate_path, "candidate suite"
-    )
+    baseline_suite = _load_suite(baseline_path, "baseline suite")
+    candidate_suite = _load_suite(candidate_path, "candidate suite")
+    baseline_entries = baseline_suite.scenarios
+    candidate_entries = candidate_suite.scenarios
+    baseline_execution = baseline_suite.execution
+    candidate_execution = candidate_suite.execution
     if baseline_execution.fingerprint != candidate_execution.fingerprint:
         raise ComparisonInputError(
             "suite execution fingerprints must match ("

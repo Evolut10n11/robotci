@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from robotci.comparison import ComparisonInputError, load_scenario_result
-from robotci.reproducibility import ReproducibilityError, validate_suite_execution
+from robotci.suite_schema import SuiteResultError, ValidatedSuiteResult, load_suite_result
 
 BASELINE_SCHEMA_VERSION = 1
 DEFAULT_BASELINE_ROOT = Path(".robotci") / "baselines"
@@ -49,68 +49,31 @@ def _validate_name(name: str) -> None:
         )
 
 
-def _safe_result_path(suite_dir: Path, result_file: str) -> Path:
-    relative = Path(result_file)
-    if relative.is_absolute() or ".." in relative.parts:
-        raise BaselineError(f"unsafe result_file path: {result_file}")
-
-    suite_root = suite_dir.resolve()
-    resolved = (suite_dir / relative).resolve()
+def _validated_suite(
+    suite_path: Path,
+) -> tuple[ValidatedSuiteResult, list[tuple[str, Path]]]:
     try:
-        resolved.relative_to(suite_root)
-    except ValueError as exc:
-        raise BaselineError(f"result_file escapes suite directory: {result_file}") from exc
-    return resolved
-
-
-def _validated_suite(suite_path: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
-    suite = _load_json_object(suite_path, label="suite result")
-    try:
-        validate_suite_execution(suite)
-    except ReproducibilityError as exc:
+        suite = load_suite_result(suite_path)
+    except SuiteResultError as exc:
         raise BaselineError(str(exc)) from exc
-    if suite.get("status") != "PASS":
+    if suite.status != "PASS":
         raise BaselineError("only PASS suites can be captured as known-good baselines")
-
-    scenarios = suite.get("scenarios")
-    if not isinstance(scenarios, list) or not scenarios:
-        raise BaselineError("suite result must contain a non-empty scenarios list")
-
-    suite_dir = suite_path.parent
-    seen: set[str] = set()
     validated: list[tuple[str, Path]] = []
-
-    for item in scenarios:
-        if not isinstance(item, dict):
-            raise BaselineError("each suite scenario entry must be an object")
-        scenario = item.get("scenario")
-        result_file = item.get("result_file")
-        status = item.get("status")
-        if not isinstance(scenario, str) or not scenario:
-            raise BaselineError("each suite scenario entry must have a scenario name")
-        if scenario in seen:
-            raise BaselineError(f"duplicate scenario in suite result: {scenario}")
-        seen.add(scenario)
-        if status != "PASS":
-            raise BaselineError(f"scenario {scenario!r} is not PASS")
-        if not isinstance(result_file, str) or not result_file:
-            raise BaselineError(f"scenario {scenario!r} has no result_file")
-
-        result_path = _safe_result_path(suite_dir, result_file)
-        if not result_path.is_file():
-            raise BaselineError(f"result for scenario {scenario!r} does not exist: {result_path}")
+    for item in suite.scenarios:
+        if item.status != "PASS":
+            raise BaselineError(f"scenario {item.scenario!r} is not PASS")
         try:
-            result = load_scenario_result(result_path)
+            result = load_scenario_result(item.result_path)
         except ComparisonInputError as exc:
             raise BaselineError(
-                f"result for scenario {scenario!r} is not baseline-compatible: {exc}"
+                f"result for scenario {item.scenario!r} is not baseline-compatible: {exc}"
             ) from exc
-        if result.scenario != scenario:
+        if result.scenario != item.scenario:
             raise BaselineError(
-                f"scenario identity mismatch: suite has {scenario!r}, "
+                f"scenario identity mismatch: suite has {item.scenario!r}, "
                 f"result has {result.scenario!r}"
             )
-        validated.append((result_file, result_path))
+        validated.append((item.result_file, item.result_path))
 
     return suite, validated
 
@@ -141,7 +104,7 @@ def capture_baseline(
         "captured_at": captured_at,
         "source_suite": str(source_suite),
         "suite_file": "suite-result.json",
-        "scenarios": [item["scenario"] for item in suite["scenarios"]],
+        "scenarios": [item.scenario for item in suite.scenarios],
     }
 
     with tempfile.TemporaryDirectory(prefix=f".{name}-", dir=root) as temp_dir:
