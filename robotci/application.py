@@ -16,13 +16,36 @@ from robotci.reproducibility import SuiteExecutionIdentity
 from robotci.result_schema import ValidatedScenarioResult, load_result
 from robotci.results import ScenarioStatus
 from robotci.suite_comparison import SuiteRegressionReport, compare_suite_result_files
-from robotci.suite_schema import SuiteResultError, load_suite_result
+from robotci.suite_schema import SuiteResultError, SuiteResultErrorCode, load_suite_result
 
 DiagnosticStatus = Literal["PASS", "FAIL"]
 
 
 class ApplicationError(ValueError):
     """Raised when persisted application data cannot be read safely."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        code: SuiteResultErrorCode | None = None,
+        path: Path | None = None,
+        field: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.code = code
+        self.path = path
+        self.field = field
+
+    def as_dict(self) -> dict[str, str]:
+        details = {"message": str(self)}
+        if self.code is not None:
+            details["code"] = self.code
+        if self.path is not None:
+            details["path"] = str(self.path)
+        if self.field is not None:
+            details["field"] = self.field
+        return details
 
 
 @dataclass(frozen=True)
@@ -198,7 +221,12 @@ class RobotCIApplication:
         try:
             suite = load_suite_result(path)
         except SuiteResultError as exc:
-            raise ApplicationError(str(exc)) from exc
+            raise ApplicationError(
+                str(exc),
+                code=exc.code,
+                path=exc.path,
+                field=exc.field,
+            ) from exc
         return SuiteResultSnapshot(
             path=suite.path,
             schema_version=suite.schema_version,

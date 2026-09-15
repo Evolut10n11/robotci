@@ -93,8 +93,18 @@ def test_suite_reader_rejects_result_path_escape(tmp_path: Path) -> None:
     payload["scenarios"][0]["result_file"] = "../outside.json"
     suite_path.write_text(json.dumps(payload), encoding="utf-8")
 
-    with pytest.raises(ApplicationError, match="unsafe result_file path"):
+    with pytest.raises(ApplicationError, match="unsafe result_file path") as error:
         RobotCIApplication(project_root=project).get_latest_suite_result()
+
+    assert error.value.code == "unsafe_result_path"
+    assert error.value.path == suite_path.resolve()
+    assert error.value.field == "scenarios[0].result_file"
+    assert error.value.as_dict() == {
+        "code": "unsafe_result_path",
+        "message": str(error.value),
+        "path": str(suite_path.resolve()),
+        "field": "scenarios[0].result_file",
+    }
 
 
 def test_comparison_methods_reuse_scenario_and_suite_core_logic(tmp_path: Path) -> None:
