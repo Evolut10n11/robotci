@@ -1,10 +1,8 @@
 from __future__ import annotations
 
-import json
-import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, cast
+from typing import Literal
 
 from robotci import __version__
 from robotci.baselines import DEFAULT_BASELINE_ROOT, baseline_suite_path
@@ -14,14 +12,11 @@ from robotci.doctor import CheckResult, run_doctor_checks
 from robotci.paths import state_dir
 from robotci.project import DEFAULT_CONFIG_PATH, ProjectContext, resolve_project_context
 from robotci.regression import RegressionPolicy, RegressionReport
-from robotci.reproducibility import (
-    ReproducibilityError,
-    SuiteExecutionIdentity,
-    validate_suite_execution,
-)
+from robotci.reproducibility import SuiteExecutionIdentity
 from robotci.result_schema import ValidatedScenarioResult, load_result
 from robotci.results import ScenarioStatus
 from robotci.suite_comparison import SuiteRegressionReport, compare_suite_result_files
+from robotci.suite_schema import SuiteResultError, load_suite_result
 
 DiagnosticStatus = Literal["PASS", "FAIL"]
 
@@ -200,104 +195,24 @@ class RobotCIApplication:
         return (self._context.project_root / requested).resolve()
 
     def _load_suite_result(self, path: Path) -> SuiteResultSnapshot:
-        # Technical debt: suite structure validation is currently split across the
-        # writer, baseline and comparison modules. Move this adapter to a shared,
-        # versioned suite reader when that core API is introduced.
-        payload = self._load_json_object(path)
         try:
-            execution = validate_suite_execution(payload)
-        except ReproducibilityError as exc:
+            suite = load_suite_result(path)
+        except SuiteResultError as exc:
             raise ApplicationError(str(exc)) from exc
-
-        status = self._scenario_status(payload.get("status"), "suite result.status")
-        duration_sec = self._duration(payload.get("duration_sec"), "suite result.duration_sec")
-        raw_scenarios = payload.get("scenarios")
-        if not isinstance(raw_scenarios, list) or not raw_scenarios:
-            raise ApplicationError("suite result.scenarios must be a non-empty array")
-
-        scenarios: list[SuiteScenarioSummary] = []
-        seen: set[str] = set()
-        for index, raw_entry in enumerate(raw_scenarios):
-            if not isinstance(raw_entry, dict):
-                raise ApplicationError(f"suite result.scenarios[{index}] must be an object")
-            name = raw_entry.get("scenario")
-            if not isinstance(name, str) or not name:
-                raise ApplicationError(
-                    f"suite result.scenarios[{index}].scenario must be a non-empty string"
-                )
-            if name in seen:
-                raise ApplicationError(f"suite result contains duplicate scenario {name!r}")
-            seen.add(name)
-
-            result_file = raw_entry.get("result_file")
-            if not isinstance(result_file, str) or not result_file:
-                raise ApplicationError(
-                    f"suite result.scenarios[{index}].result_file must be a non-empty string"
-                )
-            scenarios.append(
-                SuiteScenarioSummary(
-                    scenario=name,
-                    status=self._scenario_status(
-                        raw_entry.get("status"),
-                        f"suite result.scenarios[{index}].status",
-                    ),
-                    duration_sec=self._duration(
-                        raw_entry.get("duration_sec"),
-                        f"suite result.scenarios[{index}].duration_sec",
-                    ),
-                    result_path=self._safe_result_path(path, result_file),
-                )
-            )
-
         return SuiteResultSnapshot(
-            path=path,
-            schema_version=payload["schema_version"],
-            status=status,
-            runtime=execution.runtime,
-            duration_sec=duration_sec,
-            scenarios=tuple(scenarios),
-            execution=execution,
+            path=suite.path,
+            schema_version=suite.schema_version,
+            status=suite.status,
+            runtime=suite.runtime,
+            duration_sec=suite.duration_sec,
+            scenarios=tuple(
+                SuiteScenarioSummary(
+                    scenario=item.scenario,
+                    status=item.status,
+                    duration_sec=item.duration_sec,
+                    result_path=item.result_path,
+                )
+                for item in suite.scenarios
+            ),
+            execution=suite.execution,
         )
-
-    @staticmethod
-    def _load_json_object(path: Path) -> dict[str, object]:
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except OSError as exc:
-            raise ApplicationError(f"cannot read suite result {str(path)!r}: {exc}") from exc
-        except (UnicodeError, json.JSONDecodeError) as exc:
-            raise ApplicationError(f"invalid JSON in suite result {str(path)!r}: {exc}") from exc
-        if not isinstance(payload, dict):
-            raise ApplicationError("suite result must contain a JSON object")
-        return payload
-
-    @staticmethod
-    def _scenario_status(value: object, name: str) -> ScenarioStatus:
-        if value not in {"PASS", "FAIL", "TIMEOUT", "INFRA_ERROR"}:
-            raise ApplicationError(f"{name} has unsupported status {value!r}")
-        return cast(ScenarioStatus, value)
-
-    @staticmethod
-    def _duration(value: object, name: str) -> float:
-        if isinstance(value, bool) or not isinstance(value, int | float):
-            raise ApplicationError(f"{name} must be a non-negative finite number")
-        duration = float(value)
-        if not math.isfinite(duration) or duration < 0:
-            raise ApplicationError(f"{name} must be a non-negative finite number")
-        return duration
-
-    @staticmethod
-    def _safe_result_path(suite_path: Path, result_file: str) -> Path:
-        relative = Path(result_file)
-        if relative.is_absolute() or ".." in relative.parts:
-            raise ApplicationError(f"suite result contains unsafe result_file path: {result_file}")
-
-        suite_root = suite_path.parent.resolve()
-        resolved = (suite_root / relative).resolve()
-        try:
-            resolved.relative_to(suite_root)
-        except ValueError as exc:
-            raise ApplicationError(
-                f"suite result result_file escapes suite directory: {result_file}"
-            ) from exc
-        return resolved
