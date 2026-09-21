@@ -35,7 +35,7 @@ is implemented; external validation is in progress. Start with simulation.
 | Measure behavior | Duration, path length, distance to goal, stuck events, recoveries, and feedback quality |
 | Gate a change | Named local baselines, compatibility checks, deterministic thresholds, and blocking exit codes |
 | Review results in CI | JSON, Markdown, JUnit, and a reusable GitHub Action |
-| Inspect a run | Local replay viewer, diagnostics, support bundles, and six read-only MCP tools |
+| Inspect a run | Synchronized replay comparison, diagnostics, support bundles, and six read-only MCP tools |
 
 Navigation success alone is not enough. A robot can reach its goal and still take
 a longer path or require more recoveries. RobotCI measures those changes against
@@ -86,6 +86,10 @@ These checks run without ROS or Docker. To explore the local replay viewer:
 ```powershell
 robotci view --demo
 ```
+
+![RobotCI replay workbench comparing two synthetic recordings](docs/assets/replay-workbench.jpg)
+
+*Local replay comparison. The built-in demo is synthetic and has no gate verdict.*
 
 The demo is synthetic. Open a recorded replay to inspect an actual run.
 
@@ -146,7 +150,9 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 - **GitHub Actions:** the [suite regression action](docs/github-action.md)
   writes JSON, Markdown, and JUnit reports before returning a blocking verdict.
 - **Replay:** `robotci view --replay .robotci/results/simple_route.replay.json`
-  opens a recorded trajectory. See the [viewer guide](docs/replay-viewer.md).
+  opens a recorded trajectory. Compare full suites with `--suite` and
+  `--baseline-suite`, or open replay files directly in the browser. See the
+  [viewer guide](docs/replay-viewer.md).
 - **MCP:** install `python -m pip install -e ".[mcp]"`, then run `robotci-mcp`.
   The [MCP guide](docs/mcp.md) lists the six read-only inspection tools.
 - **Your simulator:** use the [native adapter contract](docs/native-runtime-adapter.md)
@@ -158,7 +164,7 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 | --- | --- |
 | M0–M7: execution, metrics, regression, reproducibility, CI, public alpha | Implemented |
 | M8: real-world validation | In progress; external evidence pending |
-| M9: visual replay | Basic recorder/viewer available; controls and baseline comparison remain in development |
+| M9: visual replay | Local workbench implemented: playback, 2D/3D, synchronized comparison, and suite gate evidence |
 | M10: additional robot adapters | Planned; Unitree Go2 + MuJoCo is a candidate |
 | M11: agent integration | Read-only MCP shipped; execution tools and reference agent remain planned |
 | M12: team capabilities | Requires evidence from external pilots |
@@ -168,8 +174,7 @@ See the [roadmap](docs/roadmap.md) for scope and the
 
 The current alpha targets Nav2 simulation. It is not a hardware safety
 certification. Parallel suites sharing runtime/output resources are not supported;
-baseline/candidate visual comparison and broad simulator compatibility are still
-future work. See [runtime limitations](docs/runtime-integrity.md).
+broad simulator compatibility remains future work. See [runtime limitations](docs/runtime-integrity.md).
 
 ## Documentation and development
 

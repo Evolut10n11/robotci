@@ -1,6 +1,10 @@
-# 3D Replay Viewer
+# Replay workbench
 
-RobotCI includes a local browser-based 3D viewer for deterministic navigation replays.
+Inspect recorded robot behavior, compare baseline and candidate trajectories, and
+read the deterministic suite gate in one local workspace. All assets are bundled;
+no cloud service, account, or Node.js installation is required to use the viewer.
+
+![Replay workbench with synchronized synthetic recordings](assets/replay-workbench.jpg)
 
 ## Quick start
 
@@ -17,6 +21,79 @@ robotci view --replay path/to/replay.json
 ```
 
 By default the viewer binds to `127.0.0.1:8765` and opens the browser automatically. Use `--no-open` for headless/manual use, or override `--host` and `--port` when needed.
+
+## Compare recordings or suites
+
+For a visual comparison of two Replay v1 files:
+
+```bash
+robotci view --replay candidate.replay.json --baseline baseline.replay.json
+```
+
+You can also choose **Open recordings** in the browser. Files stay in the browser
+and are not uploaded. Imports are limited to 32 MiB and 250,000 pose samples per
+file. Invalid numbers, duplicate JSON keys, unsupported statuses, and unordered
+or out-of-range timestamps are rejected before the workspace changes.
+
+For the official regression gate, open validated suite results:
+
+```bash
+robotci view --suite .robotci/suite-result.json --baseline-suite .robotci/baselines/main-nav/suite-result.json
+```
+
+Use `--scenario simple_route` to select a scenario initially. The viewer delegates
+the gate to the same comparison engine as `robotci-suite-gate`, including task,
+execution, and telemetry compatibility checks. Its default policy allows +10%
+duration, +10% path length, +0.1 m final goal distance, and no additional stuck or
+recovery events. Pass the corresponding `--max-*-increase*` flags from
+`robotci view --help` to match your CI policy. Opening a viewer never blocks CI;
+use the gate commands for blocking exit codes.
+
+| Evidence | What the viewer reports |
+| --- | --- |
+| Compatible suite pair | Official PASS/REGRESSION, findings, policy limits, and JSON export |
+| Replay pair | Visual comparison and metric differences; no gate verdict |
+| Incompatible suite pair | Available recordings/metrics and why the gate cannot be evaluated |
+| Old result without a replay | Metrics and gate remain available; trajectory is explicitly unavailable |
+| Synthetic demo | Clearly marked sample data; no gate verdict |
+
+New baseline captures preserve valid replay sidecars. When opening a suite, a
+sidecar must agree with its result's scenario, status, duration, start, goal,
+frame (when available), and metrics. A stale or malformed sidecar is withheld;
+it cannot replace the suite evidence used by the gate. These consistency checks
+are not a cryptographic binding between a trajectory and a result.
+
+## Controls and interpretation
+
+- **Replay / Compare:** inspect the candidate or overlay an aligned baseline.
+- **Top view / 3D / Fit:** pan, zoom, orbit, and reset the camera. 3D requires
+  WebGL; the top view remains usable without it.
+- **Playback:** play/pause, seek, 0.25×–4× speed, loop, and previous/next event.
+- **Events:** select a marker or log entry to jump to its recorded timestamp.
+- **Inspector:** interpolated candidate pose at the playhead, plus final run metrics.
+- **Export:** download the official gate JSON, or the candidate Replay v1 file
+  when no gate is available.
+
+The timeline uses elapsed seconds, not normalized progress. Each trajectory
+holds its final recorded pose after its last sample. Sampling is interpolated
+between recorded poses, so it does not reconstruct unobserved behavior. Long
+trajectories are reduced for drawing only; the original samples remain available
+for pose lookup and export. The event list displays the first 1,000 events of a
+large recording; previous/next navigation still considers every recorded event.
+
+Different scenarios, coordinate frames, start positions, or goal positions disable
+the overlay and metric deltas. Spatial alignment alone does not establish the
+provenance required for an official regression verdict.
+
+Press **?** for shortcuts. **Space** plays/pauses, **← / →** seek one second,
+**[ / ]** select events, **Home / End** select the bounds, **F** fits the camera,
+and **O** opens files. Shortcuts do not intercept form controls. Playback pauses
+when the tab is hidden and when the scenario or source changes.
+
+The current runtime recorder emits start and terminal events. Metric counts do
+not imply that every stuck/recovery event has a timestamp; the viewer never
+invents those timestamps. This is a trajectory viewer, not a simulator, map
+renderer, live robot controller, or video recording.
 
 ## Record a real Nav2 run
 
@@ -43,11 +120,13 @@ robotci view --replay .robotci/results/simple_route.replay.json
 
 ## Replay v1
 
-The viewer reads the replay from `GET /api/replay`. A Replay v1 document contains:
+The viewer consumes a session from `GET /api/session`. The original
+`GET /api/replay` endpoint remains available for the initially selected candidate
+recording. A Replay v1 document contains:
 
 - `schema_version`: must be `1`.
 - `scenario`: human-readable scenario identifier.
-- `status`: viewer verdict, `PASS` or `FAIL`.
+- `status`: recorded execution outcome, `PASS` or `FAIL` (not a regression verdict).
 - `result_status`: original RobotCI verdict (`PASS`, `FAIL`, `TIMEOUT`, or `INFRA_ERROR`) when emitted by the runtime recorder.
 - `runtime`: runtime/backend label.
 - `duration_sec`: total replay duration.
@@ -104,7 +183,10 @@ RobotCI validates the file before starting the local server so malformed or unsu
 ## Local endpoints
 
 - `GET /` serves the bundled viewer.
-- `GET /api/replay` serves the selected replay JSON.
+- `GET /api/session` serves the read-only workspace, scenarios, optional replays,
+  and optional suite gate report.
+- `GET /api/replay` serves the initially selected candidate replay, or 404 when
+  that result has no trajectory.
 - `GET /healthz` returns a small health response for smoke tests.
 
 The default bind address is loopback-only. No external service or cloud backend is required.

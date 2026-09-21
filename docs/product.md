@@ -38,13 +38,15 @@ A public repository is a qualification signal, not evidence of adoption or deman
 
 The [roadmap](roadmap.md) is the canonical delivery-status table. The alpha already
 contains scenario execution, metrics, local baselines, regression gates, reports,
-a GitHub Action, a basic recorder/viewer, and a read-only MCP server.
+a GitHub Action, a replay workbench, and a read-only MCP server.
 
 ## Visual debugging
 
-The bundled viewer opens recorded trajectories today. The next work is to finish
-maintainable frontend source integration and playback controls, then compare a
-baseline with a candidate using synchronized time/progress and metric deltas.
+The bundled workbench provides maintainable frontend source, 2D/3D trajectory
+inspection, playback and event seeking, and baseline/candidate comparison synced
+by elapsed time. Suite inspection reuses the existing deterministic gate;
+replay-only comparison has no official verdict. New baselines retain valid replay
+sidecars so the visual evidence survives removal of the original run.
 
 A useful comparison should show start/goal, available map data, observed
 trajectories, and timestamped events. Clicking a regression should lead to the

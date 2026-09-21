@@ -139,3 +139,16 @@ Baseline capture rejects:
 - accidental overwrite without `--replace`.
 
 Suite comparison applies the same path-containment rule to baseline and candidate artifacts. The candidate run is never mutated while a baseline is captured or compared.
+
+## Inspect saved trajectories
+
+New captures include valid `.replay.json` sidecars beside their scenario results.
+A malformed or mismatched sidecar rejects the capture before replacing an existing
+baseline. Baselines without recordings still work for metric gates.
+
+```bash
+robotci view --suite .robotci/suite-result.json --baseline-suite .robotci/baselines/main-nav/suite-result.json
+```
+
+The viewer shows the same regression policy as the CLI; pass the same threshold
+flags when you use a custom policy. See the [replay guide](replay-viewer.md).

@@ -1,0 +1,289 @@
+<!-- Integrated from the approved 12ui Replay, Compare and Open recordings designs. -->
+<div class="workbench">
+  <aside class="sidebar" id="sidebar">
+    <a aria-label="RobotCI Replay" class="brand" href="#replay"
+      ><svg
+        fill="none"
+        height="100%"
+        preserveaspectratio="xMidYMid meet"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        viewbox="0 0 24 24"
+        width="100%"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M21 16.008v-8.018a1.98 1.98 0 0 0 -1 -1.717l-7 -4.008a2.016 2.016 0 0 0 -2 0l-7 4.008c-.619 .355 -1 1.01 -1 1.718v8.018c0 .709 .381 1.363 1 1.717l7 4.008a2.016 2.016 0 0 0 2 0l7 -4.008c.619 -.355 1 -1.01 1 -1.718"
+        ></path>
+        <path d="M12 22v-10"></path>
+        <path d="M12 12l8.73 -5.04"></path>
+        <path d="M3.27 6.96l8.73 5.04"></path></svg
+      ><span>RobotCI</span></a
+    >
+    <div class="workspace-label">REPLAY WORKSPACE</div>
+    <nav aria-label="Workspace">
+      <button class="nav-button" data-mode="replay">
+        <span aria-hidden="true">▷</span>Replay</button
+      ><button class="nav-button" data-mode="compare">
+        <span aria-hidden="true">⇄</span>Compare
+      </button>
+    </nav>
+    <div class="section-label">SCENARIOS <span id="scenario-count"></span></div>
+    <div aria-label="Scenarios" class="scenario-list" id="scenario-list"></div>
+    <div class="sidebar-bottom">
+      <div class="workspace-status">
+        <span class="status-dot"></span>Local workspace
+        <p>Recorded evidence. On your machine.</p>
+      </div>
+      <button class="help-button" id="help-button">
+        Keyboard shortcuts <kbd>?</kbd>
+      </button>
+    </div>
+  </aside>
+  <main id="main-content">
+    <header class="workspace-header" id="workspace-header">
+      <div class="heading">
+        <div class="heading-line">
+          <h1 id="scenario-title">Replay workspace</h1>
+          <span class="badge" id="source-badge">Loading</span>
+        </div>
+        <p id="workspace-subtitle">Inspect recorded robot behavior.</p>
+      </div>
+      <div class="header-actions">
+        <button class="button" id="open-button">
+          <span aria-hidden="true">↥</span> Open recordings</button
+        ><a
+          class="button"
+          aria-disabled="true"
+          tabindex="-1"
+          id="export-button"
+        >
+          <span aria-hidden="true">↓</span> Export JSON
+        </a>
+      </div>
+    </header>
+    <div class="notice" hidden="" id="app-alert" role="status"></div>
+    <div class="source-summary" id="source-summary"></div>
+    <div class="analysis-grid" id="analysis-grid">
+      <section aria-label="Trajectory replay" class="replay-column">
+        <div class="panel trajectory" id="trajectory">
+          <div class="plot-toolbar">
+            <div aria-label="View" class="segmented" role="group">
+              <button aria-pressed="true" id="top-button">Top view</button
+              ><button aria-pressed="false" id="scene-button">3D</button>
+            </div>
+            <button
+              class="button small"
+              id="fit-button"
+              title="Fit trajectories (F)"
+            >
+              Fit</button
+            ><span class="frame-label" id="frame-label"></span>
+          </div>
+          <div class="viewport" id="viewport"></div>
+          <div class="plot-empty" hidden="" id="plot-empty"></div>
+          <div class="plot-legend" id="legend"></div>
+          <div class="axis-note">x / y · metres</div>
+          <span class="view-hint" id="view-hint"
+            >Drag to pan · scroll to zoom</span
+          >
+        </div>
+        <div class="panel playback" id="playback">
+          <button
+            aria-label="Play"
+            class="play-button"
+            disabled=""
+            id="play-button"
+            title="Play / pause (Space)"
+          >
+            ▶</button
+          ><button
+            aria-label="Previous event"
+            class="icon-button"
+            disabled=""
+            id="previous-event"
+            title="Previous event ([)"
+          >
+            Ⅰ◀</button
+          ><button
+            aria-label="Next event"
+            class="icon-button"
+            disabled=""
+            id="next-event"
+            title="Next event (])"
+          >
+            ▶Ⅰ</button
+          ><output class="time-display" id="time-display">0.00 / 0.00 s</output
+          ><input
+            aria-label="Replay time"
+            disabled=""
+            id="seek"
+            max="1"
+            min="0"
+            step="0.01"
+            type="range"
+            value="0"
+          /><label class="speed-label"
+            ><span class="sr-only">Playback speed</span
+            ><select id="speed">
+              <option value="0.25">0.25×</option>
+              <option value="0.5">0.5×</option>
+              <option selected="" value="1">1×</option>
+              <option value="2">2×</option>
+              <option value="4">4×</option>
+            </select></label
+          ><label class="loop-label"
+            ><input id="loop" type="checkbox" />Loop</label
+          >
+        </div>
+        <div class="panel timeline" id="timeline">
+          <div id="event-tracks"></div>
+          <div class="timeline-footer">
+            <span>Recorded events</span
+            ><span id="sync-note">Elapsed time · seconds</span>
+          </div>
+        </div>
+      </section>
+      <aside class="panel inspector" id="inspector">
+        <div class="panel-heading">
+          <h2>Run inspector</h2>
+          <span class="badge" id="run-status"></span>
+        </div>
+        <div id="recorded-metrics"></div>
+        <section class="live-section">
+          <div class="section-heading">
+            <h3>Pose at playhead</h3>
+            <span class="mono" id="pose-time"></span>
+          </div>
+          <div class="live-pose" id="live-pose"></div>
+          <p class="microcopy" id="sample-note"></p>
+        </section>
+        <section class="gate-panel" id="gate-panel"></section>
+      </aside>
+    </div>
+    <div class="evidence-grid">
+      <section class="panel evidence" id="evidence">
+        <div class="panel-heading">
+          <h2 id="evidence-title">Recorded metrics</h2>
+          <span class="microcopy" id="evidence-badge"></span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead id="metrics-head"></thead>
+            <tbody id="metrics-body"></tbody>
+          </table>
+        </div>
+        <p class="panel-footnote" id="metrics-note"></p>
+      </section>
+      <section class="panel event-log" id="event-log">
+        <div class="panel-heading">
+          <h2>Event log</h2>
+          <span class="microcopy" id="event-count"></span>
+        </div>
+        <div class="event-list" id="event-list"></div>
+      </section>
+    </div>
+    <footer class="app-footer">
+      <span>RobotCI · Replay v1</span
+      ><span id="session-footnote">Read-only analysis</span>
+    </footer>
+  </main>
+  <dialog aria-labelledby="open-title" id="open-dialog">
+    <form id="open-form">
+      <div class="dialog-heading">
+        <div>
+          <p class="eyebrow">LOCAL EVIDENCE</p>
+          <h2 id="open-title">Open recordings</h2>
+        </div>
+        <button
+          aria-label="Close recordings dialog"
+          class="icon-button"
+          data-close="open-dialog"
+          type="button"
+        >
+          ×
+        </button>
+      </div>
+      <p class="dialog-intro">
+        Load Replay v1 files to inspect a run or compare two trajectories.
+      </p>
+      <label class="file-field"
+        ><span>Candidate recording <small>Required</small></span
+        ><input
+          accept=".json,application/json"
+          id="candidate-file"
+          required=""
+          type="file"
+        /><span class="file-hint"
+          >Choose a .replay.json file · up to 32 MiB</span
+        ></label
+      ><label class="file-field"
+        ><span>Baseline recording <small>Optional</small></span
+        ><input
+          accept=".json,application/json"
+          id="baseline-file"
+          type="file"
+        /><span class="file-hint"
+          >Add a baseline for synchronized visual comparison.</span
+        ></label
+      >
+      <p class="notice error" hidden="" id="import-error" role="alert"></p>
+      <div class="privacy-note">
+        <strong>Your recordings stay with you.</strong>
+        <p>
+          Files are read in this browser and are never uploaded. Replay files
+          enable visual comparison; an official gate requires suite results
+          opened from the CLI.
+        </p>
+      </div>
+      <div class="dialog-actions">
+        <button class="button" data-close="open-dialog" type="button">
+          Cancel</button
+        ><button class="button primary" id="import-button" type="submit">
+          Open workspace
+        </button>
+      </div>
+    </form>
+  </dialog>
+  <dialog aria-labelledby="help-title" id="help-dialog">
+    <div class="dialog-heading">
+      <h2 id="help-title">Keyboard shortcuts</h2>
+      <button
+        aria-label="Close shortcuts"
+        class="icon-button"
+        data-close="help-dialog"
+      >
+        ×
+      </button>
+    </div>
+    <dl class="shortcuts">
+      <div>
+        <dt>Play / pause</dt>
+        <dd><kbd>Space</kbd></dd>
+      </div>
+      <div>
+        <dt>Seek one second</dt>
+        <dd><kbd>←</kbd> <kbd>→</kbd></dd>
+      </div>
+      <div>
+        <dt>Previous / next event</dt>
+        <dd><kbd>[</kbd> <kbd>]</kbd></dd>
+      </div>
+      <div>
+        <dt>Start / end</dt>
+        <dd><kbd>Home</kbd> <kbd>End</kbd></dd>
+      </div>
+      <div>
+        <dt>Fit trajectories</dt>
+        <dd><kbd>F</kbd></dd>
+      </div>
+      <div>
+        <dt>Open recordings</dt>
+        <dd><kbd>O</kbd></dd>
+      </div>
+    </dl>
+    <p class="microcopy">Shortcuts are paused while you use form controls.</p>
+  </dialog>
+</div>

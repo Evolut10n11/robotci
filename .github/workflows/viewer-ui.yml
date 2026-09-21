@@ -1,0 +1,76 @@
+name: Viewer UI
+
+on:
+  pull_request:
+    paths:
+      - "web/**"
+      - "robotci/viewer_assets/**"
+      - "robotci/viewer*.py"
+      - "robotci/entrypoint.py"
+      - "tests/test_view*.py"
+      - ".github/workflows/viewer-ui.yml"
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "robotci/viewer_assets/**"
+      - "robotci/viewer*.py"
+      - "robotci/entrypoint.py"
+      - "tests/test_view*.py"
+      - ".github/workflows/viewer-ui.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Reject tracked frontend dependencies
+        shell: bash
+        run: |
+          if git ls-files 'web/node_modules/**' | grep -q .; then
+            echo 'web/node_modules must never be committed'
+            exit 1
+          fi
+
+      - name: Install viewer dependencies
+        working-directory: web
+        run: npm ci --no-audit --no-fund
+
+      - name: Test replay behavior
+        working-directory: web
+        run: npm test
+
+      - name: Build viewer
+        working-directory: web
+        run: npm run build
+
+      - name: Verify production assets
+        shell: bash
+        run: |
+          git diff --exit-code -- robotci/viewer_assets
+          test -s robotci/viewer_assets/index.html
+          test -n "$(find robotci/viewer_assets/assets -maxdepth 1 -name '*.js' -print -quit)"
+          test -n "$(find robotci/viewer_assets/assets -maxdepth 1 -name '*.css' -print -quit)"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install RobotCI
+        run: python -m pip install -e '.[dev]'
+
+      - name: Smoke-test built viewer contract
+        run: python -m pytest -q tests/test_viewer.py tests/test_view_command.py tests/test_viewer_session.py
