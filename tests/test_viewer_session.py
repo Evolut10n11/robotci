@@ -131,13 +131,24 @@ def test_stale_replay_is_not_shown_as_the_trajectory_for_another_result(tmp_path
 
 
 def test_baseline_preserves_valid_replays_after_original_run_is_removed(tmp_path: Path) -> None:
-    suite = copy_suite(tmp_path, "baseline")
+    suite = copy_suite(tmp_path, "regression")
     sidecar = add_sidecar(suite)
+    replay = json.loads(sidecar.read_text())
+    replay["events"] = [
+        {"t": 0, "type": "START"},
+        {"t": 5.25, "type": "STUCK", "count": 1},
+        {"t": 6.5, "type": "RECOVERY", "count": 1},
+        {"t": 12.5, "type": "GOAL"},
+    ]
+    sidecar.write_text(json.dumps(replay))
     original = sidecar.read_bytes()
     captured = capture_baseline("known-good", suite, store_root=tmp_path / "saved")
     shutil.rmtree(suite.parent)
     assert (captured.path / "results" / sidecar.name).read_bytes() == original
-    assert suite_session(captured.path / "suite-result.json")["scenarios"][0]["candidate"]["replay"]
+    session = suite_session(captured.path / "suite-result.json")
+    saved = session["scenarios"][0]["candidate"]["replay"]
+    assert saved["events"] == replay["events"]
+    assert saved["metrics"]["stuck_events"] == saved["metrics"]["recoveries"] == 1
 
 
 def test_invalid_optional_replay_does_not_replace_existing_baseline(tmp_path: Path) -> None:

@@ -186,6 +186,17 @@ def validate_replay(payload: object) -> dict[str, Any]:
         message = event.get("message")
         if message is not None and not isinstance(message, str):
             raise ViewerError(f"replay.events[{index}].message must be a string")
+        if "count" in event:
+            count = event["count"]
+            if (
+                event_type not in {"STUCK", "RECOVERY"}
+                or type(count) is not int
+                or not 1 <= count <= 2**53 - 1
+            ):
+                raise ViewerError(
+                    f"replay.events[{index}].count must be a positive safe integer "
+                    "on a STUCK or RECOVERY event"
+                )
 
     return replay
 

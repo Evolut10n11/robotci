@@ -1,5 +1,5 @@
 import "./styles.css";
-import { sourceLabel, statusLabel, eventLabel, eventMessage, displayLabel, noticeText, formatTime, displayUnit } from "./ru.js";
+import { sourceLabel, statusLabel, eventTitle, eventMessage, displayLabel, noticeText, formatTime, displayUnit } from "./ru.js";
 import shell from "./shell.html?raw";
 import { sampleAt } from "./playback.js";
 import { TopView } from "./top-view.js";
@@ -13,6 +13,7 @@ import {
   metricDelta,
   formatDelta,
   timelineEvents,
+  firstMetricEvent,
 } from "./model.js";
 
 document.querySelector("#root").innerHTML = shell;
@@ -204,6 +205,10 @@ function renderSources() {
       ? "Результат рассчитан модулем проверки регрессий RobotCI"
       : "Просмотр без изменений · без проверки регрессий";
 }
+function metricEventLink(metric) {
+  const event = firstMetricEvent(state.scenario.candidate.replay, metric);
+  return event ? `<button class="event-link" data-metric-event="${metric}" aria-label="К событиям: ${escape(METRICS.find((m) => m.key === metric).label)}, новый прогон" title="Первое записанное событие нового прогона: ${formatTime(event.t)} с">К событиям ↗</button>` : "";
+}
 function renderInspector() {
   const item = state.scenario;
   $("run-status").textContent = statusLabel(item.candidate.status);
@@ -216,7 +221,7 @@ function renderInspector() {
   if (gate) {
     const findings = item.comparison?.findings ?? [];
     $("gate-panel").innerHTML =
-      `<div class="gate-title"><h3>Проверка регрессий</h3>${badge(statusLabel(gate.status), gate.status.toLowerCase())}</div><p>Сравнены результаты с совместимыми задачами и параметрами среды.</p><div class="gate-summary ${gate.status === "REGRESSION" ? "regression" : ""}">${badge(statusLabel(item.comparison?.status ?? "Недоступно"), item.comparison?.status?.toLowerCase())} <span>Превышений в сценарии: ${findings.length}</span></div>${findings.length ? `<ul class="finding-list">${findings.map((f) => `<li><span>${escape(METRICS.find((m) => m.key === f.metric)?.label ?? f.metric)}</span><strong>${escape(formatDelta(f.increase_unbounded ? Infinity : f.increase, displayUnit(f.unit)))}</strong></li>`).join("")}</ul>` : ""}<p>Допуски указаны ниже. Скачайте отчёт для значений с полной точностью.</p>`;
+      `<div class="gate-title"><h3>Проверка регрессий</h3>${badge(statusLabel(gate.status), gate.status.toLowerCase())}</div><p>Сравнены результаты с совместимыми задачами и параметрами среды.</p><div class="gate-summary ${gate.status === "REGRESSION" ? "regression" : ""}">${badge(statusLabel(item.comparison?.status ?? "Недоступно"), item.comparison?.status?.toLowerCase())} <span>Превышений в сценарии: ${findings.length}</span></div>${findings.length ? `<ul class="finding-list">${findings.map((f) => `<li><span>${escape(METRICS.find((m) => m.key === f.metric)?.label ?? f.metric)}${metricEventLink(f.metric)}</span><strong>${escape(formatDelta(f.increase_unbounded ? Infinity : f.increase, displayUnit(f.unit)))}</strong></li>`).join("")}</ul>` : ""}<p>Допуски указаны ниже. Скачайте отчёт для значений с полной точностью.</p>`;
   } else {
     $("gate-panel").innerHTML =
       `<div class="gate-title"><h3>${item.baseline ? "Сравнение записей" : "Данные прогона"}</h3>${badge("Без проверки")}</div><p title="${escape(state.session.gate_notice)}">${escape(noticeText(state.session.gate_notice))}</p>${!item.baseline ? '<button id="add-baseline" class="button">Открыть записи для сравнения</button>' : ""}`;
@@ -248,7 +253,7 @@ function renderMetrics() {
     );
     const value = (number) =>
       `${formatNumber(number, 6)}${Number.isFinite(number) && metric.unit ? ` ${metric.unit}` : ""}`;
-    return `<tr class="${finding ? "metric-finding" : ""}"><td>${metric.label}</td>${comparison ? `<td title="${escape(base)}">${value(base)}</td>` : ""}<td title="${escape(candidate)}">${value(candidate)}</td>${comparison ? `<td class="${delta > 0 ? "increase" : delta < 0 ? "decrease" : ""}">${formatDelta(delta, metric.deltaUnit)}</td>` : ""}${verified ? `<td>≤ ${formatDelta(state.session.gate.policy[metric.policy], metric.deltaUnit)}</td><td>${finding ? "Превышен" : "В допуске"}</td>` : ""}</tr>`;
+    return `<tr class="${finding ? "metric-finding" : ""}"><td>${metric.label}${metricEventLink(metric.key)}</td>${comparison ? `<td title="${escape(base)}">${value(base)}</td>` : ""}<td title="${escape(candidate)}">${value(candidate)}</td>${comparison ? `<td class="${delta > 0 ? "increase" : delta < 0 ? "decrease" : ""}">${formatDelta(delta, metric.deltaUnit)}</td>` : ""}${verified ? `<td>≤ ${formatDelta(state.session.gate.policy[metric.policy], metric.deltaUnit)}</td><td>${finding ? "Превышен" : "В допуске"}</td>` : ""}</tr>`;
   }).join("");
   $("metrics-note").textContent = item.alignment_notice
     ? "Разница скрыта: записи несовместимы для сравнения траекторий."
@@ -268,7 +273,7 @@ function renderEvents() {
     ? shown
         .map(
           (event, index) =>
-            `<button class="event-row" data-event="${index}" title="Перейти к ${formatTime(event.t)} с"><time>${formatTime(event.t)} с</time><span><span class="event-description"><span class="source-dot ${event.source}"></span>${escape(eventLabel(event.type))} <span class="microcopy">${sourceLabel(event.source)}</span></span><small>${escape(eventMessage(event.message))}</small></span></button>`,
+            `<button class="event-row" data-event="${index}" title="Перейти к ${formatTime(event.t)} с"><time>${formatTime(event.t)} с</time><span><span class="event-description"><span class="source-dot ${event.source}"></span>${escape(eventTitle(event))} <span class="microcopy">${sourceLabel(event.source)}</span></span><small>${escape(eventMessage(event.message))}</small></span></button>`,
         )
         .join("")
     : '<p class="microcopy">События с временными метками не записаны. Их количество может быть указано в метриках результата.</p>';
@@ -277,7 +282,7 @@ function renderEvents() {
     tracks
       .map(
         ([source]) =>
-          `<div class="event-track"><span>${sourceLabel(source)}</span><div class="track-rail">${shown.map((event, index) => (event.source === source ? `<button class="track-event ${source}" data-event="${index}" style="left:${state.duration ? (event.t / state.duration) * 100 : 0}%" aria-label="${escape(`${sourceLabel(source)}: ${eventLabel(event.type)}, ${formatTime(event.t)} с`)}" title="${escape(`${eventLabel(event.type)} · ${formatTime(event.t)} с`)}">◆</button>` : "")).join("")}<span class="track-cursor"></span></div></div>`,
+          `<div class="event-track"><span>${sourceLabel(source)}</span><div class="track-rail">${shown.map((event, index) => (event.source === source ? `<button class="track-event ${source}" data-event="${index}" style="left:${state.duration ? (event.t / state.duration) * 100 : 0}%" aria-label="${escape(`${sourceLabel(source)}: ${eventTitle(event)}, ${formatTime(event.t)} с`)}" title="${escape(`${eventTitle(event)} · ${formatTime(event.t)} с`)}">◆</button>` : "")).join("")}<span class="track-cursor"></span></div></div>`,
       )
       .join("") ||
     '<span class="microcopy">Для воспроизведения нужна запись траектории.</span>';
@@ -473,6 +478,17 @@ for (const id of ["event-list", "event-tracks"])
     if (button) {
       stop();
       setTime(state.events[Number(button.dataset.event)].t);
+    }
+  });
+for (const id of ["gate-panel", "metrics-body"])
+  $(id).addEventListener("click", (event) => {
+    const button = event.target.closest("[data-metric-event]");
+    if (!button) return;
+    const recorded = firstMetricEvent(state.scenario.candidate.replay, button.dataset.metricEvent);
+    if (recorded) {
+      stop();
+      setTime(recorded.t);
+      $("seek").focus();
     }
   });
 $("open-form").addEventListener("submit", async (event) => {

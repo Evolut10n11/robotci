@@ -80,6 +80,8 @@ jobs:
           import json
           from pathlib import Path
 
+          from robotci.viewer import load_replay
+
           suite = json.loads(Path("artifacts/suite-result.json").read_text(encoding="utf-8"))
           names = [item["scenario"] for item in suite["scenarios"]]
           execution = suite["execution"]
@@ -175,6 +177,19 @@ jobs:
                   raise SystemExit(f"{name} has invalid stuck telemetry: {metrics}")
               if metrics.get("recoveries", -1) < 0:
                   raise SystemExit(f"{name} has invalid recovery telemetry: {metrics}")
+
+              replay = load_replay(Path(f"artifacts/results/{name}.replay.json"))
+              for event_type, metric in (("STUCK", "stuck_events"), ("RECOVERY", "recoveries")):
+                  observed = sum(
+                      event.get("count", 1) for event in replay["events"]
+                      if event["type"] == event_type
+                  )
+                  if observed != metrics[metric] or observed != replay["metrics"][metric]:
+                      raise SystemExit(f"{name} replay events disagree with {metric}: {replay}")
+              times = [event["t"] for event in replay["events"]]
+              if times != sorted(times):
+                  raise SystemExit(f"{name} event timestamps are unordered: {times}")
+              print(f"{name} replay event counters match runtime metrics")
 
           print(f"Navigation YAML suite + metrics PASS: {names}")
           PY

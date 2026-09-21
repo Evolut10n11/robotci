@@ -2,6 +2,16 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import Literal
+
+
+@dataclass(frozen=True)
+class NavigationEvent:
+    """A counter change observed on the same monotonic clock as navigation."""
+
+    observed_at: float
+    type: Literal["STUCK", "RECOVERY"]
+    count: int = 1
 
 
 @dataclass(frozen=True)
@@ -74,6 +84,12 @@ class NavigationMetricsTracker:
         self._invalid_pose_samples = 0
         self._final_pose_valid = False
         self._recoveries = 0
+        self._events: list[NavigationEvent] = []
+
+    @property
+    def events(self) -> tuple[NavigationEvent, ...]:
+        """Return immutable observations; a recovery jump retains its full delta."""
+        return tuple(self._events)
 
     def tick(self, now: float) -> None:
         """Advance stuck detection even when no new feedback sample arrives."""
@@ -84,6 +100,7 @@ class NavigationMetricsTracker:
 
         self._stuck_active = True
         self._stuck_events += 1
+        self._events.append(NavigationEvent(now, "STUCK"))
 
     def update(
         self,
@@ -98,7 +115,9 @@ class NavigationMetricsTracker:
         if recoveries is not None and recoveries >= 0:
             # Nav2 reports a cumulative counter. Keep its high-water mark even
             # when the pose in the same feedback sample is malformed.
-            self._recoveries = max(self._recoveries, recoveries)
+            if recoveries > self._recoveries:
+                self._events.append(NavigationEvent(now, "RECOVERY", recoveries - self._recoveries))
+                self._recoveries = recoveries
 
         pose_values = (x, y) if yaw is None else (x, y, yaw)
         if any(not math.isfinite(value) for value in pose_values):
