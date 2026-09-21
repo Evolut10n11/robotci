@@ -3,6 +3,7 @@ from __future__ import annotations
 import errno
 import json
 import math
+import socket
 import webbrowser
 from collections.abc import Callable
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -262,6 +263,16 @@ def _handler_for(
     return ReplayHandler
 
 
+class _ViewerHTTPServer(ThreadingHTTPServer):
+    # Windows SO_REUSEADDR permits a second listener on an occupied port.
+    allow_reuse_address = not hasattr(socket, "SO_EXCLUSIVEADDRUSE")
+
+    def server_bind(self) -> None:
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def create_viewer_server(
     replay: dict[str, Any] | None,
     *,
@@ -279,14 +290,18 @@ def create_viewer_server(
 
         session = replay_session(validate_replay(replay))
     try:
-        return ThreadingHTTPServer((host, port), _handler_for(replay, session))
+        return _ViewerHTTPServer((host, port), _handler_for(replay, session))
     except OSError as exc:
         if exc.errno in {errno.EADDRINUSE, 10048} or getattr(exc, "winerror", None) == 10048:
-            raise ViewerError(
-                f"port {port} is already in use; pass --port 0 to choose a free port "
-                "or select another port with --port"
-            ) from exc
-        raise
+            reason = "already in use"
+        elif exc.errno == 10013 or getattr(exc, "winerror", None) == 10013:
+            reason = "unavailable (in use or access denied)"
+        else:
+            raise
+        raise ViewerError(
+            f"port {port} is {reason}; pass --port 0 to choose a free port "
+            "or select another port with --port"
+        ) from exc
 
 
 def serve_viewer(

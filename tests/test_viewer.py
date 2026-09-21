@@ -83,8 +83,9 @@ def test_viewer_serves_replay_api_and_assets() -> None:
         thread.join(timeout=2)
 
 
-def test_busy_viewer_port_reports_free_port_option() -> None:
-    occupied = create_viewer_server(demo_replay(), port=0)
+@pytest.mark.parametrize("occupied_host", ["127.0.0.1", "0.0.0.0"])
+def test_busy_viewer_port_reports_free_port_option(occupied_host: str) -> None:
+    occupied = create_viewer_server(demo_replay(), host=occupied_host, port=0)
     try:
         with pytest.raises(ViewerError, match="--port 0"):
             create_viewer_server(demo_replay(), port=occupied.server_address[1])
