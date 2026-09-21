@@ -50,6 +50,7 @@ htmlcov/
 
 # Machine-specific agent/editor state
 .agent/
+.codex/
 .idea/
 .vscode/
 .DS_Store
