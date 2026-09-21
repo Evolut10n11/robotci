@@ -61,7 +61,7 @@ def test_cleanup_kills_surviving_child_after_launch_parent_exits(tmp_path: Path)
             stat = Path(f"/proc/{child_pid}/stat")
             try:
                 state = stat.read_text().split(") ", 1)[1]
-            except FileNotFoundError:
+            except (FileNotFoundError, ProcessLookupError):
                 break
             if state.startswith("Z"):
                 break

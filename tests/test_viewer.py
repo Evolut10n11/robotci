@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import threading
 from pathlib import Path
+from urllib.parse import urlsplit
 from urllib.request import urlopen
 
 import pytest
@@ -12,6 +13,7 @@ from robotci.viewer import (
     create_viewer_server,
     demo_replay,
     load_replay,
+    serve_viewer,
     validate_replay,
 )
 
@@ -79,3 +81,35 @@ def test_viewer_serves_replay_api_and_assets() -> None:
         server.shutdown()
         server.server_close()
         thread.join(timeout=2)
+
+
+@pytest.mark.parametrize("occupied_host", ["127.0.0.1", "0.0.0.0"])
+def test_busy_viewer_port_reports_free_port_option(occupied_host: str) -> None:
+    occupied = create_viewer_server(demo_replay(), host=occupied_host, port=0)
+    try:
+        with pytest.raises(ViewerError, match="--port 0"):
+            create_viewer_server(demo_replay(), port=occupied.server_address[1])
+        assert occupied.socket.fileno() != -1
+    finally:
+        occupied.server_close()
+
+
+def test_ready_callback_receives_bound_url_and_server_is_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from http.server import ThreadingHTTPServer
+
+    captured = {}
+
+    def interrupted(server, **kwargs):
+        captured["server"] = server
+        assert urlsplit(captured["url"]).port == server.server_address[1]
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(ThreadingHTTPServer, "serve_forever", interrupted)
+    url = serve_viewer(
+        demo_replay(), port=0, open_browser=False,
+        on_ready=lambda url: captured.update(url=url),
+    )
+    assert urlsplit(url).port > 0
+    assert captured["server"].socket.fileno() == -1

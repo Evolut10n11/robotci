@@ -1,8 +1,12 @@
 # Replay workbench
 
+[Руководство на русском](replay-viewer.ru.md)
+
 Inspect recorded robot behavior, compare baseline and candidate trajectories, and
 read the deterministic suite gate in one local workspace. All assets are bundled;
 no cloud service, account, or Node.js installation is required to use the viewer.
+The interface is in Russian. JSON contracts, scenario identifiers, and exported
+evidence retain their original values; presentation does not change gate decisions.
 
 ![Replay workbench with synchronized synthetic recordings](assets/replay-workbench.jpg)
 
@@ -21,6 +25,8 @@ robotci view --replay path/to/replay.json
 ```
 
 By default the viewer binds to `127.0.0.1:8765` and opens the browser automatically. Use `--no-open` for headless/manual use, or override `--host` and `--port` when needed.
+If another project uses that port, use `--port 8766` or `--port 0` to request a
+free port. The CLI prints the actual bound URL after the server starts.
 
 ## Compare recordings or suites
 
@@ -30,7 +36,7 @@ For a visual comparison of two Replay v1 files:
 robotci view --replay candidate.replay.json --baseline baseline.replay.json
 ```
 
-You can also choose **Open recordings** in the browser. Files stay in the browser
+You can also choose **Открыть записи** in the browser. Files stay in the browser
 and are not uploaded. Imports are limited to 32 MiB and 250,000 pose samples per
 file. Invalid numbers, duplicate JSON keys, unsupported statuses, and unordered
 or out-of-range timestamps are rejected before the workspace changes.
@@ -38,8 +44,19 @@ or out-of-range timestamps are rejected before the workspace changes.
 For the official regression gate, open validated suite results:
 
 ```bash
+robotci view --suite .robotci/suite-result.json --baseline-name main-nav
+```
+
+The named baseline is read from `.robotci/baselines`; `--baseline-store` selects
+another store. Alternatively, pass the baseline suite file directly:
+
+```bash
 robotci view --suite .robotci/suite-result.json --baseline-suite .robotci/baselines/main-nav/suite-result.json
 ```
+
+`--baseline-name` and `--baseline-suite` are mutually exclusive. Both require
+`--suite`; `--baseline-store` requires `--baseline-name`. These options only read
+the saved evidence and never replace or create a baseline.
 
 Use `--scenario simple_route` to select a scenario initially. The viewer delegates
 the gate to the same comparison engine as `robotci-suite-gate`, including task,
@@ -65,8 +82,8 @@ are not a cryptographic binding between a trajectory and a result.
 
 ## Controls and interpretation
 
-- **Replay / Compare:** inspect the candidate or overlay an aligned baseline.
-- **Top view / 3D / Fit:** pan, zoom, orbit, and reset the camera. 3D requires
+- **Просмотр / Сравнение:** inspect the candidate or overlay an aligned baseline.
+- **Вид сверху / 3D / Вписать:** pan, zoom, orbit, and reset the camera. 3D requires
   WebGL; the top view remains usable without it.
 - **Playback:** play/pause, seek, 0.25×–4× speed, loop, and previous/next event.
 - **Events:** select a marker or log entry to jump to its recorded timestamp.
@@ -87,7 +104,8 @@ provenance required for an official regression verdict.
 
 Press **?** for shortcuts. **Space** plays/pauses, **← / →** seek one second,
 **[ / ]** select events, **Home / End** select the bounds, **F** fits the camera,
-and **O** opens files. Shortcuts do not intercept form controls. Playback pauses
+and **O** opens files. Russian-layout equivalents **Х / Ъ**, **А**, and **Щ**
+also work. Shortcuts do not intercept form controls. Playback pauses
 when the tab is hidden and when the scenario or source changes.
 
 The current runtime recorder emits start and terminal events. Metric counts do

@@ -16,7 +16,7 @@ export class SceneView {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.domElement.setAttribute(
       "aria-label",
-      "3D trajectory view. Drag to orbit; scroll to zoom.",
+      "Траектории в 3D. Перетаскивание поворачивает камеру, колесо меняет масштаб.",
     );
     this.renderer.domElement.setAttribute("role", "img");
     host.append(this.renderer.domElement);

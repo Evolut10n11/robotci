@@ -1,7 +1,7 @@
-<!-- Integrated from the approved 12ui Replay, Compare and Open recordings designs. -->
+<!-- Integrated from the approved 12ui Replay, Compare and Открыть записи designs. -->
 <div class="workbench">
   <aside class="sidebar" id="sidebar">
-    <a aria-label="RobotCI Replay" class="brand" href="#replay"
+    <a aria-label="RobotCI — просмотр записей" class="brand" href="#replay"
       ><svg
         fill="none"
         height="100%"
@@ -22,23 +22,23 @@
         <path d="M3.27 6.96l8.73 5.04"></path></svg
       ><span>RobotCI</span></a
     >
-    <div class="workspace-label">REPLAY WORKSPACE</div>
-    <nav aria-label="Workspace">
+    <div class="workspace-label">ПРОСМОТР ЗАПИСЕЙ</div>
+    <nav aria-label="Рабочая область">
       <button class="nav-button" data-mode="replay">
-        <span aria-hidden="true">▷</span>Replay</button
+        <span aria-hidden="true">▷</span>Просмотр</button
       ><button class="nav-button" data-mode="compare">
-        <span aria-hidden="true">⇄</span>Compare
+        <span aria-hidden="true">⇄</span>Сравнение
       </button>
     </nav>
-    <div class="section-label">SCENARIOS <span id="scenario-count"></span></div>
-    <div aria-label="Scenarios" class="scenario-list" id="scenario-list"></div>
+    <div class="section-label">СЦЕНАРИИ <span id="scenario-count"></span></div>
+    <div aria-label="Сценарии" class="scenario-list" id="scenario-list"></div>
     <div class="sidebar-bottom">
       <div class="workspace-status">
-        <span class="status-dot"></span>Local workspace
-        <p>Recorded evidence. On your machine.</p>
+        <span class="status-dot"></span>Локальный просмотр
+        <p>Записи и результаты на вашем компьютере.</p>
       </div>
       <button class="help-button" id="help-button">
-        Keyboard shortcuts <kbd>?</kbd>
+        Горячие клавиши <kbd>?</kbd>
       </button>
     </div>
   </aside>
@@ -46,78 +46,78 @@
     <header class="workspace-header" id="workspace-header">
       <div class="heading">
         <div class="heading-line">
-          <h1 id="scenario-title">Replay workspace</h1>
-          <span class="badge" id="source-badge">Loading</span>
+          <h1 id="scenario-title">Просмотр записей</h1>
+          <span class="badge" id="source-badge">Загрузка</span>
         </div>
-        <p id="workspace-subtitle">Inspect recorded robot behavior.</p>
+        <p id="workspace-subtitle">Исследуйте записанное поведение робота.</p>
       </div>
       <div class="header-actions">
         <button class="button" id="open-button">
-          <span aria-hidden="true">↥</span> Open recordings</button
+          <span aria-hidden="true">↥</span> Открыть записи</button
         ><a
           class="button"
           aria-disabled="true"
           tabindex="-1"
           id="export-button"
         >
-          <span aria-hidden="true">↓</span> Export JSON
+          <span aria-hidden="true">↓</span> Скачать JSON
         </a>
       </div>
     </header>
     <div class="notice" hidden="" id="app-alert" role="status"></div>
     <div class="source-summary" id="source-summary"></div>
     <div class="analysis-grid" id="analysis-grid">
-      <section aria-label="Trajectory replay" class="replay-column">
+      <section aria-label="Воспроизведение траектории" class="replay-column">
         <div class="panel trajectory" id="trajectory">
           <div class="plot-toolbar">
-            <div aria-label="View" class="segmented" role="group">
-              <button aria-pressed="true" id="top-button">Top view</button
+            <div aria-label="Вид" class="segmented" role="group">
+              <button aria-pressed="true" id="top-button">Вид сверху</button
               ><button aria-pressed="false" id="scene-button">3D</button>
             </div>
             <button
               class="button small"
               id="fit-button"
-              title="Fit trajectories (F)"
+              title="Вписать траектории (F / А)"
             >
-              Fit</button
+              Вписать</button
             ><span class="frame-label" id="frame-label"></span>
           </div>
           <div class="viewport" id="viewport"></div>
           <div class="plot-empty" hidden="" id="plot-empty"></div>
           <div class="plot-legend" id="legend"></div>
-          <div class="axis-note">x / y · metres</div>
+          <div class="axis-note">x / y · метры</div>
           <span class="view-hint" id="view-hint"
-            >Drag to pan · scroll to zoom</span
+            >Перетаскивание — сдвиг · колесо — масштаб</span
           >
         </div>
         <div class="panel playback" id="playback">
           <button
-            aria-label="Play"
+            aria-label="Воспроизвести"
             class="play-button"
             disabled=""
             id="play-button"
-            title="Play / pause (Space)"
+            title="Воспроизведение / пауза (Пробел)"
           >
             ▶</button
           ><button
-            aria-label="Previous event"
+            aria-label="Предыдущее событие"
             class="icon-button"
             disabled=""
             id="previous-event"
-            title="Previous event ([)"
+            title="Предыдущее событие ([ / Х)"
           >
             Ⅰ◀</button
           ><button
-            aria-label="Next event"
+            aria-label="Следующее событие"
             class="icon-button"
             disabled=""
             id="next-event"
-            title="Next event (])"
+            title="Следующее событие (] / Ъ)"
           >
             ▶Ⅰ</button
-          ><output class="time-display" id="time-display">0.00 / 0.00 s</output
+          ><output class="time-display" id="time-display">0,00 / 0,00 с</output
           ><input
-            aria-label="Replay time"
+            aria-label="Время записи"
             disabled=""
             id="seek"
             max="1"
@@ -126,35 +126,35 @@
             type="range"
             value="0"
           /><label class="speed-label"
-            ><span class="sr-only">Playback speed</span
+            ><span class="sr-only">Скорость воспроизведения</span
             ><select id="speed">
-              <option value="0.25">0.25×</option>
-              <option value="0.5">0.5×</option>
+              <option value="0.25">0,25×</option>
+              <option value="0.5">0,5×</option>
               <option selected="" value="1">1×</option>
               <option value="2">2×</option>
               <option value="4">4×</option>
             </select></label
           ><label class="loop-label"
-            ><input id="loop" type="checkbox" />Loop</label
+            ><input id="loop" type="checkbox" />Повтор</label
           >
         </div>
         <div class="panel timeline" id="timeline">
           <div id="event-tracks"></div>
           <div class="timeline-footer">
-            <span>Recorded events</span
-            ><span id="sync-note">Elapsed time · seconds</span>
+            <span>Записанные события</span
+            ><span id="sync-note">Время от начала · секунды</span>
           </div>
         </div>
       </section>
       <aside class="panel inspector" id="inspector">
         <div class="panel-heading">
-          <h2>Run inspector</h2>
+          <h2>Параметры прогона</h2>
           <span class="badge" id="run-status"></span>
         </div>
         <div id="recorded-metrics"></div>
         <section class="live-section">
           <div class="section-heading">
-            <h3>Pose at playhead</h3>
+            <h3>Положение робота</h3>
             <span class="mono" id="pose-time"></span>
           </div>
           <div class="live-pose" id="live-pose"></div>
@@ -166,7 +166,7 @@
     <div class="evidence-grid">
       <section class="panel evidence" id="evidence">
         <div class="panel-heading">
-          <h2 id="evidence-title">Recorded metrics</h2>
+          <h2 id="evidence-title">Записанные метрики</h2>
           <span class="microcopy" id="evidence-badge"></span>
         </div>
         <div class="table-scroll">
@@ -179,7 +179,7 @@
       </section>
       <section class="panel event-log" id="event-log">
         <div class="panel-heading">
-          <h2>Event log</h2>
+          <h2>Журнал событий</h2>
           <span class="microcopy" id="event-count"></span>
         </div>
         <div class="event-list" id="event-list"></div>
@@ -187,18 +187,18 @@
     </div>
     <footer class="app-footer">
       <span>RobotCI · Replay v1</span
-      ><span id="session-footnote">Read-only analysis</span>
+      ><span id="session-footnote">Просмотр без изменений</span>
     </footer>
   </main>
   <dialog aria-labelledby="open-title" id="open-dialog">
     <form id="open-form">
       <div class="dialog-heading">
         <div>
-          <p class="eyebrow">LOCAL EVIDENCE</p>
-          <h2 id="open-title">Open recordings</h2>
+          <p class="eyebrow">ЛОКАЛЬНЫЕ ЗАПИСИ</p>
+          <h2 id="open-title">Открыть записи</h2>
         </div>
         <button
-          aria-label="Close recordings dialog"
+          aria-label="Закрыть выбор записей"
           class="icon-button"
           data-close="open-dialog"
           type="button"
@@ -207,51 +207,51 @@
         </button>
       </div>
       <p class="dialog-intro">
-        Load Replay v1 files to inspect a run or compare two trajectories.
+        Откройте файлы Replay v1 для просмотра прогона или сравнения двух траекторий.
       </p>
       <label class="file-field"
-        ><span>Candidate recording <small>Required</small></span
+        ><span>Новый прогон <small>Обязательно</small></span
         ><input
           accept=".json,application/json"
           id="candidate-file"
           required=""
           type="file"
         /><span class="file-hint"
-          >Choose a .replay.json file · up to 32 MiB</span
+          >Выберите файл .replay.json · до 32 МиБ</span
         ></label
       ><label class="file-field"
-        ><span>Baseline recording <small>Optional</small></span
+        ><span>Эталонная запись <small>Необязательно</small></span
         ><input
           accept=".json,application/json"
           id="baseline-file"
           type="file"
         /><span class="file-hint"
-          >Add a baseline for synchronized visual comparison.</span
+          >Добавьте эталон для синхронного сравнения траекторий.</span
         ></label
       >
       <p class="notice error" hidden="" id="import-error" role="alert"></p>
       <div class="privacy-note">
-        <strong>Your recordings stay with you.</strong>
+        <strong>Записи остаются на вашем компьютере.</strong>
         <p>
-          Files are read in this browser and are never uploaded. Replay files
-          enable visual comparison; an official gate requires suite results
-          opened from the CLI.
+          Файлы читаются в браузере и никуда не загружаются. Записи позволяют
+          сравнивать траектории. Для проверки регрессий откройте результаты
+          набора сценариев через команду robotci view --suite.
         </p>
       </div>
       <div class="dialog-actions">
         <button class="button" data-close="open-dialog" type="button">
-          Cancel</button
+          Отмена</button
         ><button class="button primary" id="import-button" type="submit">
-          Open workspace
+          Открыть
         </button>
       </div>
     </form>
   </dialog>
   <dialog aria-labelledby="help-title" id="help-dialog">
     <div class="dialog-heading">
-      <h2 id="help-title">Keyboard shortcuts</h2>
+      <h2 id="help-title">Горячие клавиши</h2>
       <button
-        aria-label="Close shortcuts"
+        aria-label="Закрыть горячие клавиши"
         class="icon-button"
         data-close="help-dialog"
       >
@@ -260,30 +260,30 @@
     </div>
     <dl class="shortcuts">
       <div>
-        <dt>Play / pause</dt>
-        <dd><kbd>Space</kbd></dd>
+        <dt>Воспроизведение / пауза</dt>
+        <dd><kbd>Пробел</kbd></dd>
       </div>
       <div>
-        <dt>Seek one second</dt>
+        <dt>Перемотка на секунду</dt>
         <dd><kbd>←</kbd> <kbd>→</kbd></dd>
       </div>
       <div>
-        <dt>Previous / next event</dt>
+        <dt>Предыдущее / следующее событие</dt>
         <dd><kbd>[</kbd> <kbd>]</kbd></dd>
       </div>
       <div>
-        <dt>Start / end</dt>
+        <dt>Начало / конец</dt>
         <dd><kbd>Home</kbd> <kbd>End</kbd></dd>
       </div>
       <div>
-        <dt>Fit trajectories</dt>
-        <dd><kbd>F</kbd></dd>
+        <dt>Вписать траектории</dt>
+        <dd><kbd>F / А</kbd></dd>
       </div>
       <div>
-        <dt>Open recordings</dt>
-        <dd><kbd>O</kbd></dd>
+        <dt>Открыть записи</dt>
+        <dd><kbd>O / Щ</kbd></dd>
       </div>
     </dl>
-    <p class="microcopy">Shortcuts are paused while you use form controls.</p>
+    <p class="microcopy">Горячие клавиши не перехватываются при работе с полями формы. Поддерживаются русская и английская раскладки.</p>
   </dialog>
 </div>

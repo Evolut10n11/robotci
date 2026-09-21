@@ -1,4 +1,5 @@
 import "./styles.css";
+import { sourceLabel, statusLabel, eventLabel, eventMessage, displayLabel, noticeText, formatTime, displayUnit } from "./ru.js";
 import shell from "./shell.html?raw";
 import { sampleAt } from "./playback.js";
 import { TopView } from "./top-view.js";
@@ -43,6 +44,7 @@ const state = {
   lastTick: null,
 };
 function alert(message, error = false) {
+  $("app-alert").title = "";
   $("app-alert").textContent = message || "";
   $("app-alert").hidden = !message;
   $("app-alert").classList.toggle("error", error);
@@ -53,7 +55,7 @@ function stop() {
   state.frame = null;
   state.lastTick = null;
   $("play-button").textContent = "▶";
-  $("play-button").setAttribute("aria-label", "Play");
+  $("play-button").setAttribute("aria-label", "Воспроизвести");
 }
 function recordings() {
   const item = state.scenario;
@@ -70,20 +72,20 @@ function setTime(value) {
   $("seek").value = state.time;
   $("seek").setAttribute(
     "aria-valuetext",
-    `${state.time.toFixed(2)} of ${state.duration.toFixed(2)} seconds`,
+    `${formatTime(state.time)} из ${formatTime(state.duration)} секунд`,
   );
   $("time-display").textContent =
-    `${state.time.toFixed(2)} / ${state.duration.toFixed(2)} s`;
-  $("pose-time").textContent = `${state.time.toFixed(2)} s`;
+    `${formatTime(state.time)} / ${formatTime(state.duration)} с`;
+  $("pose-time").textContent = `${formatTime(state.time)} с`;
   state.renderer?.setTime(state.time);
   const replay = state.scenario?.candidate.replay;
   if (replay) {
     const pose = sampleAt(replay.samples, state.time);
     $("live-pose").innerHTML = [
-      ["x", pose.position.x, "m"],
-      ["y", pose.position.y, "m"],
-      ["z", pose.position.z, "m"],
-      ["yaw", (pose.orientation.yaw * 180) / Math.PI, "°"],
+      ["x", pose.position.x, "м"],
+      ["y", pose.position.y, "м"],
+      ["z", pose.position.z, "м"],
+      ["Курс", (pose.orientation.yaw * 180) / Math.PI, "°"],
     ]
       .map(
         ([key, value, unit]) =>
@@ -91,10 +93,10 @@ function setTime(value) {
       )
       .join("");
     $("sample-note").textContent =
-      `${replay.samples.length.toLocaleString()} recorded samples · ${state.time > replay.samples.at(-1).t ? "holding final recorded pose" : "interpolated pose"}`;
+      `Отсчётов: ${formatNumber(replay.samples.length, 0)} · ${state.time > replay.samples.at(-1).t ? "последнее записанное положение" : "интерполяция положения"}`;
   } else {
-    $("live-pose").textContent = "No recorded pose";
-    $("sample-note").textContent = "Result metrics remain available below.";
+    $("live-pose").textContent = "Нет записи положения";
+    $("sample-note").textContent = "Метрики результата доступны ниже.";
   }
   document.querySelectorAll(".track-cursor").forEach((cursor) => {
     cursor.style.left = `${state.duration ? (state.time / state.duration) * 100 : 0}%`;
@@ -132,7 +134,7 @@ function play() {
   state.playing = true;
   state.lastTick = null;
   $("play-button").textContent = "Ⅱ";
-  $("play-button").setAttribute("aria-label", "Pause");
+  $("play-button").setAttribute("aria-label", "Пауза");
   state.frame = requestAnimationFrame(tick);
 }
 function jump(direction) {
@@ -160,28 +162,28 @@ function renderSources() {
     .filter((key) => item[key])
     .map(
       (key) =>
-        `<div class="source-item"><span class="source-dot ${key}"></span><span>${key === "candidate" ? "Candidate" : "Baseline"}</span><span class="source-name" title="${escape(item[key].label)}">${escape(item[key].label)}</span>${badge(item[key].status, item[key].status === "PASS" ? "pass" : "fail")}</div>`,
+        `<div class="source-item"><span class="source-dot ${key}"></span><span>${sourceLabel(key)}</span><span class="source-name" title="${escape(item[key].label)}">${escape(displayLabel(item[key].label))}</span>${badge(statusLabel(item[key].status), item[key].status === "PASS" ? "pass" : "fail")}</div>`,
     )
     .join("");
-  $("scenario-title").textContent = item.name;
-  document.title = `RobotCI · ${item.name}`;
+  $("scenario-title").textContent = synthetic && item.name === "deterministic_demo" ? "Демонстрационный маршрут" : item.name;
+  document.title = `RobotCI · ${$("scenario-title").textContent}`;
   $("workspace-subtitle").textContent =
     state.mode === "compare"
-      ? "Baseline and candidate. One timeline, recorded evidence."
-      : "Inspect the trajectory. Understand what happened.";
+      ? "Эталон и новый прогон на общей временной шкале."
+      : "Изучайте траекторию, события и поведение робота.";
   $("source-badge").textContent = synthetic
-    ? "Synthetic demo"
+    ? "Демонстрационные данные"
     : session.gate
-      ? "Suite evidence"
+      ? "Проверенные результаты"
       : session.source === "suite"
-        ? "Suite results"
+        ? "Результаты сценариев"
         : "Replay v1";
   $("source-badge").className = `badge${synthetic ? " demo" : ""}`;
   $("scenario-count").textContent = session.scenarios.length;
   $("scenario-list").innerHTML = session.scenarios
     .map(
       (scenario, index) =>
-        `<button class="scenario-button" data-scenario="${index}" aria-current="${scenario.name === item.name}"><span class="scenario-dot ${scenario.comparison?.status === "REGRESSION" ? "regression" : ""}"></span><span class="scenario-name">${escape(scenario.name)}</span></button>`,
+        `<button class="scenario-button" data-scenario="${index}" aria-current="${scenario.name === item.name}"><span class="scenario-dot ${scenario.comparison?.status === "REGRESSION" ? "regression" : ""}"></span><span class="scenario-name">${escape(session.source === "demo" && scenario.name === "deterministic_demo" ? "Демонстрационный маршрут" : scenario.name)}</span></button>`,
     )
     .join("");
   document
@@ -194,17 +196,18 @@ function renderSources() {
     );
   prepareExport();
   $("export-button").textContent = session.gate
-    ? "↓ Export gate JSON"
-    : "↓ Export replay";
+    ? "↓ Скачать отчёт JSON"
+    : "↓ Скачать запись";
   $("session-footnote").textContent = synthetic
-    ? "Synthetic data · no gate verdict"
+    ? "Демонстрационные данные · без проверки регрессий"
     : session.gate
-      ? "Gate evaluated by the RobotCI regression engine"
-      : "Read-only analysis · no gate verdict";
+      ? "Результат рассчитан модулем проверки регрессий RobotCI"
+      : "Просмотр без изменений · без проверки регрессий";
 }
 function renderInspector() {
   const item = state.scenario;
-  $("run-status").textContent = `Run ${item.candidate.status}`;
+  $("run-status").textContent = statusLabel(item.candidate.status);
+  $("run-status").title = item.candidate.status;
   $("run-status").className =
     `badge ${item.candidate.status === "PASS" ? "pass" : "fail"}`;
   $("recorded-metrics").innerHTML =
@@ -213,10 +216,10 @@ function renderInspector() {
   if (gate) {
     const findings = item.comparison?.findings ?? [];
     $("gate-panel").innerHTML =
-      `<div class="gate-title"><h3>Official suite gate</h3>${badge(gate.status, gate.status.toLowerCase())}</div><p>Compared suite results with matching task and execution evidence.</p><div class="gate-summary ${gate.status === "REGRESSION" ? "regression" : ""}">${badge(item.comparison?.status ?? "Unavailable", item.comparison?.status?.toLowerCase())} <span>This scenario · ${findings.length} finding${findings.length === 1 ? "" : "s"}</span></div>${findings.length ? `<ul class="finding-list">${findings.map((f) => `<li><span>${escape(METRICS.find((m) => m.key === f.metric)?.label ?? f.metric)}</span><strong>${escape(formatDelta(f.increase_unbounded ? Infinity : f.increase, f.unit))}</strong></li>`).join("")}</ul>` : ""}<p>Policy limits are shown below. Export the gate report for full precision.</p>`;
+      `<div class="gate-title"><h3>Проверка регрессий</h3>${badge(statusLabel(gate.status), gate.status.toLowerCase())}</div><p>Сравнены результаты с совместимыми задачами и параметрами среды.</p><div class="gate-summary ${gate.status === "REGRESSION" ? "regression" : ""}">${badge(statusLabel(item.comparison?.status ?? "Недоступно"), item.comparison?.status?.toLowerCase())} <span>Превышений в сценарии: ${findings.length}</span></div>${findings.length ? `<ul class="finding-list">${findings.map((f) => `<li><span>${escape(METRICS.find((m) => m.key === f.metric)?.label ?? f.metric)}</span><strong>${escape(formatDelta(f.increase_unbounded ? Infinity : f.increase, displayUnit(f.unit)))}</strong></li>`).join("")}</ul>` : ""}<p>Допуски указаны ниже. Скачайте отчёт для значений с полной точностью.</p>`;
   } else {
     $("gate-panel").innerHTML =
-      `<div class="gate-title"><h3>${item.baseline ? "Visual comparison" : "Recorded evidence"}</h3>${badge("No gate verdict")}</div><p>${escape(state.session.gate_notice)}</p>${!item.baseline ? '<button id="add-baseline" class="button">Open recordings to compare</button>' : ""}`;
+      `<div class="gate-title"><h3>${item.baseline ? "Сравнение записей" : "Данные прогона"}</h3>${badge("Без проверки")}</div><p title="${escape(state.session.gate_notice)}">${escape(noticeText(state.session.gate_notice))}</p>${!item.baseline ? '<button id="add-baseline" class="button">Открыть записи для сравнения</button>' : ""}`;
     $("add-baseline")?.addEventListener("click", openDialog);
   }
 }
@@ -225,15 +228,15 @@ function renderMetrics() {
     comparison = !!item.baseline,
     verified = state.session.gate && item.comparison;
   $("evidence-title").textContent = comparison
-    ? "Metric comparison"
-    : "Recorded metrics";
+    ? "Сравнение метрик"
+    : "Записанные метрики";
   $("evidence-badge").textContent = verified
-    ? "Policy evaluated"
+    ? "Допуски проверены"
     : comparison
-      ? "Visual comparison"
-      : "Final run values";
+      ? "Сравнение записей"
+      : "Итоговые значения";
   $("metrics-head").innerHTML =
-    `<tr><th scope="col">Metric</th>${comparison ? '<th scope="col">Baseline</th>' : ""}<th scope="col">Candidate</th>${comparison ? '<th scope="col">Change</th>' : ""}${verified ? '<th scope="col">Limit</th><th scope="col">Gate</th>' : ""}</tr>`;
+    `<tr><th scope="col">Метрика</th>${comparison ? '<th scope="col">Эталон</th>' : ""}<th scope="col">Новый прогон</th>${comparison ? '<th scope="col">Изменение</th>' : ""}${verified ? '<th scope="col">Допуск</th><th scope="col">Проверка</th>' : ""}</tr>`;
   $("metrics-body").innerHTML = METRICS.map((metric) => {
     const base = item.baseline?.metrics[metric.key],
       candidate = item.candidate.metrics[metric.key];
@@ -245,13 +248,13 @@ function renderMetrics() {
     );
     const value = (number) =>
       `${formatNumber(number, 6)}${Number.isFinite(number) && metric.unit ? ` ${metric.unit}` : ""}`;
-    return `<tr class="${finding ? "metric-finding" : ""}"><td>${metric.label}</td>${comparison ? `<td title="${escape(base)}">${value(base)}</td>` : ""}<td title="${escape(candidate)}">${value(candidate)}</td>${comparison ? `<td class="${delta > 0 ? "increase" : delta < 0 ? "decrease" : ""}">${formatDelta(delta, metric.deltaUnit)}</td>` : ""}${verified ? `<td>≤ ${formatDelta(state.session.gate.policy[metric.policy], metric.deltaUnit)}</td><td>${finding ? "Exceeded" : "Within limit"}</td>` : ""}</tr>`;
+    return `<tr class="${finding ? "metric-finding" : ""}"><td>${metric.label}</td>${comparison ? `<td title="${escape(base)}">${value(base)}</td>` : ""}<td title="${escape(candidate)}">${value(candidate)}</td>${comparison ? `<td class="${delta > 0 ? "increase" : delta < 0 ? "decrease" : ""}">${formatDelta(delta, metric.deltaUnit)}</td>` : ""}${verified ? `<td>≤ ${formatDelta(state.session.gate.policy[metric.policy], metric.deltaUnit)}</td><td>${finding ? "Превышен" : "В допуске"}</td>` : ""}</tr>`;
   }).join("");
   $("metrics-note").textContent = item.alignment_notice
-    ? "Deltas are hidden because these recordings do not align."
+    ? "Разница скрыта: записи несовместимы для сравнения траекторий."
     : comparison
-      ? `Changes are candidate − baseline. Duration and path use percent; other metrics use absolute units.${verified ? "" : " These differences are not a gate verdict."}`
-      : "Final values from the recording or scenario result; they do not change with the playhead.";
+      ? `Изменение = новый прогон − эталон. Длительность и путь — в процентах, остальные метрики — в абсолютных единицах.${verified ? "" : " Эта разница сама по себе не определяет регрессию."}`
+      : "Итоговые значения из записи или результата сценария. Они не меняются при перемотке.";
 }
 function renderEvents() {
   state.events = timelineEvents(
@@ -260,28 +263,28 @@ function renderEvents() {
   );
   const shown = state.events.slice(0, 1000);
   $("event-count").textContent =
-    `${state.events.length} recorded${state.events.length > 1000 ? " · first 1,000 shown" : ""}`;
+    `Всего: ${formatNumber(state.events.length, 0)}${state.events.length > 1000 ? " · показаны первые 1 000" : ""}`;
   $("event-list").innerHTML = shown.length
     ? shown
         .map(
           (event, index) =>
-            `<button class="event-row" data-event="${index}" title="Seek to ${event.t} seconds"><time>${event.t.toFixed(2)} s</time><span><span class="event-description"><span class="source-dot ${event.source}"></span>${escape(event.type)} <span class="microcopy">${event.source}</span></span><small>${escape(event.message ?? "Recorded event")}</small></span></button>`,
+            `<button class="event-row" data-event="${index}" title="Перейти к ${formatTime(event.t)} с"><time>${formatTime(event.t)} с</time><span><span class="event-description"><span class="source-dot ${event.source}"></span>${escape(eventLabel(event.type))} <span class="microcopy">${sourceLabel(event.source)}</span></span><small>${escape(eventMessage(event.message))}</small></span></button>`,
         )
         .join("")
-    : '<p class="microcopy">No timestamped events were recorded. Event counts may still be present in the result metrics.</p>';
+    : '<p class="microcopy">События с временными метками не записаны. Их количество может быть указано в метриках результата.</p>';
   const tracks = Object.entries(recordings()).filter(([, replay]) => replay);
   $("event-tracks").innerHTML =
     tracks
       .map(
         ([source]) =>
-          `<div class="event-track"><span>${source === "baseline" ? "Baseline" : "Candidate"}</span><div class="track-rail">${shown.map((event, index) => (event.source === source ? `<button class="track-event ${source}" data-event="${index}" style="left:${state.duration ? (event.t / state.duration) * 100 : 0}%" aria-label="${escape(`${source} ${event.type} at ${event.t} seconds`)}" title="${escape(`${event.type} · ${event.t}s`)}">◆</button>` : "")).join("")}<span class="track-cursor"></span></div></div>`,
+          `<div class="event-track"><span>${sourceLabel(source)}</span><div class="track-rail">${shown.map((event, index) => (event.source === source ? `<button class="track-event ${source}" data-event="${index}" style="left:${state.duration ? (event.t / state.duration) * 100 : 0}%" aria-label="${escape(`${sourceLabel(source)}: ${eventLabel(event.type)}, ${formatTime(event.t)} с`)}" title="${escape(`${eventLabel(event.type)} · ${formatTime(event.t)} с`)}">◆</button>` : "")).join("")}<span class="track-cursor"></span></div></div>`,
       )
       .join("") ||
-    '<span class="microcopy">A recorded trajectory is required for playback.</span>';
+    '<span class="microcopy">Для воспроизведения нужна запись траектории.</span>';
   $("sync-note").textContent =
     tracks.length > 1
-      ? "Synced by elapsed time · final pose held"
-      : "Elapsed time · seconds";
+      ? "Общее время · в конце — последнее положение"
+      : "Время от начала · секунды";
 }
 async function mountViewport() {
   const version = ++state.renderVersion;
@@ -296,19 +299,19 @@ async function mountViewport() {
   $("top-button").setAttribute("aria-pressed", state.view === "top");
   $("scene-button").setAttribute("aria-pressed", state.view === "3d");
   $("frame-label").textContent = (runs.candidate ?? runs.baseline)?.world.frame
-    ? `frame: ${(runs.candidate ?? runs.baseline).world.frame}`
+    ? `Система координат: ${(runs.candidate ?? runs.baseline).world.frame}`
     : "";
   $("legend").innerHTML = Object.keys(runs)
     .filter((key) => runs[key])
     .map(
       (key) =>
-        `<span class="legend-item"><span class="legend-line ${key}"></span>${key === "candidate" ? "Candidate" : "Baseline"}</span>`,
+        `<span class="legend-item"><span class="legend-line ${key}"></span>${sourceLabel(key)}</span>`,
     )
     .join("");
   $("legend").hidden = !available;
   if (!available) {
     $("plot-empty").innerHTML =
-      `<strong>No trajectory available</strong><p>${escape(state.scenario.candidate.replay_notice ?? "Open a Replay v1 recording to inspect the trajectory.")}</p>`;
+      `<strong>Траектория недоступна</strong><p title="${escape(state.scenario.candidate.replay_notice)}">${escape(noticeText(state.scenario.candidate.replay_notice) || "Откройте запись Replay v1 для просмотра траектории.")}</p>`;
     return;
   }
   try {
@@ -325,14 +328,14 @@ async function mountViewport() {
     $("top-button").setAttribute("aria-pressed", "true");
     $("scene-button").setAttribute("aria-pressed", "false");
     alert(
-      "3D is unavailable in this browser. The top view still shows the full recorded trajectory.",
+      "3D недоступен в этом браузере. Полная записанная траектория доступна в виде сверху.",
       true,
     );
   }
   $("view-hint").textContent =
     state.view === "3d"
-      ? "Drag to orbit · scroll to zoom"
-      : "Drag to pan · scroll to zoom";
+      ? "Перетаскивание — поворот · колесо — масштаб"
+      : "Перетаскивание — сдвиг · колесо — масштаб";
   state.renderer?.setTime(state.time);
 }
 function renderScenario() {
@@ -351,17 +354,18 @@ function renderScenario() {
   const notices = [];
   if (state.mode === "compare") {
     if (!state.scenario.baseline)
-      notices.push("Open a baseline recording to compare runs.");
+      notices.push("Откройте эталонную запись для сравнения прогонов.");
     if (state.scenario.alignment_notice)
       notices.push(
-        `${state.scenario.alignment_notice} Showing the candidate trajectory only.`,
+        `${noticeText(state.scenario.alignment_notice)} Показана только траектория нового прогона.`,
       );
     if (state.scenario.baseline?.replay_notice)
-      notices.push(`Baseline: ${state.scenario.baseline.replay_notice}`);
+      notices.push(`Эталон: ${noticeText(state.scenario.baseline.replay_notice)}`);
   }
   if (state.scenario.candidate.replay_notice && runs.baseline)
-    notices.push(`Candidate: ${state.scenario.candidate.replay_notice}`);
+    notices.push(`Новый прогон: ${noticeText(state.scenario.candidate.replay_notice)}`);
   alert(notices.join(" "));
+  $("app-alert").title = [state.scenario.alignment_notice, state.scenario.baseline?.replay_notice, state.scenario.candidate.replay_notice].filter(Boolean).join(" ");
   renderSources();
   renderInspector();
   renderMetrics();
@@ -375,7 +379,7 @@ function acceptSession(session) {
     !Array.isArray(session.scenarios) ||
     !session.scenarios.length
   )
-    throw new Error("Unsupported viewer session.");
+    throw new Error("Неподдерживаемый формат данных просмотра.");
   for (const scenario of session.scenarios)
     for (const key of ["candidate", "baseline"])
       if (scenario[key]?.replay) validateReplay(scenario[key].replay);
@@ -475,18 +479,18 @@ $("open-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   $("import-error").hidden = true;
   $("import-button").disabled = true;
-  $("import-button").textContent = "Reading recordings…";
+  $("import-button").textContent = "Чтение записей…";
   try {
     const candidateFile = $("candidate-file").files[0],
       baselineFile = $("baseline-file").files[0];
-    if (!candidateFile) throw new Error("Choose a candidate recording first.");
+    if (!candidateFile) throw new Error("Сначала выберите запись нового прогона.");
     const read = async (file) => {
       if (file.size > MAX_REPLAY_BYTES)
-        throw new Error(`${file.name} exceeds the 32 MiB size limit.`);
+        throw new Error(`${file.name}: размер превышает 32 МиБ.`);
       try {
         return parseReplay(await file.text());
       } catch (error) {
-        throw new Error(`${file.name}: ${error.message}`);
+        throw new Error(`${file.name}: ${error instanceof DOMException ? "не удалось прочитать файл. Выберите его ещё раз." : error.message}`);
       }
     };
     const [candidate, baseline] = await Promise.all([
@@ -510,7 +514,7 @@ $("open-form").addEventListener("submit", async (event) => {
     $("import-error").hidden = false;
   } finally {
     $("import-button").disabled = false;
-    $("import-button").textContent = "Open workspace";
+    $("import-button").textContent = "Открыть";
   }
 });
 document.addEventListener("keydown", (event) => {
@@ -549,7 +553,9 @@ document.addEventListener("keydown", (event) => {
       $("help-dialog").showModal();
     },
   };
-  const action = actions[event.key];
+  const aliases = { "а": "f", "щ": "o", "х": "[", "ъ": "]" };
+  const key = event.key.length === 1 ? event.key.toLowerCase() : event.key;
+  const action = actions[aliases[key] ?? key];
   if (action) {
     event.preventDefault();
     action();
@@ -567,17 +573,18 @@ async function load() {
   try {
     const response = await fetch("/api/session", { cache: "no-store" });
     if (!response.ok)
-      throw new Error(`Viewer returned HTTP ${response.status}.`);
+      throw new Error(`Сервер вернул HTTP ${response.status}.`);
     acceptSession(await response.json());
   } catch (error) {
-    $("source-badge").textContent = "Offline";
+    const reason = error instanceof TypeError ? "Проверьте, запущен ли локальный сервер." : error instanceof SyntaxError ? "Сервер вернул некорректный JSON." : error.message;
+    $("source-badge").textContent = "Нет соединения";
     alert(
-      `Could not load the workspace. ${error.message} You can still open local recordings.`,
+      `Не удалось загрузить данные. ${reason} Вы можете открыть локальные записи.`,
       true,
     );
     $("plot-empty").hidden = false;
     $("plot-empty").innerHTML =
-      "<strong>Open a recording to begin</strong><p>Choose a candidate Replay v1 file, and optionally a baseline.</p>";
+      "<strong>Откройте запись для начала</strong><p>Выберите запись нового прогона в формате Replay v1. При желании добавьте эталон.</p>";
   }
 }
 void load();

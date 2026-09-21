@@ -4,35 +4,35 @@ export const MAX_REPLAY_SAMPLES = 250_000;
 export const METRICS = [
   {
     key: "duration_sec",
-    label: "Duration",
-    unit: "s",
+    label: "Длительность",
+    unit: "с",
     policy: "max_duration_increase_pct",
     deltaUnit: "%",
   },
   {
     key: "path_length_m",
-    label: "Path length",
-    unit: "m",
+    label: "Длина пути",
+    unit: "м",
     policy: "max_path_length_increase_pct",
     deltaUnit: "%",
   },
   {
     key: "distance_to_goal_m",
-    label: "Final distance to goal",
-    unit: "m",
+    label: "Расстояние до цели",
+    unit: "м",
     policy: "max_distance_to_goal_increase_m",
-    deltaUnit: "m",
+    deltaUnit: "м",
   },
   {
     key: "stuck_events",
-    label: "Stuck events",
+    label: "Застревания",
     unit: "",
     policy: "max_stuck_events_increase",
     deltaUnit: "",
   },
   {
     key: "recoveries",
-    label: "Recoveries",
+    label: "Восстановления",
     unit: "",
     policy: "max_recoveries_increase",
     deltaUnit: "",
@@ -44,15 +44,15 @@ const fail = (message) => {
 const object = (value, name) =>
   value && typeof value === "object" && !Array.isArray(value)
     ? value
-    : fail(`${name} must be an object.`);
+    : fail(`${name}: ожидается объект.`);
 const number = (value, name) =>
   typeof value === "number" && Number.isFinite(value)
     ? value
-    : fail(`${name} must be a finite number.`);
+    : fail(`${name}: ожидается конечное число.`);
 const string = (value, name) =>
   typeof value === "string" && value.trim()
     ? value
-    : fail(`${name} must be a non-empty string.`);
+    : fail(`${name}: ожидается непустая строка.`);
 const position = (value, name) => {
   object(value, name);
   for (const key of ["x", "y", "z"]) number(value[key], `${name}.${key}`);
@@ -61,46 +61,46 @@ const close = (a, b, tolerance = 1e-6) => Math.abs(a - b) <= tolerance;
 
 export function validateReplay(replay) {
   object(replay, "Replay");
-  if (replay.schema_version !== 1) fail("Only Replay v1 JSON is supported.");
-  string(replay.scenario, "Scenario");
+  if (replay.schema_version !== 1) fail("Поддерживаются только JSON-записи Replay v1.");
+  string(replay.scenario, "Сценарий");
   if (!["PASS", "FAIL"].includes(replay.status))
-    fail("Replay status must be PASS or FAIL.");
+    fail("Статус записи должен быть PASS или FAIL.");
   const result = Object.hasOwn(replay, "result_status")
     ? replay.result_status
     : replay.status;
   if (!["PASS", "FAIL", "TIMEOUT", "INFRA_ERROR"].includes(result))
-    fail("Unsupported result status.");
+    fail("Неподдерживаемый статус результата.");
   if (replay.status !== (result === "PASS" ? "PASS" : "FAIL"))
-    fail("Replay and result statuses disagree.");
-  string(replay.runtime, "Runtime");
-  if (number(replay.duration_sec, "Duration") <= 0)
-    fail("Duration must be greater than zero.");
-  string(object(replay.robot, "Robot").type, "Robot type");
-  string(object(replay.world, "World").frame, "Coordinate frame");
-  position(replay.world.goal, "Goal");
+    fail("Статусы записи и результата не совпадают.");
+  string(replay.runtime, "Среда выполнения");
+  if (number(replay.duration_sec, "Длительность") <= 0)
+    fail("Длительность должна быть больше нуля.");
+  string(object(replay.robot, "Робот").type, "Тип робота");
+  string(object(replay.world, "Мир").frame, "Система координат");
+  position(replay.world.goal, "Цель");
   if (!Array.isArray(replay.samples) || replay.samples.length < 2)
-    fail("At least two pose samples are required.");
+    fail("Нужно не менее двух отсчётов положения робота.");
   if (replay.samples.length > MAX_REPLAY_SAMPLES)
-    fail("Recording exceeds 250,000 samples.");
+    fail("Запись содержит больше 250 000 отсчётов.");
   let previous = -Infinity;
   replay.samples.forEach((sample, index) => {
-    object(sample, `Sample ${index}`);
-    number(sample.t, "Sample timestamp");
+    object(sample, `Отсчёт ${index}`);
+    number(sample.t, "Время отсчёта");
     if (sample.t < 0 || sample.t < previous || sample.t > replay.duration_sec)
-      fail("Sample timestamps must be ordered and within the recording.");
+      fail("Временные метки должны идти по порядку и находиться в пределах записи.");
     previous = sample.t;
-    position(sample.position, `Sample ${index}`);
-    number(object(sample.orientation, "Orientation").yaw, "Yaw");
+    position(sample.position, `Отсчёт ${index}`);
+    number(object(sample.orientation, "Ориентация").yaw, "Курс");
   });
-  object(replay.metrics, "Metrics");
+  object(replay.metrics, "Метрики");
   for (const { key } of METRICS) {
     const value = number(replay.metrics[key], key);
-    if (value < 0) fail(`${key} must be non-negative.`);
+    if (value < 0) fail(`${key}: значение не может быть отрицательным.`);
     if (
       ["stuck_events", "recoveries"].includes(key) &&
       !Number.isInteger(value)
     )
-      fail(`${key} must be an integer.`);
+      fail(`${key}: ожидается целое число.`);
   }
   if (
     !close(
@@ -109,37 +109,37 @@ export function validateReplay(replay) {
       Math.max(0.002, replay.duration_sec * 1e-6),
     )
   )
-    fail("Duration and metrics disagree.");
-  if (!Array.isArray(replay.events)) fail("Events must be an array.");
+    fail("Длительность записи и значение в метриках не совпадают.");
+  if (!Array.isArray(replay.events)) fail("События должны быть массивом.");
   replay.events.forEach((event) => {
-    object(event, "Event");
-    number(event.t, "Event timestamp");
+    object(event, "Событие");
+    number(event.t, "Время события");
     if (event.t < 0 || event.t > replay.duration_sec)
-      fail("Event timestamp is outside the recording.");
+      fail("Время события находится за пределами записи.");
     if (
       !["START", "REPLAN", "STUCK", "RECOVERY", "GOAL", "FAIL"].includes(
         event.type,
       )
     )
-      fail("Unsupported event type.");
+      fail("Неподдерживаемый тип события.");
     if (event.message != null && typeof event.message !== "string")
-      fail("Event message must be text.");
+      fail("Описание события должно быть текстом.");
   });
   return replay;
 }
 
 export function parseReplay(text) {
   if (new TextEncoder().encode(text).length > MAX_REPLAY_BYTES)
-    fail("Recording exceeds the 32 MiB size limit.");
+    fail("Размер записи превышает 32 МиБ.");
   let value;
   try {
     value = JSON.parse(text, (_key, item) => {
       if (typeof item === "number" && !Number.isFinite(item))
-        fail("JSON contains a non-finite number.");
+        fail("JSON содержит неконечное число.");
       return item;
     });
   } catch (error) {
-    fail(`Cannot read JSON: ${error.message}`);
+    fail(`Не удалось прочитать JSON: ${error instanceof SyntaxError ? "проверьте синтаксис файла." : error.message}`);
   }
   // JSON.parse silently accepts duplicate keys; reject ambiguous evidence instead.
   const stack = [];
@@ -153,7 +153,7 @@ export function parseReplay(text) {
     else if (token === ":" && top?.keys) top.key = false;
     else if (token.startsWith('"') && top?.key) {
       const key = JSON.parse(token);
-      if (top.keys.has(key)) fail(`Duplicate JSON key: ${key}`);
+      if (top.keys.has(key)) fail(`Повторяющийся ключ JSON: ${key}`);
       top.keys.add(key);
     }
   }
@@ -220,11 +220,11 @@ export function metricDelta(baseline, candidate, unit) {
 }
 export const formatNumber = (value, digits = 2) =>
   Number.isFinite(value)
-    ? value.toLocaleString("en-US", { maximumFractionDigits: digits })
+    ? value.toLocaleString("ru-RU", { maximumFractionDigits: digits })
     : "—";
 export function formatDelta(value, unit = "") {
   if (value === null) return "—";
-  if (!Number.isFinite(value)) return "Unbounded";
+  if (!Number.isFinite(value)) return "∞";
   return `${value > 0 ? "+" : ""}${formatNumber(value)}${unit ? ` ${unit}` : ""}`;
 }
 export function timelineEvents(scenario, includeBaseline) {

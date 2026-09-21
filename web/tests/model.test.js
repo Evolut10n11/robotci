@@ -44,9 +44,9 @@ test("accepts recorded failures and preserves their result status", () => {
 test("rejects ambiguous and malformed evidence before display", () => {
   assert.throws(
     () => parseReplay('{"schema_version":1,"schema_version":2}'),
-    /Duplicate/,
+    /Повторяющийся/,
   );
-  assert.throws(() => parseReplay('{"x":1e999}'), /non-finite/);
+  assert.throws(() => parseReplay('{"x":1e999}'), /неконечное/);
   for (const mutate of [
     (r) => (r.schema_version = true),
     (r) => (r.status = "REGRESSION"),
@@ -63,7 +63,7 @@ test("rejects ambiguous and malformed evidence before display", () => {
   }
 });
 test("duplicate detection respects escaped keys and independent objects", () => {
-  assert.throws(() => parseReplay('{"a":1,"\\u0061":2}'), /Duplicate/);
+  assert.throws(() => parseReplay('{"a":1,"\\u0061":2}'), /Повторяющийся/);
   assert.equal(parseReplay(JSON.stringify(recording())).samples.length, 2);
 });
 test("an imported replay can never supply its own gate verdict", () => {

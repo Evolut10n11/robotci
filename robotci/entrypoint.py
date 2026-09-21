@@ -5,6 +5,7 @@ from typing import Annotated
 
 import typer
 
+from robotci.baselines import DEFAULT_BASELINE_ROOT, baseline_suite_path
 from robotci.cli import app, console
 from robotci.regression import RegressionPolicy
 from robotci.viewer import (
@@ -36,6 +37,17 @@ def view_command(
     ] = None,
     baseline_suite: Annotated[
         Path | None, typer.Option("--baseline-suite", help="Baseline suite for the verified gate.")
+    ] = None,
+    baseline_name: Annotated[
+        str | None,
+        typer.Option("--baseline-name", help="Saved baseline name for comparison with --suite."),
+    ] = None,
+    baseline_store: Annotated[
+        Path | None,
+        typer.Option(
+            "--baseline-store",
+            help="Baseline store for --baseline-name (default: .robotci/baselines).",
+        ),
     ] = None,
     scenario: Annotated[
         str | None, typer.Option("--scenario", help="Initially selected scenario in the suite.")
@@ -100,8 +112,19 @@ def view_command(
     try:
         if baseline is not None and replay is None:
             raise ViewerError("--baseline requires --replay")
-        if (baseline_suite is not None or scenario is not None) and suite is None:
-            raise ViewerError("--baseline-suite and --scenario require --suite")
+        if suite is None and any(
+            value is not None for value in (baseline_suite, baseline_name, scenario)
+        ):
+            raise ViewerError("--baseline-suite, --baseline-name and --scenario require --suite")
+        if baseline_suite is not None and baseline_name is not None:
+            raise ViewerError("use either --baseline-name or --baseline-suite, not both")
+        if baseline_store is not None and baseline_name is None:
+            raise ViewerError("--baseline-store requires --baseline-name")
+        if baseline_name is not None:
+            baseline_suite = baseline_suite_path(
+                baseline_name,
+                store_root=baseline_store if baseline_store is not None else DEFAULT_BASELINE_ROOT,
+            )
         if demo:
             session = demo_session()
         elif suite is not None:
@@ -130,14 +153,18 @@ def view_command(
         )
         payload = selected["candidate"]["replay"]
         console.print(f"Replay: [cyan]{session['selected_scenario']}[/cyan]")
-        console.print(f"Viewer: http://{host}:{port}/")
-        console.print("Press Ctrl+C to stop the local viewer.")
+
+        def viewer_ready(url: str) -> None:
+            console.print(f"Viewer: {url}", markup=False)
+            console.print("Press Ctrl+C to stop the local viewer.")
+
         serve_viewer(
             payload,
             host=host,
             port=port,
             open_browser=not no_open,
             session=session,
+            on_ready=viewer_ready,
         )
     except (ValueError, OSError) as exc:
         console.print(f"[red]RobotCI viewer error:[/red] {exc}")
