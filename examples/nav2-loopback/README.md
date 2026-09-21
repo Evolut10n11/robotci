@@ -7,10 +7,10 @@ routes with explicit evidence policies.
 From a RobotCI source checkout:
 
 ```bash
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install .
+python -m pip install -e .
 
 robotci validate --config examples/nav2-loopback/robotci.yaml
 robotci plan --config examples/nav2-loopback/robotci.yaml

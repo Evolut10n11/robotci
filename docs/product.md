@@ -1,203 +1,117 @@
 # RobotCI product direction
 
-RobotCI should stay useful as an open-source ROS2/Nav2 regression-testing CLI while developing a paid layer around the parts that become painful for teams: storing baselines, comparing runs across commits, explaining regressions, and enforcing release gates across multiple robots and repositories.
+[Project overview](../README.md) · [Delivery roadmap](roadmap.md)
 
-This document is a product hypothesis, not a promise to build a SaaS before users ask for it.
+RobotCI helps robotics teams answer one question before a change reaches hardware:
+can the robot still complete the same tasks as well as the known-good version?
+The current product is a local ROS2/Nav2 simulation and regression workflow.
+This document describes the direction beyond it; future capabilities are not
+promises of current compatibility.
 
-## Problem worth paying for
+## The problem
 
-Robotics teams can have passing unit tests while navigation behavior quietly gets worse. A planner/controller/configuration change may still reach the goal but take a longer path, require more recoveries, get stuck more often, or become less reliable.
+Unit tests can pass while navigation becomes slower, takes a longer path, gets
+stuck more often, or requires more recoveries. Teams need a repeatable scenario,
+trustworthy measurements, and an understandable baseline/candidate comparison
+inside the code-review workflow.
 
-The commercial problem is therefore not “run ROS in CI”. It is:
+The desired experience is a PR report that names the changed metrics and blocks
+an unacceptable regression, followed by a replay that helps explain the behavior.
+Current thresholds and result semantics are documented in [contracts.md](contracts.md).
 
-> Tell me whether this pull request made robot behavior worse, show me why, and stop the release before it reaches hardware.
+## Initial users
 
-## Initial customer profile
+Start with teams using ROS2 and Nav2, an existing headless simulation workflow,
+and GitHub pull requests. The initial pilot targets roughly 3–30 robotics/software
+engineers whose navigation regressions are currently found manually or late.
+A public repository is a qualification signal, not evidence of adoption or demand.
 
-Start narrow:
+## Product principles
 
-- teams using ROS2 + Nav2
-- 3–30 robotics/software engineers
-- simulation already exists or can run headlessly
-- GitHub-based development
-- navigation changes are reviewed through pull requests
-- regressions are currently found by manual simulation, field testing, or after merge
+- Keep the local open-source workflow useful without a hosted account.
+- Keep the cross-platform Python core independent of ROS imports.
+- Normalize simulator results into stable, versioned contracts.
+- Separate infrastructure/input errors from robot behavior failures.
+- Compare compatible tasks and environments; preserve the underlying evidence.
+- Compute verdicts deterministically. AI may explain them, never replace them.
+- Prove a small vertical slice before adding an abstraction or service.
 
-Avoid trying to support every robotics stack at the beginning.
+The [roadmap](roadmap.md) is the canonical delivery-status table. The alpha already
+contains scenario execution, metrics, local baselines, regression gates, reports,
+a GitHub Action, a basic recorder/viewer, and a read-only MCP server.
 
-## Open-source core
+## Visual debugging
 
-The free CLI should remain strong enough to earn trust:
+The bundled viewer opens recorded trajectories today. The next work is to finish
+maintainable frontend source integration and playback controls, then compare a
+baseline with a candidate using synchronized time/progress and metric deltas.
 
-- repeatable scenarios
-- YAML configuration
-- native and Docker execution
-- machine-readable results
-- navigation metrics
-- local baseline comparison
-- regression verdict and non-zero exit code
-- suite-level regression gating
-- JSON, Markdown, and JUnit reports
-- reusable GitHub Action / PR gate
-- local named-baseline capture and gating
-- one-command local onboarding
-- replay and visualization as the next major developer-facing layer
+A useful comparison should show start/goal, available map data, observed
+trajectories, and timestamped events. Clicking a regression should lead to the
+relevant interval. Preserve gaps and original failure status; a synthetic demo,
+trajectory replay, and simulator video are different artifacts.
 
-A team must be able to prove RobotCI is useful before paying us.
+Future simulator rendering and video support should follow a real debugging need.
+Do not imply that the current recorder captures live video or every event type.
 
-## Paid wedge
+## Additional robot and simulator adapters
 
-A future Team/Pro layer can sell coordination and history rather than hiding the core runner behind a paywall.
+Nav2 is the proving ground. Later backends may include Gazebo, MuJoCo, Isaac
+Sim/Lab, Unitree stacks, and custom ROS2 robots. Unitree Go2 with MuJoCo is a
+candidate for the first non-Nav2 experiment, subject to a reproducible public
+setup, suitable licensing, and a useful test scenario.
 
-Candidate paid capabilities:
+Robot-specific execution belongs in adapters. Contracts, reporting, baseline
+storage, and CI semantics should remain shared. Beyond navigation, possible
+metrics include falls, roll/pitch, foot slip, velocity error, energy use,
+joint-limit violations, collisions, and terrain completion. These are future
+metrics, not fields supported by the current result schema.
 
-1. Persistent baseline registry per robot / branch / release.
-2. Pull-request regression report with metric deltas and scenario-level explanation.
-3. Historical trend dashboard for path length, completion time, stuck events and recoveries.
-4. Policy gates such as “block merge when path length regresses > 10% on two scenarios”.
-5. Flaky-run detection using repeated executions and confidence thresholds.
-6. Team projects, private baseline storage and retention controls.
-7. Self-hosted runner / private-network support for companies that cannot upload robot artifacts.
-8. Notifications and integrations after the GitHub workflow is proven.
+## Agent integration
 
-## Monetization hypothesis
+The [read-only MCP server](mcp.md) exposes six inspection tools today. A future
+agent can combine GitHub diffs with RobotCI evidence to explain regressions,
+suggest likely causes, and point to relevant replay intervals.
 
-Do not optimize pricing before validating demand. A simple hypothesis to test with real users:
+Stateful execution/cancellation and a LangGraph/LangChain reference workflow are
+future work. Add explicit project selection, bounded execution, and appropriate
+approval for actions that change state. Logs and external artifacts must never
+expand an agent's permissions.
 
-- Open source: local CLI, regression engine, reports, replay, and CI gate.
-- Team: hosted history, GitHub PR reports, persistent baselines, and team policies.
-- Enterprise later: self-hosted control plane, SSO, auditability, retention and support.
+The integration should remain model-agnostic. Local models may handle routine
+summaries; stronger models may help with difficult diagnosis or selected replay
+frames. Persistent state belongs in result artifacts, Git, and explicit workflow
+state rather than a single model conversation.
 
-The first paid signal should be a team willing to pay for persistent history + PR gating, not stars or downloads.
+## Validate before building the team layer
 
-## Current product status
+M8 is tracked in [issue #48](https://github.com/Evolut10n11/robotci/issues/48).
+For a five-team cohort, the success criteria are:
 
-The deterministic regression foundation and the first local usability layer are now largely implemented:
+- 3 complete a real navigation suite on their own repository;
+- 2 compare a real candidate change against a baseline;
+- 2 explicitly intend to use the gate again in normal development;
+- 1 explicitly agrees to discuss a paid pilot for a concrete capability after use.
 
-```text
-scenario execution           ✅
-configuration                ✅
-runtime navigation metrics   ✅
-baseline/candidate compare    ✅
-REGRESSION exit semantics    ✅
-machine-readable JSON report ✅
-suite-level regression gate  ✅
-reusable GitHub Action       ✅
-Markdown PR summary          ✅
-JUnit report                 ✅
-local baseline capture UX     ✅
-named baseline candidate gate ✅
-one-command onboarding        ✅
-public alpha quickstart/example ✅
-installable alpha wheel        ✅
-external bug/pilot issue forms ✅
-CI runtime path filtering     ✅
-3D replay/viewer              🚧
-external team validation      🚧
-```
+Use the [execution guide and evidence register](validation/README.md), including
+negative outcomes and blockers. A feature request, internal demo, or repository
+star does not substitute for these observations. A reviewed product decision can
+also be to improve core, change segment, or stop/defer.
 
-The next work should finish the developer-facing replay flow and prove demand with real teams rather than inventing cloud infrastructure early.
+## Commercial hypotheses
 
-## Product milestones
+| Layer | Potential value |
+| --- | --- |
+| Open source | Local runner, metrics, comparison, reports, replay, MCP, and CI integration |
+| Team | Shared baselines, persistent history, trends across PRs, policies, and collaboration |
+| Enterprise, later | Self-hosted control plane, private retention, SSO, auditability, and support |
 
-### P0 — trustworthy regression engine ✅
+Other hypotheses include repeated-run statistics, flaky-run detection, private
+replay retention, and assisted diagnosis. Local PR reports already exist; a paid
+service would need to add persistent or collaborative value rather than repackage
+the same report.
 
-Implemented:
-
-- navigation metrics
-- baseline vs candidate comparison
-- configurable thresholds
-- distinct `REGRESSION` verdict
-- deterministic versioned JSON reports
-- edge-case validation and tests
-- suite-level comparison/gating
-
-P0 should still be hardened as new real-world cases appear, but it is no longer the main missing product layer.
-
-### P1 — excellent GitHub experience 🚧
-
-Implemented:
-
-- reusable GitHub Action
-- Markdown regression summary
-- JUnit output
-- strict JSON artifacts
-- suite-level PR/release gate
-- self-contained local baseline capture with explicit replace semantics
-- `robotci-baseline gate <name> --candidate ...`
-- `robotci-init` for a valid starter `robotci.yaml`
-- path-aware CI so docs, web, and baseline-only changes do not pay the full ROS/Nav2/Docker runtime cost
-- public-alpha packaging smoke that builds and installs the wheel in a clean environment
-- external-user quickstart, validated Nav2 Loopback example, and structured bug/pilot feedback forms
-
-Remaining high-value work:
-
-- replay/viewer integration so a developer can move from a failed gate to the exact behavior visually
-- baseline-vs-candidate visual comparison and divergence navigation after the basic viewer flow is stable
-
-### P2 — external validation 🚧
-
-P2 is active and tracked in issue #48. The execution/interview playbook lives in `docs/external-validation.md`.
-
-Find 5 external ROS2/Nav2 teams and ask them to run RobotCI on a real repository.
-
-Success signal:
-
-- at least 3 complete a real navigation suite
-- at least 2 use baseline comparison on a real change
-- at least 2 say they would use the gate again in normal development
-- at least 1 asks for history, collaboration, hosted reports, policies, self-hosting, or support strongly enough to discuss payment
-
-If those signals do not appear, change the product direction before building a cloud backend.
-
-### P3 — minimal paid service
-
-Only after P2:
-
-- organization/project model
-- API token or GitHub App authentication
-- upload compact run summaries, not full simulation data by default
-- baseline/history storage
-- PR report and regression gate
-- simple billing
-
-## Near-term engineering priority
-
-Two tracks can proceed without coupling to each other:
-
-1. **Developer experience:** finish visual replay / `robotci view`, then baseline-vs-candidate visual comparison.
-2. **External validation:** run the five-team pilot and fix only evidence-backed onboarding, runtime-compatibility, diagnostics, or report problems that block real adoption.
-
-Do not add a generic backend merely because the open-source core is becoming feature-complete. The next non-viewer engineering work should come from real pilot friction unless it is a clear correctness or maintainability issue.
-
-A candidate run should continue to be compared scenario-by-scenario with a baseline using deterministic metrics such as:
-
-- duration
-- path length
-- distance to goal
-- stuck events
-- recoveries
-
-The comparison layer must stay ROS-independent so it can be unit-tested on Windows and reused by local and future hosted versions.
-
-## What not to build yet
-
-- generic robotics cloud
-- custom simulator
-- Kubernetes control plane
-- multi-tenant dashboard before external validation
-- support for every ROS distro
-- AI-generated verdicts
-- billing/auth before external teams demonstrate demand
-
-AI explanations may be added later, but only above the deterministic regression engine; they must not become the source of truth for PASS/FAIL/REGRESSION.
-
-## North-star outcome
-
-A robotics engineer opens a pull request and, before touching a physical robot, sees:
-
-> 11/12 scenarios are stable. `warehouse_long_route` regressed: path +18%, duration +24%, two new stuck events. Merge blocked.
-
-Then the engineer opens the replay and jumps directly to the moment where candidate behavior diverged from the baseline.
-
-That is the moment RobotCI stops being a pet project and becomes a product.
+After a demonstrated paid signal, scope the smallest capability that addresses
+that exact problem. Keep compact run summaries separate from proprietary maps,
+code, and full simulation artifacts. Pricing, authentication, billing, a generic
+robotics cloud, and Kubernetes infrastructure are not prerequisites for validation.
