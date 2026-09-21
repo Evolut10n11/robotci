@@ -50,6 +50,10 @@ Never force-push or rewrite a shared branch unless every active owner has explic
 
 ## Local checks
 
+Install contributor dependencies in an activated Python 3.12 environment with
+`python -m pip install -e ".[dev]"`. Runtime setup is documented in the
+[quickstart](docs/quickstart.md#native-runtime-setup).
+
 For cross-platform core changes, run:
 
 ```bash
@@ -76,6 +80,28 @@ Prefer a small vertical slice over a large speculative refactor. Keep determinis
 
 Do not merge while required checks are failing or while an unresolved review comment identifies a correctness issue.
 
+## Source layout
+
+| Location | Responsibility |
+| --- | --- |
+| `robotci/` | Cross-platform application API, CLI, contracts, metrics, comparison, and storage |
+| `robotci/ros/` | ROS-specific navigation probe |
+| `robotci/mcp/` | Read-only stdio MCP integration |
+| `robotci/viewer_assets/` | Packaged viewer build used by `robotci view` |
+| `scripts/` | Runtime/bootstrap scripts and maintainer utilities |
+| `tests/` | Unit, contract, CLI, and adapter tests; deterministic fixtures |
+| `examples/` | Runnable scenario configurations |
+| `docs/` | User guides, contract references, roadmap, and pilot evidence |
+| `.github/` | Workflows and issue/PR forms |
+
+Do not delete `robotci/viewer_assets/` as generated clutter: the installed viewer
+depends on it. Frontend source/control work remains in `feat/gui-replay-controls`
+until integrated; `web/` on main currently carries ignore rules only.
+
+Keep local results (`.robotci/`, `artifacts/`), virtual environments, caches, wheel
+output, and machine-specific agent state out of Git. Fixtures under `tests/`
+are intentional source assets. Documentation starts at [docs/README.md](docs/README.md).
+
 ## After merge
 
 Once work is safely in `main`:
@@ -92,7 +118,11 @@ main
 + only branches for work that is actively in progress
 ```
 
-Merged, superseded, abandoned, and empty branches should not accumulate.
+Merged, superseded, abandoned, and empty branches should not accumulate. Before
+deleting a branch, verify its current head against the merged PR, check that the
+merge is present in main, and ensure no newer commits or active PR depend on it.
+Squash merges may leave a branch marked ahead even though its changes landed.
+Keep branches with unique unmerged work until that work is explicitly resolved.
 
 ## Agent coordination
 

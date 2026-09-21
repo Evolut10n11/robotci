@@ -43,7 +43,7 @@ cd robotci
 python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
-pip install .
+python -m pip install -e .
 
 robotci version
 ```
@@ -63,10 +63,28 @@ cd robotci
 py -3.12 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install .
+python -m pip install -e .
 
 robotci version
 ```
+
+Keep the source checkout: the current runtime uses its shell scripts and Docker
+resources. The wheel supports the core tools; a standalone runtime resource
+bundle is not part of this alpha.
+
+### Native runtime setup
+
+On Ubuntu 24.04, the bootstrap installs ROS2 Jazzy/Nav2 system dependencies and
+prepares the development environment. It uses `sudo` and apt. From the checkout:
+
+```bash
+bash scripts/bootstrap_ubuntu.sh
+source .venv/bin/activate
+robotci doctor
+```
+
+If you use Docker, a working Linux-container Docker backend is the runtime
+prerequisite instead. Core validation/planning do not require either runtime.
 
 ## 2. Try the bundled example
 
@@ -115,6 +133,11 @@ Edit the generated route before running it. At minimum review:
 - `min_feedback_samples`.
 
 Do not reuse the bundled example coordinates on a physical robot.
+
+The built-in runtime launches Nav2 Loopback. A new YAML file alone does not
+connect an existing simulator. For your own Nav2 stack, follow the
+[native adapter contract](native-runtime-adapter.md), including readiness,
+start-pose reset, namespace handling, and cleanup.
 
 ## 4. Validate before starting a runtime
 

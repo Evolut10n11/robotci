@@ -21,7 +21,8 @@ The project is Nav2-first, not Nav2-only. Future adapters may include MuJoCo, Un
 
 Use these layers deliberately:
 
-- `README.md`: product vision and roadmap.
+- `README.md`: product overview, supported capabilities, and entry points.
+- `docs/roadmap.md` and `docs/product.md`: milestone status and product direction.
 - `AGENTS.md`: operating rules for coding agents.
 - `.agent/STATE.md`: machine-local handoff/state; never commit it.
 - Git history / PRs / CI: durable implementation state.
