@@ -4,7 +4,7 @@ Local-first regression testing for ROS2 / Nav2.
 
 RobotCI is an open-source developer tool for running repeatable navigation scenarios in simulation, producing machine-readable results, and eventually comparing candidate robot behavior against a known-good baseline before changes reach a physical robot.
 
-> Status: early alpha. M0–M5 are complete. RobotCI now captures evidence-qualified navigation telemetry, gates regressions deterministically, and rejects comparisons across incompatible execution environments.
+> Status: early alpha. M0–M6 are complete. RobotCI now captures evidence-qualified navigation telemetry, gates regressions deterministically, rejects comparisons across incompatible execution environments, and exposes a reusable pull-request/release gate with JSON, Markdown, and JUnit artifacts.
 
 ## Why RobotCI
 
@@ -410,6 +410,8 @@ Docker Runtime
 
 The native and Docker workflows verify both configured goals and runtime metrics written into scenario result files.
 
+M6 CI integration is complete. The root `action.yml` wraps the suite-level deterministic gate for pull requests and releases, writes strict JSON, reviewer-friendly Markdown, and JUnit XML before returning a blocking regression exit, and appends the Markdown report to `GITHUB_STEP_SUMMARY`. The `Suite Regression Gate Action` smoke workflow exercises both PASS and blocked REGRESSION paths and uploads the generated reports as CI artifacts. See [docs/github-action.md](docs/github-action.md) for the consumer workflow.
+
 ## Product vision
 
 RobotCI should evolve from a Nav2-specific regression CLI into a general robot-behavior CI platform. The core idea remains deterministic: run the same robot task before and after a change, measure behavior, compare against a baseline, and block regressions before they reach physical hardware.
@@ -667,8 +669,8 @@ baseline + candidate comparison + deterministic REGRESSION verdict
 M5 — Reproducibility ✅
 versioned plan + runtime provenance + compatible clean-environment execution
 
-M6 — CI integration
-JUnit + artifacts + PR release gate
+M6 — CI integration ✅
+JUnit + JSON/Markdown artifacts + reusable PR/release gate
 
 M7 — Public Alpha
 quickstart + examples + external users
