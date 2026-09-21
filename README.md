@@ -702,8 +702,8 @@ JUnit + JSON/Markdown artifacts + reusable PR/release gate
 M7 — Public Alpha ✅
 0.1.0a1 + external quickstart + validated example + installable wheel + feedback forms
 
-M8 — Validation
-real-world feedback and product direction decision
+M8 — Validation 🚧
+five-team evidence collection + reviewed product direction decision; external results pending
 
 M9 — Visual replay
 recorded simulator runs + trajectory/event timeline + baseline/candidate replay
@@ -781,6 +781,16 @@ other sensitive information.
 
 M8 will use those real-world results to decide what to fix, extend, or stop
 before broader robot/simulator support.
+
+The [M8 execution guide](docs/validation/README.md) defines the cohort register,
+evidence rules, current preflight results, and the decision needed to close M8.
+Generate the current evidence summary without ROS or extra dependencies:
+
+```powershell
+python scripts/pilot_report.py docs/validation/cohort.json
+```
+
+This reports recorded pilot evidence; an empty register does not validate M8.
 
 ## Contributing
 

@@ -91,7 +91,16 @@ implementation identity is deliberately outside the task fingerprint.
 
 For the first external pilot targets, prefer one small adapter script in the target checkout over adding target-specific behavior to RobotCI core. If two or more independent repositories require the same setup pattern, that repeated evidence is the signal to promote it into a first-class runtime adapter API.
 
-For Clearpath's public Nav2 demos, the first pilot adapter should launch the Jazzy `a200` warehouse simulation/navigation stack, wait for `/navigate_to_pose`, explicitly reset/localize the robot at RobotCI's configured start pose, then invoke the normalized scenario probe. Keep the adapter in the pilot workspace until the compatibility pattern is proven reusable.
+For Clearpath's public Nav2 demos, first launch a separate Clearpath simulator;
+the demo package only adds navigation and localization to an already running robot.
+Select the Jazzy `a200` platform through the simulator's `robot.yaml`, then start
+warehouse localization and navigation with simulation time. Wait for the actual
+namespaced Nav2 action, explicitly reset/localize the robot at RobotCI's configured
+start pose, and invoke the normalized scenario probe in the same ROS namespace
+and TF/topic context. Do not assume a global `/navigate_to_pose` endpoint. Keep the
+adapter in the pilot workspace until the compatibility pattern is proven reusable.
+The [Clearpath preflight](validation/clearpath-preflight.md) records the verified
+source revision, current runtime blocker, and the remaining acceptance checks.
 
 ## Limitations
 

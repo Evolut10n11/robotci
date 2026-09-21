@@ -82,10 +82,16 @@ After all five pilots, fill this table from the individual scorecards.
 | Teams completing a real suite | >= 3 | |
 | Teams completing baseline vs candidate gate | >= 2 | |
 | Teams saying they would use the gate again | >= 2 | |
-| Teams with medium-or-strong paid signal | >= 1 | |
-| Teams with strong paid signal | >= 1 preferred | |
+| Teams explicitly willing to discuss a paid pilot after real use | >= 1 required | |
+| Teams with medium-or-strong interest in a paid capability | diagnostic only | |
 
 Also record median setup time for teams that reached a real suite. A tool that requires extensive founder intervention may show technical success without product readiness.
+
+Issue #48 requires an explicit paid-pilot discussion signal. A request for history,
+support, or self-hosting without that willingness is useful feedback but does not
+satisfy the commercial criterion, regardless of its rubric label above. Record the
+dated evidence in [the M8 register](validation/README.md); the summary command
+calculates the five required counts and the setup-time median.
 
 ## Decision matrix
 
