@@ -112,7 +112,8 @@ Do not post heartbeat/spam messages. Post when there is a meaningful result, blo
 
 ## Local model routing
 
-When Codex is launched with `--oss`, this repository defaults to Ollama via `.codex/config.toml`.
+For local inference with `--oss`, configure Ollama in your local `.codex/config.toml`.
+The `.codex/` directory is machine-specific, ignored by Git, and not included in the checkout.
 
 Use local inference for inexpensive work such as repository exploration, search, documentation, test generation, lint fixes, small refactors and CI-log triage. Escalate difficult architecture/debugging to a stronger cloud model when useful. Durable state belongs in Git, issue #18 and `.agent/STATE.md`, not only in a model context window.
 
