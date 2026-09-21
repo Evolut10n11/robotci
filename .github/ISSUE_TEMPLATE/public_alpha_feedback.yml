@@ -29,6 +29,23 @@ body:
       required: true
 
   - type: dropdown
+    id: project_origin
+    attributes:
+      label: Whose navigation workflow did you test?
+      options:
+        - Our team's own ROS2/Nav2 project
+        - RobotCI example or tutorial only
+        - Independent test of another public project
+    validations:
+      required: true
+
+  - type: input
+    id: setup_minutes
+    attributes:
+      label: Active setup time in minutes
+      description: Optional. Time to the first useful result or blocker, excluding waiting. Leave blank if unknown.
+
+  - type: dropdown
     id: runtime
     attributes:
       label: Runtime path attempted
@@ -56,11 +73,43 @@ body:
       options:
         - label: Created or adapted robotci.yaml
         - label: Passed robotci validate and robotci plan
+        - label: Passed robotci doctor for the intended runtime
         - label: Ran at least one real simulation scenario
         - label: Completed a full suite
         - label: Captured a baseline
         - label: Compared a candidate with a baseline
         - label: Used the GitHub pull-request gate
+
+  - type: dropdown
+    id: gate_outcome
+    attributes:
+      label: Candidate gate outcome
+      description: Input/compatibility errors are not completed behavior comparisons.
+      options:
+        - Not run
+        - PASS on a real code or configuration change
+        - REGRESSION on a real code or configuration change
+        - Robot behavior FAIL or TIMEOUT before a completed comparison
+        - INFRA_ERROR or incompatible/invalid input
+        - Demo or synthetic comparison only
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted evidence and real change
+      description: Optional. Give the observation date, a safe session-note ID or approved public report URL, and the kind of code/config change. Do not share private paths or source code.
+
+  - type: dropdown
+    id: replay
+    attributes:
+      label: Replay usefulness
+      options:
+        - Not evaluated or not applicable
+        - Helped explain the result
+        - Tried but did not help
+        - Could not open or use replay
 
   - type: textarea
     id: friction
@@ -90,6 +139,13 @@ body:
       required: true
 
   - type: checkboxes
+    id: actual_reuse
+    attributes:
+      label: Observed reuse
+      options:
+        - label: We ran RobotCI again in normal development without assistance from the RobotCI team.
+
+  - type: checkboxes
     id: team_needs
     attributes:
       label: Team features you would actively want
@@ -102,6 +158,19 @@ body:
         - label: Private artifact/replay retention
         - label: Self-hosted enterprise deployment
         - label: Commercial support
+
+  - type: dropdown
+    id: paid_discussion
+    attributes:
+      label: Would you discuss a paid pilot for a concrete team capability after this trial?
+      description: Feature interest alone is different from willingness to discuss a paid pilot. This is not a purchase commitment.
+      options:
+        - "Yes, for a specific capability described below"
+        - "No"
+        - "Not decided or not discussed"
+        - "Not applicable; we have not used RobotCI on our own project"
+    validations:
+      required: true
 
   - type: textarea
     id: payment_signal
