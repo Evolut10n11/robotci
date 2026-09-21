@@ -4,13 +4,23 @@ build-backend = "hatchling.build"
 
 [project]
 name = "robotci"
-version = "0.0.1"
-description = "Local-first regression testing for ROS2/Nav2"
+version = "0.1.0a1"
+description = "Deterministic robot behavior regression testing for ROS2/Nav2"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
 authors = [
     { name = "RobotCI Team" }
+]
+keywords = ["robotics", "ros2", "nav2", "ci", "regression-testing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Testing",
 ]
 dependencies = [
     "typer>=0.12,<1.0",
@@ -27,6 +37,11 @@ dev = [
     "pytest>=8.0,<9.0",
     "ruff>=0.8,<1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/Evolut10n11/robotci"
+Repository = "https://github.com/Evolut10n11/robotci"
+Issues = "https://github.com/Evolut10n11/robotci/issues"
 
 [project.scripts]
 robotci = "robotci.bootstrap:main"

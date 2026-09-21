@@ -4,7 +4,7 @@ Local-first regression testing for ROS2 / Nav2.
 
 RobotCI is an open-source developer tool for running repeatable navigation scenarios in simulation, producing machine-readable results, and eventually comparing candidate robot behavior against a known-good baseline before changes reach a physical robot.
 
-> Status: early alpha. M0–M6 are complete. RobotCI now captures evidence-qualified navigation telemetry, gates regressions deterministically, rejects comparisons across incompatible execution environments, and exposes a reusable pull-request/release gate with JSON, Markdown, and JUnit artifacts.
+> Status: public alpha (`0.1.0a1`). M0–M7 are complete. RobotCI now provides a source-installable ROS2/Nav2 behavior-regression workflow with reproducible suites, deterministic baseline gates, CI reports, a runnable example, and an external-user feedback path.
 
 ## Why RobotCI
 
@@ -46,7 +46,31 @@ GitHub Actions
 
 The Python core is tested on both Windows and Ubuntu. ROS imports stay isolated under `robotci.ros`, so Windows contributors can work on the CLI, YAML validation, result models, metrics logic, reporting, and regression logic without installing ROS locally.
 
-## Quick start
+## Public alpha
+
+RobotCI `0.1.0a1` is the first external-user alpha. Start with the
+[public alpha quickstart](docs/quickstart.md), which goes from installation to a
+real simulation suite, baseline capture, candidate gating, and GitHub Actions.
+
+Useful entry points:
+
+- [Nav2 Loopback example](examples/nav2-loopback/README.md) — a validated,
+  runnable three-route example.
+- [Onboarding](docs/onboarding.md) — what `robotci-init` creates and what must
+  be edited before the first run.
+- [Baseline workflow](docs/baselines.md) — save, inspect, replace, and gate
+  known-good suites.
+- [GitHub Action](docs/github-action.md) — reusable JSON/Markdown/JUnit PR gate.
+- [Support bundle](docs/support-bundle.md) — redaction-safe diagnostics for
+  alpha bug reports.
+
+The repository provides GitHub issue forms for both bugs and real-world public
+alpha pilot feedback. The package smoke workflow builds `robotci-0.1.0a1` as a
+wheel, installs it into a clean environment, verifies the packaged CLIs, and
+validates the public example before the wheel is uploaded as a CI artifact.
+
+
+## Developer setup
 
 ### Windows / PowerShell
 
@@ -406,6 +430,9 @@ Navigation Suite
 
 Docker Runtime
 └── image build + robotci.yaml + scenario telemetry
+
+Package Smoke
+└── build wheel + clean-environment install + packaged CLI/example verification
 ```
 
 The native and Docker workflows verify both configured goals and runtime metrics written into scenario result files.
@@ -672,8 +699,8 @@ versioned plan + runtime provenance + compatible clean-environment execution
 M6 — CI integration ✅
 JUnit + JSON/Markdown artifacts + reusable PR/release gate
 
-M7 — Public Alpha
-quickstart + examples + external users
+M7 — Public Alpha ✅
+0.1.0a1 + external quickstart + validated example + installable wheel + feedback forms
 
 M8 — Validation
 real-world feedback and product direction decision
@@ -743,6 +770,17 @@ robotci/
 ├── LICENSE
 └── .gitignore
 ```
+
+## Public alpha feedback
+
+External-user friction is part of the product signal, not noise. Use the
+repository **Bug report** issue form for incorrect behavior or broken onboarding,
+and **Public alpha pilot feedback** after trying RobotCI on a real ROS2/Nav2
+repository. Do not include credentials, private source code, customer data, or
+other sensitive information.
+
+M8 will use those real-world results to decide what to fix, extend, or stop
+before broader robot/simulator support.
 
 ## Contributing
 

@@ -1,0 +1,86 @@
+name: Bug report
+description: Report incorrect RobotCI behavior or a broken public-alpha workflow.
+title: "[bug] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing RobotCI. Please remove secrets, tokens, private filesystem details, customer data, and other sensitive information before submitting.
+
+  - type: input
+    id: version
+    attributes:
+      label: RobotCI version
+      description: Paste the output of robotci version.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Ubuntu 24.04 native ROS2/Nav2
+        - Linux with Docker runtime
+        - Windows 11 core tooling
+        - GitHub Actions
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Installation or packaging
+        - Configuration or validation
+        - Doctor or runtime selection
+        - Scenario execution
+        - Metrics or evidence
+        - Baseline or regression gate
+        - GitHub Action or reporting
+        - Replay or viewer
+        - MCP
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: List the smallest sequence of commands or actions that reproduces the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe what you expected RobotCI to do.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the relevant error or verdict. Keep the report free of secrets and private data.
+    validations:
+      required: true
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Safe diagnostics
+      description: Add redaction-safe doctor or support-bundle output when it helps reproduce the issue.
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed credentials, tokens, private customer data, and other sensitive information from this report.
+          required: true

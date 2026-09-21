@@ -1,0 +1,118 @@
+name: Public alpha pilot feedback
+description: Share what happened when you tried RobotCI on a real ROS2/Nav2 repository.
+title: "[pilot] "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is for product evidence, including unsuccessful attempts. Do not include source code, credentials, private repository URLs, customer data, or other sensitive information.
+
+  - type: input
+    id: version
+    attributes:
+      label: RobotCI version
+      description: Paste the output of robotci version.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: repository_visibility
+    attributes:
+      label: Target repository
+      options:
+        - Public repository
+        - Private repository
+        - Internal company repository
+        - Local experiment
+    validations:
+      required: true
+
+  - type: dropdown
+    id: runtime
+    attributes:
+      label: Runtime path attempted
+      options:
+        - Ubuntu 24.04 native ROS2/Nav2
+        - Docker
+        - GitHub Actions
+        - Core tooling only
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: scenarios
+    attributes:
+      label: Number of real scenarios attempted
+      description: Enter the number of scenarios you configured or ran.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: completed
+    attributes:
+      label: What did you complete?
+      options:
+        - label: Created or adapted robotci.yaml
+        - label: Passed robotci validate and robotci plan
+        - label: Ran at least one real simulation scenario
+        - label: Completed a full suite
+        - label: Captured a baseline
+        - label: Compared a candidate with a baseline
+        - label: Used the GitHub pull-request gate
+
+  - type: textarea
+    id: friction
+    attributes:
+      label: Biggest friction
+      description: What was confusing, slow, broken, or too manual?
+    validations:
+      required: true
+
+  - type: textarea
+    id: value
+    attributes:
+      label: What was useful?
+      description: Describe the point, if any, where RobotCI saved time or gave information your current workflow does not.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: reuse
+    attributes:
+      label: Would you use RobotCI again in normal development?
+      options:
+        - "Yes"
+        - "Maybe"
+        - "No"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: team_needs
+    attributes:
+      label: Team features you would actively want
+      options:
+        - label: Persistent baseline/history storage
+        - label: Historical metric trends
+        - label: GitHub PR reports
+        - label: Team policy gates
+        - label: Flaky-run detection
+        - label: Private artifact/replay retention
+        - label: Self-hosted enterprise deployment
+        - label: Commercial support
+
+  - type: textarea
+    id: payment_signal
+    attributes:
+      label: Paid-signal context
+      description: Optional. If any team feature would justify budget or a procurement discussion, explain which problem it would solve.
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I did not include credentials, private source code, private repository URLs, customer data, or other sensitive information.
+          required: true
