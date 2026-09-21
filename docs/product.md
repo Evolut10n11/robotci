@@ -88,6 +88,9 @@ JUnit report                 ✅
 local baseline capture UX     ✅
 named baseline candidate gate ✅
 one-command onboarding        ✅
+public alpha quickstart/example ✅
+installable alpha wheel        ✅
+external bug/pilot issue forms ✅
 CI runtime path filtering     ✅
 3D replay/viewer              🚧
 external team validation      🚧
@@ -124,6 +127,8 @@ Implemented:
 - `robotci-baseline gate <name> --candidate ...`
 - `robotci-init` for a valid starter `robotci.yaml`
 - path-aware CI so docs, web, and baseline-only changes do not pay the full ROS/Nav2/Docker runtime cost
+- public-alpha packaging smoke that builds and installs the wheel in a clean environment
+- external-user quickstart, validated Nav2 Loopback example, and structured bug/pilot feedback forms
 
 Remaining high-value work:
 
