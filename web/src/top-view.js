@@ -1,3 +1,4 @@
+import { eventLabel, formatTime } from "./ru.js";
 import { sampleAt } from "./playback.js";
 import { trajectoryBounds, displaySamples, formatNumber } from "./model.js";
 const NS = "http://www.w3.org/2000/svg";
@@ -18,7 +19,7 @@ export class TopView {
     this.svg = node("svg", {
       role: "img",
       "aria-label":
-        "Recorded trajectories in world coordinates. Drag to pan; scroll to zoom.",
+        "Записанные траектории в системе координат мира. Перетаскивание сдвигает вид, колесо меняет масштаб.",
       class: "trajectory-svg",
     });
     host.append(this.svg);
@@ -144,7 +145,7 @@ export class TopView {
           }),
         );
         this.svg.append(
-          node("text", { x: sx - 9, y: sy + 24, class: "plot-label" }, "Start"),
+          node("text", { x: sx - 9, y: sy + 24, class: "plot-label" }, "Старт"),
         );
         this.svg.append(
           node("circle", {
@@ -161,7 +162,7 @@ export class TopView {
           node("circle", { cx: gx, cy: gy, r: 5, fill: "#567a55" }),
         );
         this.svg.append(
-          node("text", { x: gx + 20, y: gy + 4, class: "plot-label" }, "Goal"),
+          node("text", { x: gx + 20, y: gy + 4, class: "plot-label" }, "Цель"),
         );
         for (const event of replay.events.filter(
           (e) => !["START", "GOAL"].includes(e.type),
@@ -175,7 +176,7 @@ export class TopView {
             stroke: color,
             "stroke-width": 2,
           });
-          mark.append(node("title", {}, `${event.type} · ${event.t}s`));
+          mark.append(node("title", {}, `${eventLabel(event.type)} · ${formatTime(event.t)} с`));
           this.svg.append(mark);
         }
       }

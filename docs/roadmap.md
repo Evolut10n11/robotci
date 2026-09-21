@@ -34,6 +34,8 @@ capability is absent until earlier product validation finishes.
 3. Validate the replay workbench on real baseline/candidate recordings. Use
    observed debugging needs to prioritize map context, event recording, and
    deeper agent integration.
+   The Russian interface supports opening saved baselines by name and automatic
+   free-port selection; these onboarding improvements do not close M8.
 
 ## Completion evidence
 
@@ -47,6 +49,7 @@ capability is absent until earlier product validation finishes.
 | M6 | [PR #81](https://github.com/Evolut10n11/robotci/pull/81) |
 | M7 | [PR #82](https://github.com/Evolut10n11/robotci/pull/82) |
 | M8 preparation | [PR #83](https://github.com/Evolut10n11/robotci/pull/83); milestone remains open |
+| M9 local replay workbench | [PR #86](https://github.com/Evolut10n11/robotci/pull/86) |
 
 New adapters, hosted infrastructure, and paid services depend on an observed use
 case. Agents may explain evidence; regression decisions remain deterministic.

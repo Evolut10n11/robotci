@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import errno
 import json
 import math
 import webbrowser
+from collections.abc import Callable
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
@@ -276,7 +278,15 @@ def create_viewer_server(
         from robotci.viewer_session import replay_session
 
         session = replay_session(validate_replay(replay))
-    return ThreadingHTTPServer((host, port), _handler_for(replay, session))
+    try:
+        return ThreadingHTTPServer((host, port), _handler_for(replay, session))
+    except OSError as exc:
+        if exc.errno in {errno.EADDRINUSE, 10048} or getattr(exc, "winerror", None) == 10048:
+            raise ViewerError(
+                f"port {port} is already in use; pass --port 0 to choose a free port "
+                "or select another port with --port"
+            ) from exc
+        raise
 
 
 def serve_viewer(
@@ -286,6 +296,7 @@ def serve_viewer(
     port: int = DEFAULT_VIEWER_PORT,
     open_browser: bool = True,
     session: dict[str, Any] | None = None,
+    on_ready: Callable[[str], None] | None = None,
 ) -> str:
     """Serve the viewer until interrupted and return its URL after shutdown."""
     server = create_viewer_server(replay, host=host, port=port, session=session)
@@ -295,10 +306,11 @@ def serve_viewer(
     effective_port = int(server.server_address[1])
     url = f"http://{effective_host}:{effective_port}/"
 
-    if open_browser:
-        webbrowser.open(url)
-
     try:
+        if on_ready is not None:
+            on_ready(url)
+        if open_browser:
+            webbrowser.open(url)
         server.serve_forever(poll_interval=0.2)
     except KeyboardInterrupt:
         pass

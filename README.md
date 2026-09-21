@@ -87,6 +87,9 @@ These checks run without ROS or Docker. To explore the local replay viewer:
 robotci view --demo
 ```
 
+The viewer UI is in Russian. See the [Russian guide](docs/replay-viewer.ru.md).
+If port 8765 is busy, pass `--port 8766` or `--port 0` to choose a free port.
+
 ![RobotCI replay workbench comparing two synthetic recordings](docs/assets/replay-workbench.jpg)
 
 *Local replay comparison. The built-in demo is synthetic and has no gate verdict.*
@@ -127,6 +130,7 @@ the same execution environment:
 ```powershell
 robotci run --runtime docker
 robotci-baseline gate main-nav --candidate .robotci/suite-result.json
+robotci view --suite .robotci/suite-result.json --baseline-name main-nav --port 0
 ```
 
 The default regression policy allows up to **10%** more duration and path length,
