@@ -17,7 +17,8 @@ export const displayLabel = (label) => ({
 export const formatTime = (value) => value.toLocaleString("ru-RU", {
   minimumFractionDigits: 2, maximumFractionDigits: 2, useGrouping: false,
 });
-export const displayUnit = (unit) => ({ m: "м", s: "с" }[unit] ?? unit);
+export const displayUnit = (unit) => ({ m: "м", s: "с", percent: "%", count: "" }[unit] ?? unit);
+export const eventTitle = (event) => `${eventLabel(event.type)}${event.count > 1 ? ` · +${event.count.toLocaleString("ru-RU")}` : ""}`;
 
 const messages = {
   SUCCEEDED: "Навигация успешно завершена",
@@ -29,6 +30,10 @@ const messages = {
   "Navigation started": "Навигация началась",
   "Local planner stopped making progress": "Локальный планировщик перестал продвигаться к цели",
   "Recovery behavior completed": "Восстановление завершено",
+  "No movement observed within the stuck window":
+    "За окно обнаружения застревания не наблюдалось перемещения выше порога. При отсутствии обратной связи это не доказывает остановку робота.",
+  "Nav2 recovery counter increased":
+    "Nav2 сообщил о росте счётчика восстановлений. Отмечено время получения данных; точное время отдельных действий неизвестно.",
   "Goal reached": "Цель достигнута",
   "Synthetic baseline started": "Запущен демонстрационный эталон",
   "Synthetic baseline reached the goal": "Демонстрационный эталон достиг цели",

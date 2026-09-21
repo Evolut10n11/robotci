@@ -1,4 +1,4 @@
-import { eventLabel, formatTime } from "./ru.js";
+import { eventTitle, formatTime } from "./ru.js";
 import { sampleAt } from "./playback.js";
 import { trajectoryBounds, displaySamples, formatNumber } from "./model.js";
 const NS = "http://www.w3.org/2000/svg";
@@ -176,7 +176,7 @@ export class TopView {
             stroke: color,
             "stroke-width": 2,
           });
-          mark.append(node("title", {}, `${eventLabel(event.type)} · ${formatTime(event.t)} с`));
+          mark.append(node("title", {}, `${eventTitle(event)} · ${formatTime(event.t)} с`));
           this.svg.append(mark);
         }
       }

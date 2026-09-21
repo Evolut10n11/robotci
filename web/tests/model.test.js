@@ -9,6 +9,7 @@ import {
   timelineEvents,
   trajectoryBounds,
   displaySamples,
+  firstMetricEvent,
 } from "../src/model.js";
 const recording = () => ({
   schema_version: 1,
@@ -114,6 +115,28 @@ test("events use their recorded times and identify their source", () => {
     ],
   );
   assert.equal(timelineEvents(scenario, false).length, 2);
+});
+test("recovery batches preserve their observed timestamp and full counter delta", () => {
+  const replay = recording();
+  replay.metrics.recoveries = 4;
+  replay.events.push({ t: 1, type: "RECOVERY", count: 4 });
+  const decoded = parseReplay(JSON.stringify(replay));
+  assert.equal(decoded.events.at(-1).count, 4);
+  assert.equal(firstMetricEvent(decoded, "recoveries").t, 1);
+  for (const count of [0, -1, true, 1.5, "2", null, 2 ** 53]) {
+    replay.events.at(-1).count = count;
+    assert.throws(() => validateReplay(replay));
+  }
+});
+test("metric navigation uses recorded events, never inferred times from counters", () => {
+  const replay = recording();
+  replay.metrics.stuck_events = 2;
+  assert.equal(firstMetricEvent(replay, "stuck_events"), null);
+  assert.equal(firstMetricEvent(null, "stuck_events"), null);
+  replay.events.push({ type: "STUCK", t: 1.5 }, { type: "STUCK", t: 0.5 });
+  assert.equal(firstMetricEvent(replay, "stuck_events").t, 0.5);
+  assert.equal(firstMetricEvent(replay, "duration_sec"), null);
+  assert.equal(firstMetricEvent(replay, "recoveries"), null);
 });
 test("large trajectories retain endpoints without overflowing argument limits", () => {
   const replay = recording();

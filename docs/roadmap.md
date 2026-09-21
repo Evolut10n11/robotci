@@ -35,7 +35,8 @@ capability is absent until earlier product validation finishes.
    observed debugging needs to prioritize map context, event recording, and
    deeper agent integration.
    The Russian interface supports opening saved baselines by name and automatic
-   free-port selection; these onboarding improvements do not close M8.
+   free-port selection. Nav2 replay records observed stuck/recovery counter
+   changes with links from metrics and regression findings; M8 remains open.
 
 ## Completion evidence
 

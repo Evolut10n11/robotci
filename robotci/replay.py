@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from robotci.metrics import NavigationMetrics
+from robotci.metrics import NavigationEvent, NavigationMetrics
 from robotci.results import Pose2D, ScenarioStatus
 
 
@@ -54,10 +55,26 @@ class ReplayRecorder:
         duration_sec: float,
         metrics: NavigationMetrics,
         navigation_result: str,
+        events: Sequence[NavigationEvent] = (),
     ) -> dict[str, Any]:
         """Build a self-contained Replay v1 payload."""
         last_t = float(self._samples[-1]["t"])
-        duration = round(max(0.001, float(duration_sec), last_t), 3)
+        observations = [
+            {
+                "t": round(max(0.0, event.observed_at - self.started_at), 3),
+                "type": event.type,
+                "count": event.count,
+                "message": (
+                    "No movement observed within the stuck window"
+                    if event.type == "STUCK"
+                    else "Nav2 recovery counter increased"
+                ),
+            }
+            for event in events
+        ]
+        observations.sort(key=lambda event: event["t"])
+        last_event_t = observations[-1]["t"] if observations else 0.0
+        duration = round(max(0.001, float(duration_sec), last_t, last_event_t), 3)
 
         samples = list(self._samples)
         if len(samples) == 1:
@@ -94,6 +111,7 @@ class ReplayRecorder:
             },
             "events": [
                 {"t": 0.0, "type": "START", "message": "Navigation started"},
+                *observations,
                 {
                     "t": duration,
                     "type": final_event,

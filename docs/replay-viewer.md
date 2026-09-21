@@ -108,10 +108,32 @@ and **O** opens files. Russian-layout equivalents **Х / Ъ**, **А**, and **Щ*
 also work. Shortcuts do not intercept form controls. Playback pauses
 when the tab is hidden and when the scenario or source changes.
 
-The current runtime recorder emits start and terminal events. Metric counts do
-not imply that every stuck/recovery event has a timestamp; the viewer never
-invents those timestamps. This is a trajectory viewer, not a simulator, map
-renderer, live robot controller, or video recording.
+The Nav2 recorder emits start/terminal events and the same stuck/recovery
+observations that update the metric counters. **К событиям** in a metric row or
+regression finding seeks to the first recorded event of that type in the candidate.
+Previous/next event controls and the journal navigate subsequent observations.
+The button is absent if that recording contains no matching timestamped events.
+
+STUCK is timestamped when the detector first observes that motion has not crossed
+its displacement threshold within the configured window (defaults: 0.02 m and
+5 seconds). It is counted once until motion resumes. Polling cached or missing
+feedback still advances that detector; STUCK therefore means no observed motion,
+not proof that the physical robot stopped. Missing/invalid feedback remains
+subject to the existing evidence checks.
+
+RECOVERY is timestamped when fresh Nav2 feedback reports an increase in its
+cumulative recovery counter. If it jumps by several, one event retains the full
+increase in `count`; no intermediate times or completion claims are invented.
+Repeated/decreasing counters add nothing. Recovery observations survive an invalid
+pose in the same feedback. Times use the navigation monotonic clock relative to
+goal dispatch, rounded to milliseconds; they are observation times, not precise
+start/end times of the individual recovery actions.
+
+Old recordings remain supported: counts alone cannot supply missing timestamps.
+No historical events are backfilled. Pose display remains interpolation between
+recorded feedback samples and is not an independently measured event position.
+This is a trajectory viewer, not a simulator, map renderer, live robot controller,
+or video recording.
 
 ## Record a real Nav2 run
 
@@ -154,6 +176,11 @@ recording. A Replay v1 document contains:
 - `samples`: ordered timestamped poses with `{x, y, z}` and yaw.
 - `metrics`: duration, path length, distance to goal, stuck-event count, and recovery count.
 - `events`: timestamped `START`, `REPLAN`, `STUCK`, `RECOVERY`, `GOAL`, or `FAIL` events.
+- `events[].count`: optional positive integer up to `2^53 - 1`, only for `STUCK`
+  and `RECOVERY`. It is the observed counter increase, defaulting to 1 for older
+  event records. For newly recorded Nav2 runs, the sum of each type's `count`
+  equals the corresponding final metric. `REPLAN` remains a supported import
+  type, but the current recorder does not capture it.
 
 Minimal shape:
 

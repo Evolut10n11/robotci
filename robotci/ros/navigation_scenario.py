@@ -244,6 +244,7 @@ def run_navigation_scenario(
             duration_sec=duration_sec,
             metrics=metrics,
             navigation_result=navigation_result,
+            events=tracker.events,
         )
         replay_path = write_replay(replay, default_replay_path(result_path))
 

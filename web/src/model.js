@@ -124,6 +124,10 @@ export function validateReplay(replay) {
       fail("Неподдерживаемый тип события.");
     if (event.message != null && typeof event.message !== "string")
       fail("Описание события должно быть текстом.");
+    if ("count" in event && (
+      !["STUCK", "RECOVERY"].includes(event.type) ||
+      !Number.isSafeInteger(event.count) || event.count < 1
+    )) fail("Прирост счётчика события должен быть положительным целым числом для застревания или восстановления.");
   });
   return replay;
 }
@@ -236,6 +240,12 @@ export function timelineEvents(scenario, includeBaseline) {
       events.push({ ...event, source });
   }
   return events.sort((a, b) => a.t - b.t || a.source.localeCompare(b.source));
+}
+export function firstMetricEvent(replay, metric) {
+  const type = { stuck_events: "STUCK", recoveries: "RECOVERY" }[metric];
+  if (!type) return null;
+  return (replay?.events ?? []).filter((event) => event.type === type)
+    .reduce((first, event) => !first || event.t < first.t ? event : first, null);
 }
 export function trajectoryBounds(replays) {
   let minX = Infinity,

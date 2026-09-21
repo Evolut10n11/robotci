@@ -35,7 +35,7 @@ is implemented; external validation is in progress. Start with simulation.
 | Measure behavior | Duration, path length, distance to goal, stuck events, recoveries, and feedback quality |
 | Gate a change | Named local baselines, compatibility checks, deterministic thresholds, and blocking exit codes |
 | Review results in CI | JSON, Markdown, JUnit, and a reusable GitHub Action |
-| Inspect a run | Synchronized replay comparison, diagnostics, support bundles, and six read-only MCP tools |
+| Inspect a run | Synchronized replay comparison with observed stuck/recovery events, diagnostics, support bundles, and six read-only MCP tools |
 
 Navigation success alone is not enough. A robot can reach its goal and still take
 a longer path or require more recoveries. RobotCI measures those changes against

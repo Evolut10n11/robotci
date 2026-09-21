@@ -4,7 +4,7 @@ import math
 
 import pytest
 
-from robotci.metrics import NavigationMetricsTracker, planar_yaw_from_quaternion
+from robotci.metrics import NavigationEvent, NavigationMetricsTracker, planar_yaw_from_quaternion
 
 
 def test_metrics_tracker_accumulates_path_and_goal_distance() -> None:
@@ -81,6 +81,10 @@ def test_metrics_tracker_records_one_stuck_event_until_motion_resumes() -> None:
 
     second = tracker.snapshot(goal_x=1.0, goal_y=0.0)
     assert second.stuck_events == 2
+    assert tracker.events == (
+        NavigationEvent(5.1, "STUCK"),
+        NavigationEvent(14.1, "STUCK"),
+    )
 
 
 def test_metrics_tracker_ignores_tiny_pose_jitter_for_path_length() -> None:
@@ -180,6 +184,25 @@ def test_metrics_tracker_keeps_recovery_high_water_mark_with_invalid_pose() -> N
 
     assert metrics.recoveries == 4
     assert metrics.distance_to_goal_m == 0.25
+    assert tracker.events == (
+        NavigationEvent(1.0, "RECOVERY", 3),
+        NavigationEvent(2.0, "RECOVERY", 1),
+    )
+
+
+def test_repeated_feedback_does_not_duplicate_counter_observations() -> None:
+    tracker = NavigationMetricsTracker(start_x=0, start_y=0, started_at=100)
+    tracker.update(x=0, y=0, now=105, recoveries=2)
+    snapshot = tracker.events
+    tracker.update(x=0, y=0, now=106, recoveries=2)
+    tracker.tick(107)
+    tracker.update(x=1, y=0, now=108, recoveries=1)
+    tracker.update(x=1, y=0, now=109, recoveries=3)
+    assert snapshot == (NavigationEvent(105, "RECOVERY", 2), NavigationEvent(105, "STUCK"))
+    assert tracker.events == (*snapshot, NavigationEvent(109, "RECOVERY"))
+    metrics = tracker.snapshot(goal_x=1, goal_y=0)
+    assert sum(e.count for e in tracker.events if e.type == "STUCK") == metrics.stuck_events
+    assert sum(e.count for e in tracker.events if e.type == "RECOVERY") == metrics.recoveries
 
 
 def test_planar_yaw_normalizes_a_finite_quaternion() -> None:
