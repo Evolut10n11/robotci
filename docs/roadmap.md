@@ -18,7 +18,7 @@ capability is absent until earlier product validation finishes.
 | M6 · CI integration | Complete | Action, blocking gate, JSON/Markdown/JUnit, summaries and artifacts |
 | M7 · Public alpha | Complete | `0.1.0a1`, quickstart, example, wheel smoke, and feedback forms |
 | M8 · Validation | In progress | Five external teams, observed outcomes, and a reviewed product decision |
-| M9 · Visual replay | Partially implemented | Recorder/viewer exist; finish controls, source integration, and baseline/candidate replay |
+| M9 · Visual replay | Local workbench implemented | Maintainable source, playback, 2D/3D, synchronized replay comparison, and existing suite gate evidence |
 | M10 · Robot adapters | Planned | First non-Nav2 backend; evaluate Unitree Go2 + MuJoCo |
 | M11 · MCP / agent API | Partially implemented | Six read-only tools exist; execution/cancellation and reference agent remain planned |
 | M12 · Team product validation | Planned, evidence-gated | Shared baselines/history and narrowly scoped paid experiments |
@@ -31,8 +31,9 @@ capability is absent until earlier product validation finishes.
 2. Fix demonstrated onboarding/runtime blockers. The
    [Clearpath preflight](validation/clearpath-preflight.md) identifies the need for
    a simulation environment and an explicit namespace-aware integration.
-3. Finish replay in the existing GUI workstream, then use observed debugging
-   needs to scope baseline/candidate visual comparison.
+3. Validate the replay workbench on real baseline/candidate recordings. Use
+   observed debugging needs to prioritize map context, event recording, and
+   deeper agent integration.
 
 ## Completion evidence
 

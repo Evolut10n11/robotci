@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from robotci.comparison import ComparisonInputError, load_scenario_result
+from robotci.replay import default_replay_path
 from robotci.suite_schema import SuiteResultError, ValidatedSuiteResult, load_suite_result
+from robotci.viewer import ViewerError, load_replay
+from robotci.viewer_session import replay_matches_result
 
 BASELINE_SCHEMA_VERSION = 1
 DEFAULT_BASELINE_ROOT = Path(".robotci") / "baselines"
@@ -114,6 +117,18 @@ def capture_baseline(
             target = temp / relative_name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
+            source_replay = default_replay_path(source)
+            if source_replay.is_file():
+                try:
+                    if not source_replay.resolve().is_relative_to(source_suite.parent):
+                        raise ViewerError("replay sidecar is outside the suite directory")
+                    replay = load_replay(source_replay)
+                    replay_matches_result(replay, load_scenario_result(source))
+                except (ViewerError, ComparisonInputError) as exc:
+                    raise BaselineError(
+                        f"cannot capture replay for {relative_name}: {exc}"
+                    ) from exc
+                shutil.copy2(source_replay, default_replay_path(target))
         (temp / "manifest.json").write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )

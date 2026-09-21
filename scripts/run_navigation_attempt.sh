@@ -38,6 +38,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck source=nav2_lifecycle_startup.sh
 source "$SCRIPT_DIR/nav2_lifecycle_startup.sh"
+# shellcheck source=nav2_process_cleanup.sh
+source "$SCRIPT_DIR/nav2_process_cleanup.sh"
 
 PYTHON_BIN="${ROBOTCI_PYTHON:-python3}"
 if [ -z "${ROBOTCI_PYTHON:-}" ] && [ -x ".venv/bin/python" ]; then
@@ -71,19 +73,7 @@ cleanup() {
   trap - EXIT
 
   echo "Stopping Nav2 process group for $SCENARIO..."
-  kill -TERM -- "-$NAV2_PID" 2>/dev/null || true
-
-  for _ in $(seq 1 20); do
-    if ! kill -0 "$NAV2_PID" 2>/dev/null; then
-      break
-    fi
-    sleep 0.25
-  done
-
-  if kill -0 "$NAV2_PID" 2>/dev/null; then
-    echo "Nav2 did not stop after SIGTERM; sending SIGKILL..."
-    kill -KILL -- "-$NAV2_PID" 2>/dev/null || true
-  fi
+  stop_nav2_process_group "$NAV2_PID"
 
   wait "$NAV2_PID" 2>/dev/null || true
 
