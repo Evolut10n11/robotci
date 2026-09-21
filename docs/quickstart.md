@@ -142,7 +142,7 @@ The default output is:
 .robotci/
 ├── suite-result.json
 └── results/
-    └── <scenario>.json
+    └── smoke_route.json
 ```
 
 A successful navigation action is not enough by itself. RobotCI only emits
