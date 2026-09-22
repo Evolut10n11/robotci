@@ -69,6 +69,52 @@ def test_visual_comparison_cannot_create_a_gate_verdict() -> None:
     )
 
 
+@pytest.mark.parametrize("observation_count", [0, 1])
+def test_observed_recording_alignment_uses_configured_start(observation_count: int) -> None:
+    candidate, baseline = demo_replay(), demo_replay()
+    candidate["recording"] = {"pose_source": "observed", "max_interpolation_gap_sec": 1.0}
+    candidate["world"]["start"] = dict(baseline["samples"][0]["position"])
+    # The first observation can arrive after the robot has already moved.
+    candidate["samples"] = candidate["samples"][2:2 + observation_count]
+    session = replay_session(candidate, baseline)
+    assert session["scenarios"][0]["alignment_notice"] is None
+    assert session["gate"] is None
+    baseline["recording"] = {"pose_source": "observed", "max_interpolation_gap_sec": 1.0}
+    baseline["world"]["start"] = dict(candidate["world"]["start"])
+    baseline["samples"] = []
+    assert replay_session(candidate, baseline)["scenarios"][0]["alignment_notice"] is None
+    candidate["world"]["start"]["x"] = 1
+    assert "different start positions" in replay_session(candidate, baseline)["scenarios"][0][
+        "alignment_notice"
+    ]
+
+
+@pytest.mark.parametrize("observation_count", [0, 1])
+def test_observation_recording_survives_suite_and_saved_baseline_without_changing_gate(
+    tmp_path: Path, observation_count: int,
+) -> None:
+    suite = copy_suite(tmp_path, "baseline")
+    sidecar = add_sidecar(suite)
+    replay = json.loads(sidecar.read_text())
+    replay["recording"] = {"pose_source": "observed", "max_interpolation_gap_sec": 1.0}
+    replay["world"]["start"] = dict(replay["samples"][0]["position"])
+    replay["samples"] = replay["samples"][1:1 + observation_count]
+    sidecar.write_text(json.dumps(replay))
+    captured = capture_baseline("observed", suite, store_root=tmp_path / "saved")
+    saved_suite = captured.path / "suite-result.json"
+    session = suite_session(suite, saved_suite)
+    assert session["gate"]["status"] == "PASS"
+    entry = session["scenarios"][0]
+    assert entry["alignment_notice"] is None
+    assert entry["candidate"]["replay"] == entry["baseline"]["replay"] == replay
+    replay["world"]["start"]["x"] += 1
+    sidecar.write_text(json.dumps(replay))
+    session = suite_session(suite, saved_suite)
+    assert session["gate"]["status"] == "PASS"
+    assert session["scenarios"][0]["candidate"]["replay"] is None
+    assert "start does not match" in session["scenarios"][0]["candidate"]["replay_notice"]
+
+
 def test_suite_comparison_reuses_the_verified_gate_and_keeps_missing_replays_explicit(
     tmp_path: Path,
 ) -> None:

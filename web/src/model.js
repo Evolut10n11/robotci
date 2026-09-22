@@ -82,7 +82,17 @@ export function validateReplay(replay) {
     fail("Визуальный профиль робота: ожидается rover, quadruped или humanoid.");
   string(object(replay.world, "Мир").frame, "Система координат");
   position(replay.world.goal, "Цель");
-  if (!Array.isArray(replay.samples) || replay.samples.length < 2)
+  const observed = Object.hasOwn(replay, "recording");
+  if (observed) {
+    object(replay.recording, "Параметры записи");
+    if (replay.recording.pose_source !== "observed")
+      fail("Источник положения робота должен быть observed.");
+    if (number(replay.recording.max_interpolation_gap_sec, "Интервал интерполяции") <= 0)
+      fail("Интервал интерполяции должен быть больше нуля.");
+    position(replay.world.start, "Начало маршрута");
+  }
+  if (!Array.isArray(replay.samples)) fail("Отсчёты положения должны быть массивом.");
+  if (!observed && replay.samples.length < 2)
     fail("Нужно не менее двух отсчётов положения робота.");
   if (replay.samples.length > MAX_REPLAY_SAMPLES)
     fail("Запись содержит больше 250 000 отсчётов.");
@@ -90,7 +100,8 @@ export function validateReplay(replay) {
   replay.samples.forEach((sample, index) => {
     object(sample, `Отсчёт ${index}`);
     number(sample.t, "Время отсчёта");
-    if (sample.t < 0 || sample.t < previous || sample.t > replay.duration_sec)
+    if (sample.t < 0 || (observed ? sample.t <= previous : sample.t < previous) ||
+        sample.t > replay.duration_sec)
       fail("Временные метки должны идти по порядку и находиться в пределах записи.");
     previous = sample.t;
     position(sample.position, `Отсчёт ${index}`);
@@ -175,7 +186,8 @@ export function alignmentNotice(candidate, baseline) {
   if (candidate.world.frame !== baseline.world.frame)
     return "The recordings use different coordinate frames.";
   for (const [label, a, b] of [
-    ["start", candidate.samples[0].position, baseline.samples[0].position],
+    ["start", candidate.recording ? candidate.world.start : candidate.samples[0].position,
+      baseline.recording ? baseline.world.start : baseline.samples[0].position],
     ["goal", candidate.world.goal, baseline.world.goal],
   ])
     if (["x", "y", "z"].some((key) => !close(a[key], b[key])))
@@ -263,11 +275,13 @@ export function trajectoryBounds(replays) {
       minY = Math.min(minY, p.y);
       maxY = Math.max(maxY, p.y);
     }
-    const p = replay.world.goal;
-    minX = Math.min(minX, p.x);
-    maxX = Math.max(maxX, p.x);
-    minY = Math.min(minY, p.y);
-    maxY = Math.max(maxY, p.y);
+    for (const p of [replay.recording ? replay.world.start : null, replay.world.goal]) {
+      if (!p) continue;
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    }
   }
   if (!Number.isFinite(minX)) return { minX: -1, maxX: 1, minY: -1, maxY: 1 };
   const padding = Math.max(0.5, Math.max(maxX - minX, maxY - minY) * 0.16);

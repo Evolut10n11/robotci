@@ -43,6 +43,67 @@ def test_validate_replay_rejects_out_of_order_samples() -> None:
         validate_replay(replay)
 
 
+def observed_replay() -> dict:
+    replay = demo_replay()
+    replay["recording"] = {"pose_source": "observed", "max_interpolation_gap_sec": 1.0}
+    replay["world"]["start"] = {"x": 0.0, "y": 0.0, "z": 0.0}
+    return replay
+
+
+@pytest.mark.parametrize("count", [0, 1])
+def test_observed_replay_accepts_empty_or_single_sample(count: int) -> None:
+    replay = observed_replay()
+    replay["samples"] = replay["samples"][:count]
+    assert validate_replay(replay) == replay
+
+
+@pytest.mark.parametrize("recording", [
+    None, [], "observed", {},
+    {"pose_source": "configured", "max_interpolation_gap_sec": 1},
+    {"pose_source": [], "max_interpolation_gap_sec": 1},
+    {"pose_source": "observed"},
+])
+def test_invalid_recording_metadata_is_rejected(recording: object) -> None:
+    replay = observed_replay()
+    replay["recording"] = recording
+    with pytest.raises(ViewerError, match="recording"):
+        validate_replay(replay)
+
+
+@pytest.mark.parametrize("threshold", [0, -1, True, "1", None, float("nan"), float("inf")])
+def test_invalid_interpolation_threshold_is_rejected(threshold: object) -> None:
+    replay = observed_replay()
+    replay["recording"]["max_interpolation_gap_sec"] = threshold
+    with pytest.raises(ViewerError, match="max_interpolation_gap_sec"):
+        validate_replay(replay)
+
+
+@pytest.mark.parametrize("start", [None, {}, {"x": 0, "y": 0}, {"x": 0, "y": 0, "z": True},
+                                        {"x": float("nan"), "y": 0, "z": 0}])
+def test_observed_replay_requires_valid_configured_start(start: object) -> None:
+    replay = observed_replay()
+    replay["world"]["start"] = start
+    with pytest.raises(ViewerError, match="world.start"):
+        validate_replay(replay)
+
+
+def test_observed_timestamps_are_strict_while_legacy_duplicates_remain_supported() -> None:
+    replay = observed_replay()
+    replay["samples"][1]["t"] = replay["samples"][0]["t"]
+    with pytest.raises(ViewerError, match="strictly increasing"):
+        validate_replay(replay)
+    del replay["recording"]
+    assert validate_replay(replay) == replay
+
+
+@pytest.mark.parametrize("samples", [None, {}, "missing"])
+def test_observed_samples_must_still_be_an_array(samples: object) -> None:
+    replay = observed_replay()
+    replay["samples"] = samples
+    with pytest.raises(ViewerError, match="samples must be an array"):
+        validate_replay(replay)
+
+
 def test_load_replay_reads_valid_json(tmp_path: Path) -> None:
     path = tmp_path / "replay.json"
     path.write_text(json.dumps(demo_replay()), encoding="utf-8")

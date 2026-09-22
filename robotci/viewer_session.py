@@ -18,6 +18,13 @@ from robotci.suite_schema import SuiteResultError, ValidatedSuiteResult, load_su
 from robotci.viewer import ViewerError, demo_replay, load_replay, validate_replay
 
 
+def _replay_start(replay: dict[str, Any]) -> dict[str, Any]:
+    """Use configured start, which is separate from observed recording samples."""
+    if "recording" in replay:
+        return replay["world"]["start"]
+    return replay["samples"][0]["position"]
+
+
 def replay_alignment(candidate: dict[str, Any], baseline: dict[str, Any]) -> str | None:
     """Check spatial alignment, without claiming task or environment provenance."""
     if candidate["scenario"] != baseline["scenario"]:
@@ -26,7 +33,7 @@ def replay_alignment(candidate: dict[str, Any], baseline: dict[str, Any]) -> str
         return "The recordings use different coordinate frames."
     for label, first, second in (
         ("goal", candidate["world"]["goal"], baseline["world"]["goal"]),
-        ("start", candidate["samples"][0]["position"], baseline["samples"][0]["position"]),
+        ("start", _replay_start(candidate), _replay_start(baseline)),
     ):
         if any(not math.isclose(first[k], second[k], abs_tol=1e-6) for k in ("x", "y", "z")):
             return f"The recordings have different {label} positions."
@@ -123,7 +130,7 @@ def replay_matches_result(replay: dict[str, Any], result: ValidatedScenarioResul
     if result.task and replay["world"]["frame"] != result.task.frame_id:
         raise ViewerError("replay frame does not match its result")
     for label, position, expected in (
-        ("start", replay["samples"][0]["position"], result.start),
+        ("start", _replay_start(replay), result.start),
         ("goal", replay["world"]["goal"], result.goal),
     ):
         if not math.isclose(position["x"], expected.x, abs_tol=1e-6) or not math.isclose(

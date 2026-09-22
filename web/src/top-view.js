@@ -1,6 +1,6 @@
 import { eventTitle, formatTime } from "./ru.js";
-import { sampleAt } from "./playback.js";
-import { trajectoryBounds, displaySamples, formatNumber } from "./model.js";
+import { poseAt, trajectorySegments } from "./playback.js";
+import { trajectoryBounds, formatNumber } from "./model.js";
 import { visualProfile, topRobotIllustration } from "./robot-profiles.js";
 const NS = "http://www.w3.org/2000/svg";
 const node = (tag, attrs = {}, label) => {
@@ -18,6 +18,7 @@ export class TopView {
     this.visualProfile = options.visualProfile;
     this.recordings = Object.entries(recordings).filter(([, value]) => value)
       .sort(([a], [b]) => Number(a === "candidate") - Number(b === "candidate"));
+    this.segments = new Map(this.recordings.map(([, replay]) => [replay, trajectorySegments(replay)]));
     this.bounds = trajectoryBounds(this.recordings.map(([, replay]) => replay));
     this.svg = node("svg", {
       role: "img",
@@ -69,10 +70,12 @@ export class TopView {
   focusRobot() {
     const replay = this.recordings.find(([source]) => source === "candidate")?.[1] ?? this.recordings[0]?.[1];
     if (!replay) return;
+    const { pose } = poseAt(replay, this.time);
+    if (!pose) return;
     this.zoom = 4;
     this.pan = { x: 0, y: 0 };
     this.draw();
-    const [x, y] = this.xy(sampleAt(replay.samples, this.time).position);
+    const [x, y] = this.xy(pose.position);
     this.pan = { x: this.host.clientWidth / 2 - x, y: this.host.clientHeight / 2 - y };
     this.draw();
   }
@@ -129,12 +132,14 @@ export class TopView {
     this.robots = [];
     for (const [source, replay] of this.recordings) {
       const color = COLORS[source];
-      const points = displaySamples(replay.samples)
-        .map(({ position }) => this.xy(position).join(","))
-        .join(" ");
+      // Separate SVG subpaths preserve missing observations even after decimation.
+      const path = this.segments.get(replay).map((segment) => segment.map(
+        ({ position }, index) => `${index ? "L" : "M"}${this.xy(position).join(",")}`,
+      ).join(" ")).join(" ");
       this.svg.append(
-        node("polyline", {
-          points,
+        node("path", {
+          d: path,
+          "data-trajectory": source,
           fill: "none",
           stroke: color,
           "stroke-width": source === "candidate" ? 3 : 2.5,
@@ -145,7 +150,7 @@ export class TopView {
         }),
       );
       if (source === "candidate") {
-        const [sx, sy] = this.xy(replay.samples[0].position),
+        const [sx, sy] = this.xy(replay.recording ? replay.world.start : replay.samples[0].position),
           [gx, gy] = this.xy(replay.world.goal);
         this.svg.append(
           node("circle", {
@@ -158,7 +163,7 @@ export class TopView {
           }),
         );
         this.svg.append(
-          node("text", { x: sx - 9, y: sy + 24, class: "plot-label" }, "Старт"),
+          node("text", { x: sx - 9, y: sy + 24, class: "plot-label" }, replay.recording ? "Заданный старт" : "Старт"),
         );
         this.svg.append(
           node("circle", {
@@ -180,7 +185,9 @@ export class TopView {
         for (const event of replay.events.filter(
           (e) => !["START", "GOAL"].includes(e.type),
         )) {
-          const [ex, ey] = this.xy(sampleAt(replay.samples, event.t).position);
+          const { pose } = poseAt(replay, event.t);
+          if (!pose) continue;
+          const [ex, ey] = this.xy(pose.position);
           const mark = node("circle", {
             cx: ex,
             cy: ey,
@@ -206,8 +213,10 @@ export class TopView {
   setTime(time) {
     this.time = time;
     for (const { replay, marker } of this.robots ?? []) {
-      const pose = sampleAt(replay.samples, time),
-        [x, y] = this.xy(pose.position);
+      const { pose } = poseAt(replay, time);
+      marker.setAttribute("visibility", pose ? "visible" : "hidden");
+      if (!pose) continue;
+      const [x, y] = this.xy(pose.position);
       marker.setAttribute(
         "transform",
         `translate(${x} ${y}) rotate(${(-pose.orientation.yaw * 180) / Math.PI})`,

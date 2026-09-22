@@ -72,7 +72,8 @@ def test_missing_and_cached_feedback_tick_once_and_invalid_pose_keeps_recovery(n
         metrics=tracker.snapshot(goal_x=1, goal_y=0),
         navigation_result="CANCELED_BY_TIMEOUT", events=tracker.events,
     )
-    assert len(payload["samples"]) == 2
+    assert len(payload["samples"]) == 1
+    assert payload["samples"][0]["t"] == 8
     assert [(e["type"], e["t"]) for e in payload["events"]] == [
         ("START", 0), ("STUCK", 5), ("RECOVERY", 6), ("STUCK", 13), ("FAIL", 14),
     ]
@@ -118,5 +119,6 @@ def test_navigation_boundary_writes_observations_with_matching_result(navigation
     ]
     assert result["metrics"]["stuck_events"] == replay["metrics"]["stuck_events"] == 1
     assert result["metrics"]["recoveries"] == replay["metrics"]["recoveries"] == 2
-    assert replay["samples"][2]["position"]["x"] == 0
-    assert replay["samples"][3]["position"]["x"] == 1
+    assert [sample["t"] for sample in replay["samples"]] == [0.1, 5.2, 6.3]
+    assert replay["samples"][1]["position"]["x"] == 0
+    assert replay["samples"][2]["position"]["x"] == 1
