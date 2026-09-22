@@ -80,7 +80,11 @@ jobs:
           import json
           from pathlib import Path
 
+          from robotci.suite_schema import load_suite_result
           from robotci.viewer import load_replay
+
+          validated = load_suite_result("artifacts/suite-result.json")
+          print("Native suite evidence consistent:", [s.scenario for s in validated.scenarios])
 
           suite = json.loads(Path("artifacts/suite-result.json").read_text(encoding="utf-8"))
           names = [item["scenario"] for item in suite["scenarios"]]

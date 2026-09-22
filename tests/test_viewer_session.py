@@ -196,19 +196,36 @@ def test_replay_rejects_ambiguous_or_non_finite_json(tmp_path: Path, payload: st
         load_replay(path)
 
 
-def test_failed_suite_is_inspectable_but_cannot_claim_a_regression_gate(tmp_path: Path) -> None:
+@pytest.mark.parametrize("status", ["FAIL", "TIMEOUT", "INFRA_ERROR"])
+def test_failed_suite_is_inspectable_but_cannot_claim_a_regression_gate(
+    tmp_path: Path, status: str,
+) -> None:
     baseline, candidate = copy_suite(tmp_path, "baseline"), copy_suite(tmp_path, "regression")
     result_path = candidate.parent / "results" / "route.json"
     result = json.loads(result_path.read_text())
-    result["status"] = "FAIL"
+    result["status"] = status
     result["navigation_result"] = "ABORTED"
     result["reason_code"] = "navigation_aborted"
     result_path.write_text(json.dumps(result))
     suite = json.loads(candidate.read_text())
-    suite["status"] = "FAIL"
-    suite["scenarios"][0]["status"] = "FAIL"
+    suite["status"] = status
+    suite["scenarios"][0]["status"] = status
     candidate.write_text(json.dumps(suite))
     session = suite_session(candidate, baseline)
     assert session["gate"] is None
     assert session["gate_notice"].startswith("Gate unavailable:")
-    assert session["scenarios"][0]["candidate"]["status"] == "FAIL"
+    assert session["scenarios"][0]["candidate"]["status"] == status
+
+
+@pytest.mark.parametrize("changed_side", ["baseline", "candidate"])
+def test_suite_viewer_rejects_inconsistent_summary_on_either_side(
+    tmp_path: Path, changed_side: str,
+) -> None:
+    baseline, candidate = copy_suite(tmp_path, "baseline"), copy_suite(tmp_path, "pass")
+    changed = baseline if changed_side == "baseline" else candidate
+    payload = json.loads(changed.read_text(encoding="utf-8"))
+    payload["scenarios"][0]["duration_sec"] = 999.0
+    changed.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ViewerError, match="duration"):
+        suite_session(candidate, baseline)

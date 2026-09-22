@@ -54,6 +54,18 @@ jobs:
             -v "$PWD/artifacts:/workspace/artifacts" \
             robotci:ci 2>&1 | tee artifacts/docker-runtime.log
 
+      - name: Verify Docker suite evidence with packaged reader
+        run: |
+          docker run --rm -i \
+            --entrypoint /opt/robotci-venv/bin/python \
+            -v "$PWD/artifacts:/workspace/artifacts:ro" \
+            robotci:ci - <<'PY'
+          from robotci.suite_schema import load_suite_result
+
+          suite = load_suite_result("/workspace/artifacts/suite-result.json")
+          print("Docker suite evidence consistent:", [s.scenario for s in suite.scenarios])
+          PY
+
       - name: Verify Docker suite result and runtime metrics
         run: |
           python3 - <<'PY'

@@ -7,7 +7,7 @@ from typing import Literal
 from robotci.comparison import (
     ComparisonInputError,
     compare_scenario_results,
-    load_scenario_result,
+    require_comparable_result,
 )
 from robotci.regression import RegressionPolicy, RegressionReport
 from robotci.reproducibility import SuiteExecutionIdentity
@@ -100,18 +100,8 @@ def compare_suite_result_files(
     comparisons: list[SuiteScenarioComparison] = []
     for baseline_entry in baseline_entries:
         candidate_entry = candidate_by_name[baseline_entry.scenario]
-        baseline_snapshot = load_scenario_result(baseline_entry.result_path)
-        candidate_snapshot = load_scenario_result(candidate_entry.result_path)
-        if baseline_snapshot.scenario != baseline_entry.scenario:
-            raise ComparisonInputError(
-                f"baseline suite scenario '{baseline_entry.scenario}' points to result "
-                f"for '{baseline_snapshot.scenario}'"
-            )
-        if candidate_snapshot.scenario != candidate_entry.scenario:
-            raise ComparisonInputError(
-                f"candidate suite scenario '{candidate_entry.scenario}' points to result "
-                f"for '{candidate_snapshot.scenario}'"
-            )
+        baseline_snapshot = require_comparable_result(baseline_entry.result)
+        candidate_snapshot = require_comparable_result(candidate_entry.result)
 
         scenario_report = compare_scenario_results(
             baseline=baseline_snapshot,

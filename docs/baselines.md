@@ -132,13 +132,24 @@ Baseline capture rejects:
 
 - failed, timed-out, or infrastructure-error suites;
 - non-PASS referenced scenario results;
+- results without the current, complete PASS evidence contract;
 - missing or corrupt result files;
+- summary entries whose scenario, status, or duration disagrees with the referenced result;
+- an aggregate suite status that disagrees with its scenario statuses;
 - duplicate scenario identities inside the suite;
 - unsafe result paths that escape the suite directory;
 - unsafe baseline names;
 - accidental overwrite without `--replace`.
 
 Suite comparison applies the same path-containment rule to baseline and candidate artifacts. The candidate run is never mutated while a baseline is captured or compared.
+
+The shared suite reader checks each referenced result before capture or
+comparison. Entry durations allow at most `0.002` seconds of absolute difference;
+the suite's total wall-clock duration is separate from navigation durations.
+See the [suite evidence contract](contracts.md#suite-evidence-consistency).
+If artifacts disagree, rerun the suite and keep its summary and results together.
+Do not capture or compare while another process is writing to that output
+directory; concurrent suite output is unsupported.
 
 ## Inspect saved trajectories
 

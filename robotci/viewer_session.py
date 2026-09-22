@@ -11,7 +11,7 @@ from typing import Any
 from robotci.comparison import ComparisonInputError
 from robotci.regression import RegressionPolicy
 from robotci.replay import default_replay_path
-from robotci.result_schema import ResultSchemaError, ValidatedScenarioResult, load_result
+from robotci.result_schema import ValidatedScenarioResult
 from robotci.suite_comparison import compare_suite_result_files
 from robotci.suite_reporting import suite_regression_report_payload
 from robotci.suite_schema import SuiteResultError, ValidatedSuiteResult, load_suite_result
@@ -141,11 +141,7 @@ def _suite_runs(path: Path) -> tuple[ValidatedSuiteResult, dict[str, dict[str, A
         suite = load_suite_result(path)
         runs = {}
         for item in suite.scenarios:
-            result = load_result(item.result_path)
-            if result.scenario != item.scenario or result.status != item.status:
-                raise ViewerError("suite entry does not match its scenario result")
-            if not math.isclose(result.duration_sec, item.duration_sec, abs_tol=0.002):
-                raise ViewerError("suite entry duration does not match its scenario result")
+            result = item.result
             replay_path = default_replay_path(item.result_path)
             replay = None
             notice = "No trajectory was recorded for this result. Metrics are still available."
@@ -170,7 +166,7 @@ def _suite_runs(path: Path) -> tuple[ValidatedSuiteResult, dict[str, dict[str, A
                 "replay_notice": notice,
             }
         return suite, runs
-    except (SuiteResultError, ResultSchemaError) as exc:
+    except SuiteResultError as exc:
         raise ViewerError(str(exc)) from exc
 
 

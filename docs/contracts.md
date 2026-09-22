@@ -179,7 +179,36 @@ When a runtime result is missing or malformed, RobotCI writes a current
 `INFRA_ERROR` result with `metrics: null` and a machine-readable `reason_code`
 instead of inventing zero-valued measurements.
 
-Navigation telemetry contract:
+### Suite evidence consistency
+
+Loading a suite validates every referenced scenario file, including its result
+schema. Each summary entry must match that file's scenario name and status.
+Its `duration_sec` must match within an absolute tolerance of `0.002` seconds;
+no relative tolerance is applied, even for long runs.
+
+The suite status must equal the highest-severity scenario status, ordered
+`PASS < FAIL < TIMEOUT < INFRA_ERROR`. The suite's own `duration_sec` measures
+total execution wall-clock time, including setup and overhead. It is independent
+of the individual navigation durations and is not required to equal their sum.
+
+Baseline capture, suite comparison, the viewer, and the application/MCP layer
+reuse the scenario snapshots validated by this shared reader. Consistent failed
+suites and supported legacy scenario results remain available for inspection;
+baseline capture and regression comparison still require current,
+evidence-complete `PASS` results.
+
+The reader reports `invalid_result` when a referenced result cannot be read or
+fails schema validation, and `inconsistent_result` when its scenario, status, or
+duration disagrees with the summary. An incorrect aggregate suite status is
+`invalid_metadata`. Missing files retain `missing_result_file`.
+These checks do not change the JSON format version.
+
+Keep the summary and scenario files from the same completed run together.
+Consistency checks do not establish cryptographic run identity or make
+concurrent writes safe. Parallel suites sharing an output directory remain
+unsupported.
+
+### Navigation telemetry
 
 - `duration_sec` — monotonic wall-clock time from goal dispatch to the terminal navigation result; pre-dispatch infrastructure errors record elapsed setup time for diagnostics
 - `path_length_m` — accumulated distance between valid feedback poses, with a small deadband to suppress pose jitter
@@ -241,4 +270,3 @@ For a suite, RobotCI returns the worst verdict encountered. Infrastructure probl
 `INFRA_ERROR` and behavior `FAIL` remain distinct.
 
 A broken ROS environment, unavailable Docker daemon, or missing result file must not be reported as a robot regression.
-
