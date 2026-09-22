@@ -96,6 +96,7 @@ def test_project_info_and_scenario_serializers_return_structured_json(tmp_path: 
     assert info["config"] == {
         "version": 1,
         "runtime": "docker",
+        "robot": {"visual_profile": "rover"},
         "scenarios": scenarios,
     }
     assert scenarios == [

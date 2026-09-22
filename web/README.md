@@ -40,12 +40,14 @@ diff. Dependencies, local fixtures, caches, and browser artifacts are ignored.
 
 | File | Responsibility |
 | --- | --- |
-| `src/shell.html`, `src/styles.css` | Responsive 12ui-derived application shell, dialogs, and visual tokens |
+| `src/shell.html`, `src/styles.css` | Responsive Russian workbench, dialogs, and visual tokens |
 | `src/main.js` | Session selection, playback lifecycle, import/export, and evidence presentation |
 | `src/model.js` | Replay validation, alignment, deltas, event ordering, and display reduction |
 | `src/playback.js` | Binary-search pose lookup and shortest-arc yaw interpolation |
 | `src/top-view.js` | SVG trajectories, world grid, markers, pan/zoom, and fit |
 | `src/scene-view.js` | Lazy-loaded Three.js scene, orbit controls, and resource disposal |
+| `src/robot-models.js` | Local rover, quadruped and humanoid geometry; baseline ghost materials |
+| `src/robot-profiles.js` | Visual profile catalog, selection fallback and SVG illustrations |
 | `tests/` | Contract-boundary, alignment, large-recording, and interpolation regressions |
 
 Gate decisions belong to `robotci/viewer_session.py` and the existing Python
@@ -53,11 +55,12 @@ comparison engine. The browser never turns replay metric differences into a
 PASS/REGRESSION verdict. Imported files replace the session and clear any previous
 suite gate. Run status and regression status are separate concepts.
 
-The approved Replay, Compare, and Open recordings designs supplied the shell,
-palette, region proportions, and icon mark. Their illustrative trajectories,
-example scenarios, metric values, and gate badges were replaced with live data.
-The file-opening layout is an accessible modal; 2D plots and timeline markers are
-rendered from recordings, not design screenshots. No remote fonts or imagery load
-at runtime.
+The workbench uses a light workspace, a graphite scene and a blue candidate
+trajectory. Its robot profiles are presentation only: a preview selection never
+mutates replay data, exports, runtime identity or gate results. Models follow
+recorded position and yaw without invented joint animation. The 3D camera can
+fit the route or follow the robot; unsupported WebGL falls back to SVG with the
+same recorded data and selected silhouette. No remote fonts or imagery load at
+runtime.
 
 See the [viewer guide](../docs/replay-viewer.md) for usage and interpretation.

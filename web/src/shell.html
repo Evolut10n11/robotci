@@ -1,194 +1,100 @@
-<!-- Integrated from the approved 12ui Replay, Compare and Открыть записи designs. -->
+<!-- Local replay workbench. Navigation and evidence always reflect loaded artifacts. -->
 <div class="workbench">
-  <aside class="sidebar" id="sidebar">
-    <a aria-label="RobotCI — просмотр записей" class="brand" href="#replay"
-      ><svg
-        fill="none"
-        height="100%"
-        preserveaspectratio="xMidYMid meet"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        viewbox="0 0 24 24"
-        width="100%"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M21 16.008v-8.018a1.98 1.98 0 0 0 -1 -1.717l-7 -4.008a2.016 2.016 0 0 0 -2 0l-7 4.008c-.619 .355 -1 1.01 -1 1.718v8.018c0 .709 .381 1.363 1 1.717l7 4.008a2.016 2.016 0 0 0 2 0l7 -4.008c.619 -.355 1 -1.01 1 -1.718"
-        ></path>
-        <path d="M12 22v-10"></path>
-        <path d="M12 12l8.73 -5.04"></path>
-        <path d="M3.27 6.96l8.73 5.04"></path></svg
-      ><span>RobotCI</span></a
-    >
-    <div class="workspace-label">ПРОСМОТР ЗАПИСЕЙ</div>
+  <aside class="navigation-rail" aria-label="Навигация RobotCI">
+    <a aria-label="RobotCI — просмотр записей" class="brand" href="#replay">
+      <svg viewBox="0 0 32 36" fill="none" aria-hidden="true"><path d="m16 2 12 7-12 7L4 9 16 2Zm0 14 12 7-12 11L4 27l12-11Z" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/><path d="M4 9v18m24-18v14" stroke="currentColor" stroke-width="2.5"/></svg>
+      <span>RobotCI</span>
+    </a>
     <nav aria-label="Рабочая область">
-      <button class="nav-button" data-mode="replay">
-        <span aria-hidden="true">▷</span>Просмотр</button
-      ><button class="nav-button" data-mode="compare">
-        <span aria-hidden="true">⇄</span>Сравнение
+      <button class="nav-button" data-mode="replay" title="Воспроизведение записи">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3"/><path d="m10 8 5 4-5 4V8Z"/></svg>
+        <span>Просмотр</span>
+      </button>
+      <button class="nav-button" data-mode="compare" title="Сравнение с эталоном">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 19V9m5 10V4m5 15V12m5 7V7"/></svg>
+        <span>Сравнение</span>
       </button>
     </nav>
+    <div class="rail-bottom">
+      <span class="rail-local" title="Локальный просмотр" aria-label="Локальный просмотр"><span class="status-dot"></span></span>
+      <button class="help-button" id="help-button" aria-label="Горячие клавиши" title="Горячие клавиши (?)">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 0 1 5 .5c0 1.7-2.5 2-2.5 3.5m0 3h.01"/></svg>
+        <span>Помощь</span>
+      </button>
+    </div>
+  </aside>
+  <aside class="sidebar" id="sidebar" aria-label="Сценарии проекта">
+    <div class="sidebar-heading"><h2>Проект</h2><span class="project-marker" aria-hidden="true">◈</span></div>
+    <p class="workspace-label">Рабочая область записей</p>
+    <label class="scenario-search">
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="m13 13 4 4"/></svg>
+      <span class="sr-only">Поиск сценариев</span>
+      <input id="scenario-search" type="search" placeholder="Поиск сценариев" autocomplete="off" />
+    </label>
     <div class="section-label">СЦЕНАРИИ <span id="scenario-count"></span></div>
     <div aria-label="Сценарии" class="scenario-list" id="scenario-list"></div>
     <div class="sidebar-bottom">
-      <div class="workspace-status">
-        <span class="status-dot"></span>Локальный просмотр
-        <p>Записи и результаты на вашем компьютере.</p>
-      </div>
-      <button class="help-button" id="help-button">
-        Горячие клавиши <kbd>?</kbd>
-      </button>
+      <div class="workspace-status"><span class="status-dot"></span>Локальная сессия<p>Записи и результаты остаются на вашем компьютере.</p></div>
     </div>
   </aside>
   <main id="main-content">
     <header class="workspace-header" id="workspace-header">
       <div class="heading">
-        <div class="heading-line">
-          <h1 id="scenario-title">Просмотр записей</h1>
-          <span class="badge" id="source-badge">Загрузка</span>
-        </div>
+        <p class="breadcrumb"><span>RobotCI</span><span aria-hidden="true">/</span><span id="mode-label">Воспроизведение</span></p>
+        <div class="heading-line"><h1 id="scenario-title">Разбор прогона</h1><span class="badge" id="source-badge">Загрузка</span></div>
         <p id="workspace-subtitle">Исследуйте записанное поведение робота.</p>
       </div>
       <div class="header-actions">
-        <button class="button" id="open-button">
-          <span aria-hidden="true">↥</span> Открыть записи</button
-        ><a
-          class="button"
-          aria-disabled="true"
-          tabindex="-1"
-          id="export-button"
-        >
-          <span aria-hidden="true">↓</span> Скачать JSON
-        </a>
+        <button class="button" id="open-button"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 13V3m-4 4 4-4 4 4M3 12v5h14v-5"/></svg>Импорт JSON</button>
+        <a class="button primary" aria-disabled="true" tabindex="-1" id="export-button"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v10m-4-4 4 4 4-4M3 13v4h14v-4"/></svg>Экспорт</a>
       </div>
     </header>
-    <div class="notice" hidden="" id="app-alert" role="status"></div>
+    <div class="notice" hidden id="app-alert" role="status"></div>
     <div class="source-summary" id="source-summary"></div>
     <div class="analysis-grid" id="analysis-grid">
       <section aria-label="Воспроизведение траектории" class="replay-column">
         <div class="panel trajectory" id="trajectory">
           <div class="plot-toolbar">
-            <div aria-label="Вид" class="segmented" role="group">
-              <button aria-pressed="true" id="top-button">Вид сверху</button
-              ><button aria-pressed="false" id="scene-button">3D</button>
-            </div>
-            <button
-              class="button small"
-              id="fit-button"
-              title="Вписать траектории (F / А)"
-            >
-              Вписать</button
-            ><span class="frame-label" id="frame-label"></span>
+            <div aria-label="Вид" class="segmented" role="group"><button aria-pressed="true" id="top-button" title="Вид сверху">2D</button><button aria-pressed="false" id="scene-button">3D</button></div>
+            <div class="camera-controls"><button class="button small" id="fit-button" title="Вписать траектории (F / А)"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M7 3H3v4m10-4h4v4M3 13v4h4m10-4v4h-4"/><circle cx="10" cy="10" r="3"/></svg>Вписать</button><button class="button small" id="focus-button" title="Показать робота крупнее"><svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="10" cy="10" r="5"/><path d="M10 1v4m0 10v4M1 10h4m10 0h4"/></svg>К роботу</button></div>
+            <span class="frame-label" id="frame-label"></span>
           </div>
           <div class="viewport" id="viewport"></div>
-          <div class="plot-empty" hidden="" id="plot-empty"></div>
+          <div class="plot-empty" hidden id="plot-empty"></div>
           <div class="plot-legend" id="legend"></div>
           <div class="axis-note">x / y · метры</div>
-          <span class="view-hint" id="view-hint"
-            >Перетаскивание — сдвиг · колесо — масштаб</span
-          >
+          <span class="view-hint" id="view-hint">Перетаскивание — сдвиг · колесо — масштаб</span>
         </div>
         <div class="panel playback" id="playback">
-          <button
-            aria-label="Воспроизвести"
-            class="play-button"
-            disabled=""
-            id="play-button"
-            title="Воспроизведение / пауза (Пробел)"
-          >
-            ▶</button
-          ><button
-            aria-label="Предыдущее событие"
-            class="icon-button"
-            disabled=""
-            id="previous-event"
-            title="Предыдущее событие ([ / Х)"
-          >
-            Ⅰ◀</button
-          ><button
-            aria-label="Следующее событие"
-            class="icon-button"
-            disabled=""
-            id="next-event"
-            title="Следующее событие (] / Ъ)"
-          >
-            ▶Ⅰ</button
-          ><output class="time-display" id="time-display">0,00 / 0,00 с</output
-          ><input
-            aria-label="Время записи"
-            disabled=""
-            id="seek"
-            max="1"
-            min="0"
-            step="0.01"
-            type="range"
-            value="0"
-          /><label class="speed-label"
-            ><span class="sr-only">Скорость воспроизведения</span
-            ><select id="speed">
-              <option value="0.25">0,25×</option>
-              <option value="0.5">0,5×</option>
-              <option selected="" value="1">1×</option>
-              <option value="2">2×</option>
-              <option value="4">4×</option>
-            </select></label
-          ><label class="loop-label"
-            ><input id="loop" type="checkbox" />Повтор</label
-          >
+          <button aria-label="Воспроизвести" class="play-button" disabled id="play-button" title="Воспроизведение / пауза (Пробел)">▶</button>
+          <div class="event-stepper"><button aria-label="Предыдущее событие" class="icon-button" disabled id="previous-event" title="Предыдущее событие ([ / Х)">Ⅰ◀</button><button aria-label="Следующее событие" class="icon-button" disabled id="next-event" title="Следующее событие (] / Ъ)">▶Ⅰ</button></div>
+          <output class="time-display" id="time-display">0,00 / 0,00 с</output>
+          <input aria-label="Время записи" disabled id="seek" max="1" min="0" step="0.01" type="range" value="0" />
+          <label class="speed-label"><span class="sr-only">Скорость воспроизведения</span><select id="speed"><option value="0.25">0,25×</option><option value="0.5">0,5×</option><option selected value="1">1×</option><option value="2">2×</option><option value="4">4×</option></select></label>
+          <label class="loop-label"><input id="loop" type="checkbox" />Повтор</label>
         </div>
-        <div class="panel timeline" id="timeline">
-          <div id="event-tracks"></div>
-          <div class="timeline-footer">
-            <span>Записанные события</span
-            ><span id="sync-note">Время от начала · секунды</span>
-          </div>
-        </div>
+        <div class="panel timeline" id="timeline"><div id="event-tracks"></div><div class="timeline-footer"><span>Записанные события</span><span id="sync-note">Время от начала · секунды</span></div></div>
       </section>
-      <aside class="panel inspector" id="inspector">
-        <div class="panel-heading">
-          <h2>Параметры прогона</h2>
-          <span class="badge" id="run-status"></span>
-        </div>
-        <div id="recorded-metrics"></div>
-        <section class="live-section">
-          <div class="section-heading">
-            <h3>Положение робота</h3>
-            <span class="mono" id="pose-time"></span>
-          </div>
-          <div class="live-pose" id="live-pose"></div>
-          <p class="microcopy" id="sample-note"></p>
+      <aside class="panel inspector" id="inspector" aria-label="Модель и параметры робота">
+        <section class="robot-profiles" aria-labelledby="profile-title">
+          <div class="panel-heading"><h2 id="profile-title">Модель робота</h2><button class="text-button" disabled id="profile-reset" title="Вернуть визуальный профиль из записи">Из записи</button></div>
+          <p class="profile-meta"><span id="robot-kind">Визуальный профиль</span><span aria-hidden="true">·</span><span id="runtime-label"></span></p>
+          <div id="profile-list" class="profile-list" role="group" aria-label="Визуальный профиль робота"></div>
+          <p class="microcopy profile-source" id="profile-source">Визуальная модель не изменяет записанные результаты.</p>
         </section>
+        <section class="recorded-section">
+          <div class="panel-heading"><h2>Параметры прогона</h2><span class="badge" id="run-status"></span></div>
+          <div id="recorded-metrics"></div>
+        </section>
+        <section class="live-section"><div class="section-heading"><h3>Положение робота</h3><span class="mono" id="pose-time"></span></div><div class="live-pose" id="live-pose"></div><p class="microcopy" id="sample-note"></p></section>
         <section class="gate-panel" id="gate-panel"></section>
       </aside>
     </div>
     <div class="evidence-grid">
-      <section class="panel evidence" id="evidence">
-        <div class="panel-heading">
-          <h2 id="evidence-title">Записанные метрики</h2>
-          <span class="microcopy" id="evidence-badge"></span>
-        </div>
-        <div class="table-scroll">
-          <table>
-            <thead id="metrics-head"></thead>
-            <tbody id="metrics-body"></tbody>
-          </table>
-        </div>
-        <p class="panel-footnote" id="metrics-note"></p>
-      </section>
-      <section class="panel event-log" id="event-log">
-        <div class="panel-heading">
-          <h2>Журнал событий</h2>
-          <span class="microcopy" id="event-count"></span>
-        </div>
-        <div class="event-list" id="event-list"></div>
-      </section>
+      <section class="panel evidence" id="evidence"><div class="panel-heading"><h2 id="evidence-title">Записанные метрики</h2><span class="microcopy" id="evidence-badge"></span></div><div class="table-scroll"><table><thead id="metrics-head"></thead><tbody id="metrics-body"></tbody></table></div><p class="panel-footnote" id="metrics-note"></p></section>
+      <section class="panel event-log" id="event-log"><div class="panel-heading"><h2>Журнал событий</h2><span class="microcopy" id="event-count"></span></div><div class="event-list" id="event-list"></div></section>
     </div>
-    <footer class="app-footer">
-      <span>RobotCI · Replay v1</span
-      ><span id="session-footnote">Просмотр без изменений</span>
-    </footer>
+    <footer class="app-footer"><span>RobotCI · Просмотр записей</span><span id="session-footnote">Просмотр без изменений</span></footer>
   </main>
   <dialog aria-labelledby="open-title" id="open-dialog">
     <form id="open-form">

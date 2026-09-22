@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from robotci.visual_profiles import ROBOT_VISUAL_PROFILES
+
 VIEWER_ASSETS_DIR = Path(__file__).with_name("viewer_assets")
 DEFAULT_VIEWER_HOST = "127.0.0.1"
 DEFAULT_VIEWER_PORT = 8765
@@ -124,6 +126,11 @@ def validate_replay(payload: object) -> dict[str, Any]:
     robot_type = robot.get("type")
     if not isinstance(robot_type, str) or not robot_type.strip():
         raise ViewerError("replay.robot.type must be a non-empty string")
+    profile = robot.get("visual_profile", "rover")
+    if not isinstance(profile, str) or profile not in ROBOT_VISUAL_PROFILES:
+        raise ViewerError(
+            "replay.robot.visual_profile must be one of: rover, quadruped, humanoid"
+        )
 
     world = _require_mapping(replay.get("world"), "replay.world")
     frame = world.get("frame")

@@ -1,0 +1,2 @@
+# Bundled frontend output contains third-party GLSL with intentional whitespace.
+robotci/viewer_assets/assets/** linguist-generated=true -whitespace

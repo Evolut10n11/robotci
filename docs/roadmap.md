@@ -18,7 +18,7 @@ capability is absent until earlier product validation finishes.
 | M6 · CI integration | Complete | Action, blocking gate, JSON/Markdown/JUnit, summaries and artifacts |
 | M7 · Public alpha | Complete | `0.1.0a1`, quickstart, example, wheel smoke, and feedback forms |
 | M8 · Validation | In progress | Five external teams, observed outcomes, and a reviewed product decision |
-| M9 · Visual replay | Local workbench implemented | Maintainable source, playback, 2D/3D, synchronized replay comparison, and existing suite gate evidence |
+| M9 · Visual replay | Local workbench implemented | Configurable robot visual profiles, playback, 2D/3D, synchronized replay comparison, and existing suite gate evidence |
 | M10 · Robot adapters | Planned | First non-Nav2 backend; evaluate Unitree Go2 + MuJoCo |
 | M11 · MCP / agent API | Partially implemented | Six read-only tools exist; execution/cancellation and reference agent remain planned |
 | M12 · Team product validation | Planned, evidence-gated | Shared baselines/history and narrowly scoped paid experiments |
@@ -36,7 +36,10 @@ capability is absent until earlier product validation finishes.
    deeper agent integration.
    The Russian interface supports opening saved baselines by name and automatic
    free-port selection. Nav2 replay records observed stuck/recovery counter
-   changes with links from metrics and regression findings; M8 remains open.
+   changes with links from metrics and regression findings. Rover, quadruped,
+   and humanoid models can be selected for display through config or previewed
+   in the viewer. They do not add simulator support or recorded joint motion;
+   M8 remains open and additional runtime adapters remain M10 work.
 4. Keep suite summaries consistent with their referenced results across baseline
    capture, gates, replay, and MCP inspection. The shared reader validates
    scenario identity, status, duration, and the aggregate verdict before these

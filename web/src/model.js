@@ -1,4 +1,5 @@
 /** Replay v1 boundary and presentation helpers. Gate verdicts only come from Python. */
+import { ROBOT_PROFILES } from "./robot-profiles.js";
 export const MAX_REPLAY_BYTES = 32 * 1024 * 1024;
 export const MAX_REPLAY_SAMPLES = 250_000;
 export const METRICS = [
@@ -76,6 +77,9 @@ export function validateReplay(replay) {
   if (number(replay.duration_sec, "Длительность") <= 0)
     fail("Длительность должна быть больше нуля.");
   string(object(replay.robot, "Робот").type, "Тип робота");
+  if (Object.hasOwn(replay.robot, "visual_profile") &&
+      !ROBOT_PROFILES.some(({ id }) => id === replay.robot.visual_profile))
+    fail("Визуальный профиль робота: ожидается rover, quadruped или humanoid.");
   string(object(replay.world, "Мир").frame, "Система координат");
   position(replay.world.goal, "Цель");
   if (!Array.isArray(replay.samples) || replay.samples.length < 2)

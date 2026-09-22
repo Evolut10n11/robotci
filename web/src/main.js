@@ -3,6 +3,7 @@ import { sourceLabel, statusLabel, eventTitle, eventMessage, displayLabel, notic
 import shell from "./shell.html?raw";
 import { sampleAt } from "./playback.js";
 import { TopView } from "./top-view.js";
+import { ROBOT_PROFILES, visualProfile, profileIllustration } from "./robot-profiles.js";
 import {
   METRICS,
   MAX_REPLAY_BYTES,
@@ -32,7 +33,9 @@ const state = {
   session: null,
   scenario: null,
   mode: location.hash === "#compare" ? "compare" : "replay",
-  view: "top",
+  view: "3d",
+  visualProfile: null,
+  focusedRobot: false,
   time: 0,
   duration: 0,
   playing: false,
@@ -71,6 +74,7 @@ function recordings() {
 function setTime(value) {
   state.time = Math.max(0, Math.min(state.duration, value));
   $("seek").value = state.time;
+  $("seek").style.setProperty("--progress", `${state.duration ? state.time / state.duration * 100 : 0}%`);
   $("seek").setAttribute(
     "aria-valuetext",
     `${formatTime(state.time)} из ${formatTime(state.duration)} секунд`,
@@ -172,6 +176,7 @@ function renderSources() {
     state.mode === "compare"
       ? "Эталон и новый прогон на общей временной шкале."
       : "Изучайте траекторию, события и поведение робота.";
+  $("mode-label").textContent = state.mode === "compare" ? "Сравнение прогонов" : "Воспроизведение";
   $("source-badge").textContent = synthetic
     ? "Демонстрационные данные"
     : session.gate
@@ -181,12 +186,7 @@ function renderSources() {
         : "Replay v1";
   $("source-badge").className = `badge${synthetic ? " demo" : ""}`;
   $("scenario-count").textContent = session.scenarios.length;
-  $("scenario-list").innerHTML = session.scenarios
-    .map(
-      (scenario, index) =>
-        `<button class="scenario-button" data-scenario="${index}" aria-current="${scenario.name === item.name}"><span class="scenario-dot ${scenario.comparison?.status === "REGRESSION" ? "regression" : ""}"></span><span class="scenario-name">${escape(session.source === "demo" && scenario.name === "deterministic_demo" ? "Демонстрационный маршрут" : scenario.name)}</span></button>`,
-    )
-    .join("");
+  renderScenarioList();
   document
     .querySelectorAll("[data-mode]")
     .forEach((button) =>
@@ -197,13 +197,40 @@ function renderSources() {
     );
   prepareExport();
   $("export-button").textContent = session.gate
-    ? "↓ Скачать отчёт JSON"
+    ? "↓ Отчёт JSON"
     : "↓ Скачать запись";
   $("session-footnote").textContent = synthetic
     ? "Демонстрационные данные · без проверки регрессий"
     : session.gate
       ? "Результат рассчитан модулем проверки регрессий RobotCI"
       : "Просмотр без изменений · без проверки регрессий";
+}
+function renderScenarioList() {
+  const session = state.session, item = state.scenario;
+  if (!session) return;
+  const query = $("scenario-search").value.trim().toLocaleLowerCase("ru");
+  $("scenario-list").innerHTML = session.scenarios
+    .map(
+      (scenario, index) => {
+        const name = session.source === "demo" && scenario.name === "deterministic_demo" ? "Демонстрационный маршрут" : scenario.name;
+        if (query && !`${name} ${scenario.name}`.toLocaleLowerCase("ru").includes(query)) return "";
+        return `<button class="scenario-button" data-scenario="${index}" aria-current="${scenario.name === item.name}"><span class="scenario-dot ${scenario.comparison?.status === "REGRESSION" ? "regression" : ""}"></span><span class="scenario-name">${escape(name)}</span></button>`;
+      },
+    )
+    .join("") || '<p class="microcopy">Сценарии не найдены</p>';
+}
+function renderProfiles() {
+  const replay = state.scenario?.candidate.replay;
+  const selected = visualProfile(replay, state.visualProfile);
+  $("profile-list").innerHTML = ROBOT_PROFILES.map(({ id, label, description }) =>
+    `<button class="profile-card" data-profile="${id}" aria-pressed="${selected === id}" aria-label="${label}">${profileIllustration(id)}<span class="profile-name">${label}</span><span class="profile-caption">${description}</span></button>`).join("");
+  $("profile-source").textContent = state.visualProfile
+    ? "Предпросмотр · запись не меняется"
+    : replay?.robot.visual_profile ? "Профиль из записи" : "Ровер по умолчанию";
+  $("profile-reset").disabled = state.visualProfile === null;
+  $("robot-kind").textContent = ROBOT_PROFILES.find(({ id }) => id === selected).label;
+  const runtime = replay?.runtime ?? state.scenario?.candidate.runtime;
+  $("runtime-label").textContent = ({ deterministic_demo: "Демонстрация", ros2_nav2: "ROS 2 · Nav2", ros2: "ROS 2", docker: "Docker" })[runtime] ?? runtime ?? "Среда не указана";
 }
 function metricEventLink(metric) {
   const event = firstMetricEvent(state.scenario.candidate.replay, metric);
@@ -300,11 +327,12 @@ async function mountViewport() {
     available = Object.values(runs).some(Boolean);
   $("plot-empty").hidden = available;
   $("fit-button").disabled = !available;
+  $("focus-button").disabled = !available;
   $("scene-button").disabled = !available;
   $("top-button").setAttribute("aria-pressed", state.view === "top");
   $("scene-button").setAttribute("aria-pressed", state.view === "3d");
   $("frame-label").textContent = (runs.candidate ?? runs.baseline)?.world.frame
-    ? `Система координат: ${(runs.candidate ?? runs.baseline).world.frame}`
+    ? `Координаты: ${(runs.candidate ?? runs.baseline).world.frame}`
     : "";
   $("legend").innerHTML = Object.keys(runs)
     .filter((key) => runs[key])
@@ -316,32 +344,32 @@ async function mountViewport() {
   $("legend").hidden = !available;
   if (!available) {
     $("plot-empty").innerHTML =
-      `<strong>Траектория недоступна</strong><p title="${escape(state.scenario.candidate.replay_notice)}">${escape(noticeText(state.scenario.candidate.replay_notice) || "Откройте запись Replay v1 для просмотра траектории.")}</p>`;
+      `<strong>Траектория недоступна</strong><p title="${escape(state.scenario?.candidate.replay_notice)}">${escape(noticeText(state.scenario?.candidate.replay_notice) || "Откройте запись Replay v1 для просмотра траектории.")}</p>`;
     return;
   }
   try {
     if (state.view === "3d") {
       const { SceneView } = await import("./scene-view.js");
       if (version !== state.renderVersion) return;
-      state.renderer = new SceneView($("viewport"), runs);
-    } else state.renderer = new TopView($("viewport"), runs);
+      state.renderer = new SceneView($("viewport"), runs, { visualProfile: state.visualProfile });
+    } else state.renderer = new TopView($("viewport"), runs, { visualProfile: state.visualProfile });
   } catch {
     if (version !== state.renderVersion) return;
     state.view = "top";
     $("viewport").replaceChildren();
-    state.renderer = new TopView($("viewport"), runs);
+    state.renderer = new TopView($("viewport"), runs, { visualProfile: state.visualProfile });
     $("top-button").setAttribute("aria-pressed", "true");
     $("scene-button").setAttribute("aria-pressed", "false");
-    alert(
-      "3D недоступен в этом браузере. Полная записанная траектория доступна в виде сверху.",
-      true,
-    );
+    const fallbackNotice = "3D недоступен в этом браузере. Открыт вид сверху.";
+    if (!$("app-alert").textContent.includes(fallbackNotice))
+      alert([$("app-alert").textContent, fallbackNotice].filter(Boolean).join(" "));
   }
   $("view-hint").textContent =
     state.view === "3d"
       ? "Перетаскивание — поворот · колесо — масштаб"
       : "Перетаскивание — сдвиг · колесо — масштаб";
   state.renderer?.setTime(state.time);
+  if (state.focusedRobot) state.renderer?.focusRobot();
 }
 function renderScenario() {
   stop();
@@ -373,6 +401,7 @@ function renderScenario() {
   $("app-alert").title = [state.scenario.alignment_notice, state.scenario.baseline?.replay_notice, state.scenario.candidate.replay_notice].filter(Boolean).join(" ");
   renderSources();
   renderInspector();
+  renderProfiles();
   renderMetrics();
   renderEvents();
   setTime(0);
@@ -389,10 +418,14 @@ function acceptSession(session) {
     for (const key of ["candidate", "baseline"])
       if (scenario[key]?.replay) validateReplay(scenario[key].replay);
   state.session = session;
+  state.visualProfile = null;
+  state.focusedRobot = false;
+  $("scenario-search").value = "";
   state.scenario =
     session.scenarios.find(
       (scenario) => scenario.name === session.selected_scenario,
     ) ?? session.scenarios[0];
+  if (!location.hash && state.scenario.baseline) state.mode = "compare";
   renderScenario();
 }
 function openDialog() {
@@ -436,7 +469,31 @@ $("speed").addEventListener("change", (event) => {
 $("loop").addEventListener("change", (event) => {
   state.loop = event.target.checked;
 });
-$("fit-button").addEventListener("click", () => state.renderer?.fit());
+$("fit-button").addEventListener("click", () => {
+  state.focusedRobot = false;
+  state.renderer?.fit();
+});
+$("focus-button").addEventListener("click", () => {
+  state.focusedRobot = true;
+  state.renderer?.focusRobot();
+});
+$("scenario-search").addEventListener("input", renderScenarioList);
+$("profile-list").addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-profile]");
+  if (!button || !state.scenario) return;
+  stop();
+  state.visualProfile = button.dataset.profile;
+  state.focusedRobot = true;
+  renderProfiles();
+  $("profile-list").querySelector(`[data-profile="${state.visualProfile}"]`)?.focus();
+  await mountViewport();
+});
+$("profile-reset").addEventListener("click", () => {
+  if (!state.scenario) return;
+  state.visualProfile = null;
+  renderProfiles();
+  void mountViewport();
+});
 $("top-button").addEventListener("click", () => {
   state.view = "top";
   void mountViewport();
@@ -562,7 +619,10 @@ document.addEventListener("keydown", (event) => {
     },
     "[": () => jump(-1),
     "]": () => jump(1),
-    f: () => state.renderer?.fit(),
+    f: () => {
+      state.focusedRobot = false;
+      state.renderer?.fit();
+    },
     o: openDialog,
     "?": () => {
       stop();
