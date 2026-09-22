@@ -8,6 +8,7 @@ from typing import Any
 
 from robotci.metrics import NavigationEvent, NavigationMetrics
 from robotci.results import Pose2D, ScenarioStatus
+from robotci.visual_profiles import ROBOT_VISUAL_PROFILES, RobotVisualProfile
 
 
 class ReplayRecorder:
@@ -22,13 +23,17 @@ class ReplayRecorder:
         started_at: float,
         runtime: str = "ros2_nav2",
         robot_type: str = "generic_mobile_base",
+        visual_profile: RobotVisualProfile = "rover",
     ) -> None:
+        if not isinstance(visual_profile, str) or visual_profile not in ROBOT_VISUAL_PROFILES:
+            raise ValueError("visual_profile must be one of: rover, quadruped, humanoid")
         self.scenario = scenario
         self.start = start
         self.goal = goal
         self.started_at = started_at
         self.runtime = runtime
         self.robot_type = robot_type
+        self.visual_profile = visual_profile
         self._samples: list[dict[str, Any]] = [self._sample(0.0, start.x, start.y, start.yaw)]
 
     @staticmethod
@@ -96,7 +101,7 @@ class ReplayRecorder:
             "result_status": status,
             "runtime": self.runtime,
             "duration_sec": duration,
-            "robot": {"type": self.robot_type},
+            "robot": {"type": self.robot_type, "visual_profile": self.visual_profile},
             "world": {
                 "frame": "map",
                 "goal": {"x": self.goal.x, "y": self.goal.y, "z": 0.0},

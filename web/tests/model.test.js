@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { visualProfile } from "../src/robot-profiles.js";
 import {
   parseReplay,
   validateReplay,
@@ -41,6 +42,25 @@ test("accepts recorded failures and preserves their result status", () => {
   replay.status = "FAIL";
   replay.result_status = "TIMEOUT";
   assert.equal(parseReplay(JSON.stringify(replay)).result_status, "TIMEOUT");
+});
+test("visual profiles are optional, strictly validated, and preview never mutates evidence", () => {
+  const legacy = recording();
+  assert.equal(visualProfile(validateReplay(legacy)), "rover");
+  assert.equal(Object.hasOwn(legacy.robot, "visual_profile"), false);
+  for (const profile of ["rover", "quadruped", "humanoid"]) {
+    const replay = recording();
+    replay.robot.visual_profile = profile;
+    const before = JSON.stringify(replay);
+    assert.equal(visualProfile(validateReplay(replay)), profile);
+    assert.equal(visualProfile(replay, "humanoid"), "humanoid");
+    assert.equal(JSON.stringify(replay), before);
+    assert.equal(importedSession(replay, legacy, "candidate", "baseline").gate, null);
+  }
+  for (const invalid of [null, "", "dog", [], {}, 1, true]) {
+    const replay = recording();
+    replay.robot.visual_profile = invalid;
+    assert.throws(() => validateReplay(replay), /профиль/);
+  }
 });
 test("rejects ambiguous and malformed evidence before display", () => {
   assert.throws(

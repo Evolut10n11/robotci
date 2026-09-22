@@ -88,6 +88,26 @@ fingerprint. Controller and planner implementations are intentionally excluded s
 their behavior can be compared on the same task. Results without a real map
 identity cannot be used as regression baselines.
 
+### Robot visual profile
+
+An optional project-level setting selects the model used to display new recordings:
+
+```yaml
+robot:
+  visual_profile: quadruped
+```
+
+Supported values are `rover`, `quadruped`, and `humanoid`; omitted settings default
+to `rover`. This is display metadata. It does not select a runtime, change Nav2
+configuration, or describe collision geometry or joint motion. It is excluded
+from task and effective-plan fingerprints.
+
+After a run, RobotCI adds the selected profile to a valid matching replay as
+`robot.visual_profile`, retaining `robot.type` and all recorded evidence. Missing
+or invalid replays are not fabricated. If annotation fails, RobotCI warns and
+preserves the navigation result and its verdict. Saved baselines preserve this
+metadata with the replay. Older configs and Replay v1 files remain supported.
+
 ## Running scenarios
 
 Run every configured scenario in order:

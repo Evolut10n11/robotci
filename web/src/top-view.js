@@ -1,6 +1,7 @@
 import { eventTitle, formatTime } from "./ru.js";
 import { sampleAt } from "./playback.js";
 import { trajectoryBounds, displaySamples, formatNumber } from "./model.js";
+import { visualProfile, topRobotIllustration } from "./robot-profiles.js";
 const NS = "http://www.w3.org/2000/svg";
 const node = (tag, attrs = {}, label) => {
   const element = document.createElementNS(NS, tag);
@@ -9,12 +10,14 @@ const node = (tag, attrs = {}, label) => {
   if (label != null) element.textContent = label;
   return element;
 };
-export const COLORS = { candidate: "#bd602d", baseline: "#287c79" };
+export const COLORS = { candidate: "#4d78ff", baseline: "#98a8bb" };
 
 export class TopView {
-  constructor(host, recordings) {
+  constructor(host, recordings, options = {}) {
     this.host = host;
-    this.recordings = Object.entries(recordings).filter(([, value]) => value);
+    this.visualProfile = options.visualProfile;
+    this.recordings = Object.entries(recordings).filter(([, value]) => value)
+      .sort(([a], [b]) => Number(a === "candidate") - Number(b === "candidate"));
     this.bounds = trajectoryBounds(this.recordings.map(([, replay]) => replay));
     this.svg = node("svg", {
       role: "img",
@@ -61,6 +64,16 @@ export class TopView {
   fit() {
     this.zoom = 1;
     this.pan = { x: 0, y: 0 };
+    this.draw();
+  }
+  focusRobot() {
+    const replay = this.recordings.find(([source]) => source === "candidate")?.[1] ?? this.recordings[0]?.[1];
+    if (!replay) return;
+    this.zoom = 4;
+    this.pan = { x: 0, y: 0 };
+    this.draw();
+    const [x, y] = this.xy(sampleAt(replay.samples, this.time).position);
+    this.pan = { x: this.host.clientWidth / 2 - x, y: this.host.clientHeight / 2 - y };
     this.draw();
   }
   draw() {
@@ -180,16 +193,11 @@ export class TopView {
           this.svg.append(mark);
         }
       }
-      const marker = node("g");
-      marker.append(node("circle", { r: 13, fill: color, opacity: 0.13 }));
-      marker.append(
-        node("path", {
-          d: "M 10 0 L -6 -6 L -3 0 L -6 6 Z",
-          fill: color,
-          stroke: "white",
-          "stroke-width": 1.5,
-        }),
-      );
+      const profile = visualProfile(replay, this.visualProfile);
+      const marker = node("g", { "data-robot-profile": profile, opacity: source === "baseline" ? 0.5 : 1 });
+      const shape = node("g", { transform: `scale(${Math.max(.7, Math.min(3, scale / 50))})` });
+      shape.innerHTML = topRobotIllustration(profile, color);
+      marker.append(shape);
       this.svg.append(marker);
       this.robots.push({ replay, marker });
     }

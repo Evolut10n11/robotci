@@ -35,6 +35,7 @@ def _config(config: RobotCIConfig) -> dict[str, object]:
     return {
         "version": config.version,
         "runtime": config.runtime,
+        "robot": {"visual_profile": config.robot.visual_profile},
         "scenarios": [serialize_scenario(scenario) for scenario in config.scenarios],
     }
 

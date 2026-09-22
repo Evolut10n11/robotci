@@ -35,7 +35,7 @@ is implemented; external validation is in progress. Start with simulation.
 | Measure behavior | Duration, path length, distance to goal, stuck events, recoveries, and feedback quality |
 | Gate a change | Named local baselines, compatibility checks, deterministic thresholds, and blocking exit codes |
 | Review results in CI | JSON, Markdown, JUnit, and a reusable GitHub Action |
-| Inspect a run | Synchronized replay comparison with observed stuck/recovery events, diagnostics, support bundles, and six read-only MCP tools |
+| Inspect a run | 2D/3D replay with robot visual profiles, synchronized comparison, observed stuck/recovery events, and six read-only MCP tools |
 
 Navigation success alone is not enough. A robot can reach its goal and still take
 a longer path or require more recoveries. RobotCI measures those changes against
@@ -90,11 +90,14 @@ robotci view --demo
 The viewer UI is in Russian. See the [Russian guide](docs/replay-viewer.ru.md).
 If port 8765 is busy, pass `--port 8766` or `--port 0` to choose a free port.
 
-![RobotCI replay workbench comparing two synthetic recordings](docs/assets/replay-workbench.jpg)
+The demo is synthetic and has no gate verdict. Open a recorded replay to inspect
+an actual run.
 
-*Local replay comparison. The built-in demo is synthetic and has no gate verdict.*
-
-The demo is synthetic. Open a recorded replay to inspect an actual run.
+The workbench includes rover, quadruped, and humanoid visual models. Set
+`robot.visual_profile` in `robotci.yaml` to choose the model for new recordings,
+or preview another model in the viewer. This changes the display; execution
+continues to use the configured Nav2 runtime. See the
+[visual profile contract](docs/contracts.md#robot-visual-profile).
 
 ### Run your first suite
 
@@ -168,7 +171,7 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 | --- | --- |
 | M0–M7: execution, metrics, regression, reproducibility, CI, public alpha | Implemented |
 | M8: real-world validation | In progress; external evidence pending |
-| M9: visual replay | Local workbench implemented: playback, 2D/3D, synchronized comparison, and suite gate evidence |
+| M9: visual replay | Local workbench with robot visual profiles, playback, 2D/3D, synchronized comparison, and suite gate evidence |
 | M10: additional robot adapters | Planned; Unitree Go2 + MuJoCo is a candidate |
 | M11: agent integration | Read-only MCP shipped; execution tools and reference agent remain planned |
 | M12: team capabilities | Requires evidence from external pilots |

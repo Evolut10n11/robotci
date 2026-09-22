@@ -8,6 +8,8 @@ from typing import Literal, cast
 
 import yaml
 
+from robotci.visual_profiles import ROBOT_VISUAL_PROFILES, RobotVisualProfile
+
 RuntimeName = Literal["auto", "native", "docker"]
 _SCENARIO_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
@@ -82,10 +84,18 @@ class ScenarioConfig:
 
 
 @dataclass(frozen=True)
+class RobotConfig:
+    """Presentation metadata; this does not select a simulator or robot controller."""
+
+    visual_profile: RobotVisualProfile = "rover"
+
+
+@dataclass(frozen=True)
 class RobotCIConfig:
     version: int
     runtime: RuntimeName
     scenarios: tuple[ScenarioConfig, ...]
+    robot: RobotConfig = RobotConfig()
 
 
 def _require_mapping(value: object, name: str) -> dict[str, object]:
@@ -206,6 +216,15 @@ def _parse_scenario(value: object, index: int) -> ScenarioConfig:
     )
 
 
+def _parse_robot(value: object) -> RobotConfig:
+    data = _require_mapping(value, "config.robot")
+    _reject_unknown_keys(data, allowed={"visual_profile"}, name="config.robot")
+    profile = data.get("visual_profile", "rover")
+    if not isinstance(profile, str) or profile not in ROBOT_VISUAL_PROFILES:
+        raise ConfigError("config.robot.visual_profile must be one of: rover, quadruped, humanoid")
+    return RobotConfig(visual_profile=cast(RobotVisualProfile, profile))
+
+
 def load_config(path: str | Path = "robotci.yaml") -> RobotCIConfig:
     config_path = Path(path)
 
@@ -225,7 +244,7 @@ def load_config(path: str | Path = "robotci.yaml") -> RobotCIConfig:
     data = _require_mapping(raw, "config")
     _reject_unknown_keys(
         data,
-        allowed={"version", "runtime", "scenarios"},
+        allowed={"version", "runtime", "scenarios", "robot"},
         name="config",
     )
 
@@ -255,6 +274,7 @@ def load_config(path: str | Path = "robotci.yaml") -> RobotCIConfig:
         version=1,
         runtime=cast(RuntimeName, runtime),
         scenarios=scenarios,
+        robot=_parse_robot(data.get("robot", {})),
     )
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import platform as stdlib_platform
@@ -15,6 +16,7 @@ from typing import Literal, cast
 
 from robotci.config import (
     ConfigError,
+    RobotVisualProfile,
     RuntimeName,
     ScenarioConfig,
     get_scenario,
@@ -45,6 +47,8 @@ from robotci.results import (
     build_scenario_task,
     write_suite_result,
 )
+from robotci.viewer import ViewerError, load_replay
+from robotci.viewer_session import replay_matches_result
 
 DEFAULT_RESULT_PATH = Path(".robotci") / "result.json"
 DEFAULT_SUITE_RESULT_PATH = Path(".robotci") / "suite-result.json"
@@ -58,6 +62,9 @@ _EXIT_BY_STATUS = {
 _STATUS_BY_EXIT = {code: status for status, code in _EXIT_BY_STATUS.items()}
 
 _NATIVE_PATH = "/usr/sbin:/usr/bin:/sbin:/bin"
+_LOGGER = logging.getLogger(__name__)
+
+
 class RuntimeUnavailableError(RuntimeError):
     """Raised when RobotCI cannot find a usable scenario runtime."""
 
@@ -382,6 +389,32 @@ def _finalize_result(
     return 3, "INFRA_ERROR", 0.0
 
 
+def _annotate_replay_visual_profile(result_path: Path, profile: RobotVisualProfile) -> None:
+    """Attach display metadata without changing or inventing navigation evidence."""
+    replay_path = default_replay_path(result_path)
+    try:
+        if not replay_path.is_file():
+            return
+        replay = load_replay(replay_path)
+        replay_matches_result(replay, load_result(result_path))
+        if replay["robot"].get("visual_profile") == profile:
+            return
+        replay["robot"] = {**replay["robot"], "visual_profile": profile}
+        # Keep a valid original intact if annotation or replacement fails.
+        with tempfile.TemporaryDirectory(prefix=".robotci-replay-", dir=replay_path.parent) as temp:
+            staged = Path(temp) / replay_path.name
+            staged.write_text(
+                json.dumps(replay, allow_nan=False, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            os.replace(staged, replay_path)
+    except (ViewerError, ResultSchemaError, OSError, UnicodeError) as exc:
+        _LOGGER.warning(
+            "Cannot save replay visual profile for %s: %s. Navigation result is unchanged.",
+            replay_path, exc,
+        )
+
+
 def run_scenario(
     *,
     scenario: str,
@@ -420,6 +453,7 @@ def run_scenario(
         )
 
     exit_code, _, _ = _finalize_result(result_path, definition, exit_code)
+    _annotate_replay_visual_profile(result_path, config.robot.visual_profile)
     return exit_code, selected, result_path
 
 
@@ -490,6 +524,7 @@ def run_suite(
         normalized_exit, status, duration = _finalize_result(
             result_path, definition, exit_code,
         )
+        _annotate_replay_visual_profile(result_path, config.robot.visual_profile)
         final_exit_code = max(final_exit_code, normalized_exit)
         scenario_results.append(
             SuiteScenarioResult(

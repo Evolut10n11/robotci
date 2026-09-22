@@ -8,8 +8,6 @@ no cloud service, account, or Node.js installation is required to use the viewer
 The interface is in Russian. JSON contracts, scenario identifiers, and exported
 evidence retain their original values; presentation does not change gate decisions.
 
-![Replay workbench with synchronized synthetic recordings](assets/replay-workbench.jpg)
-
 ## Quick start
 
 Open the built-in deterministic demo:
@@ -36,8 +34,9 @@ For a visual comparison of two Replay v1 files:
 robotci view --replay candidate.replay.json --baseline baseline.replay.json
 ```
 
-You can also choose **Открыть записи** in the browser. Files stay in the browser
-and are not uploaded. Imports are limited to 32 MiB and 250,000 pose samples per
+You can also choose **Импорт JSON** in the browser to open the **Открыть записи**
+dialog. Files stay in the browser and are not uploaded. Imports are limited to
+32 MiB and 250,000 pose samples per
 file. Invalid numbers, duplicate JSON keys, unsupported statuses, and unordered
 or out-of-range timestamps are rejected before the workspace changes.
 
@@ -83,11 +82,15 @@ are not a cryptographic binding between a trajectory and a result.
 ## Controls and interpretation
 
 - **Просмотр / Сравнение:** inspect the candidate or overlay an aligned baseline.
-- **Вид сверху / 3D / Вписать:** pan, zoom, orbit, and reset the camera. 3D requires
+- **2D / 3D / Вписать:** pan, zoom, orbit, and reset the camera. 3D requires
   WebGL; the top view remains usable without it.
+- **К роботу:** move the camera closer to the robot; **Вписать** restores the
+  full route.
 - **Playback:** play/pause, seek, 0.25×–4× speed, loop, and previous/next event.
 - **Events:** select a marker or log entry to jump to its recorded timestamp.
 - **Inspector:** interpolated candidate pose at the playhead, plus final run metrics.
+- **Robot model:** preview a rover, quadruped, or humanoid; return to the profile
+  stored in the recording with **Из записи**.
 - **Export:** download the official gate JSON, or the candidate Replay v1 file
   when no gate is available.
 
@@ -135,6 +138,31 @@ recorded feedback samples and is not an independently measured event position.
 This is a trajectory viewer, not a simulator, map renderer, live robot controller,
 or video recording.
 
+## Robot models
+
+The workspace keeps the trajectory and playback together, with the robot model,
+pose, and regression evidence available alongside them. Both 2D and 3D use the
+selected visual profile; 3D models are bundled locally and work without asset
+downloads.
+
+To choose the profile for new recordings, add this block to `robotci.yaml`:
+
+```yaml
+robot:
+  visual_profile: quadruped
+```
+
+Use `rover`, `quadruped`, or `humanoid`. The default is `rover`. The runner stores
+this choice in the optional `robot.visual_profile` field of a valid replay;
+baseline capture preserves it. Existing files without that field display the
+default rover. Unsupported explicit values fail validation.
+
+The model selector is a local preview override. It does not rewrite the loaded
+JSON, exported evidence, baseline, configuration, or gate verdict. **Из записи**
+restores the recorded profile. Shapes are illustrative: position and yaw follow
+the recording, while limb poses are static. Selecting a quadruped or humanoid
+does not enable a new runtime, change navigation physics, or reconstruct gait.
+
 ## Record a real Nav2 run
 
 A single-scenario `robotci run` now records fresh Nav2 feedback poses automatically. The replay is written beside the normal result using the `.replay.json` suffix.
@@ -170,7 +198,9 @@ recording. A Replay v1 document contains:
 - `result_status`: original RobotCI verdict (`PASS`, `FAIL`, `TIMEOUT`, or `INFRA_ERROR`) when emitted by the runtime recorder.
 - `runtime`: runtime/backend label.
 - `duration_sec`: total replay duration.
-- `robot.type`: robot visualization type. Unknown types fall back to the generic mobile base.
+- `robot.type`: existing robot-type metadata; preserved independently of visual selection.
+- `robot.visual_profile`: optional `rover`, `quadruped`, or `humanoid` display
+  profile. Missing fields default to `rover`; no schema-version change is needed.
 - `world.frame`: coordinate frame label.
 - `world.goal`: `{x, y, z}` goal position in meters.
 - `samples`: ordered timestamped poses with `{x, y, z}` and yaw.
