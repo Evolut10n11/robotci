@@ -138,8 +138,25 @@ def validate_replay(payload: object) -> dict[str, Any]:
         raise ViewerError("replay.world.frame must be a non-empty string")
     _validate_position(world.get("goal"), "replay.world.goal")
 
+    observed_recording = "recording" in replay
+    if observed_recording:
+        recording = _require_mapping(replay["recording"], "replay.recording")
+        if recording.get("pose_source") != "observed":
+            raise ViewerError("replay.recording.pose_source must be observed")
+        max_gap = _require_number(
+            recording.get("max_interpolation_gap_sec"),
+            "replay.recording.max_interpolation_gap_sec",
+        )
+        if max_gap <= 0:
+            raise ViewerError(
+                "replay.recording.max_interpolation_gap_sec must be greater than zero"
+            )
+        _validate_position(world.get("start"), "replay.world.start")
+
     samples = replay.get("samples")
-    if not isinstance(samples, list) or len(samples) < 2:
+    if not isinstance(samples, list):
+        raise ViewerError("replay.samples must be an array")
+    if not observed_recording and len(samples) < 2:
         raise ViewerError("replay.samples must contain at least two samples")
     if len(samples) > MAX_REPLAY_SAMPLES:
         raise ViewerError(f"replay.samples exceeds {MAX_REPLAY_SAMPLES} samples")
@@ -149,6 +166,8 @@ def validate_replay(payload: object) -> dict[str, Any]:
         sample_t = _require_number(sample.get("t"), f"replay.samples[{index}].t")
         if sample_t < 0 or sample_t < previous_t:
             raise ViewerError("replay sample timestamps must be non-negative and ordered")
+        if observed_recording and sample_t == previous_t:
+            raise ViewerError("observed replay sample timestamps must be strictly increasing")
         if sample_t > duration:
             raise ViewerError("replay sample timestamp exceeds replay.duration_sec")
         previous_t = sample_t

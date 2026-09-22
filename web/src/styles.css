@@ -126,6 +126,7 @@ main { min-width: 0; width: 100%; max-width: 2000px; margin: 0 auto; padding: 25
 .legend-line.baseline { border-color: #a2afbf; border-top-style: dashed; }
 .axis-note { position: absolute; bottom: 14px; left: 23px; font-size: 11px; color: #90a1b5; }
 .view-hint { position: absolute; right: 20px; bottom: 14px; font-size: 11px; color: #a0afbf; }
+.pose-notice { position: absolute; left: 18px; right: 18px; bottom: 44px; width: fit-content; max-width: calc(100% - 36px); padding: 8px 11px; border: 1px solid #7b6a49; border-radius: 7px; background: #292b2ce8; color: #f5dbaa; font-size: 12px; line-height: 1.5; pointer-events: none; }
 .plot-empty { position: absolute; inset: 90px 24px 75px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 13px; max-width: 480px; margin: auto; text-align: center; color: #a7b7c9; line-height: 1.75; }
 .plot-empty strong { font-size: 20px; font-weight: 600; color: #e5edf7; }
 .playback { display: flex; align-items: center; gap: 9px; padding: 11px 14px; }
@@ -140,6 +141,7 @@ input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px;
 .timeline { padding: 7px 15px 12px; }
 .event-track { display: grid; grid-template-columns: 69px minmax(0, 1fr); align-items: center; font-size: 11px; color: var(--muted); }
 .track-rail { height: 40px; position: relative; margin: 0 15px; background: linear-gradient(#dce3ef, #dce3ef) center/100% 2px no-repeat; }
+.track-gaps { position: absolute; left: 0; top: 12px; width: 100%; height: 16px; border-radius: 2px; }
 .track-event { position: absolute; top: -2px; transform: translateX(-50%); width: 44px; height: 44px; font-size: 11px; color: var(--accent); padding: 0; }
 .track-event.baseline { color: #76879e; }
 .track-event:focus-visible { outline-offset: -6px; }

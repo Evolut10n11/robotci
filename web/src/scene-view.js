@@ -1,10 +1,10 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { Line2 } from "three/addons/lines/Line2.js";
-import { LineGeometry } from "three/addons/lines/LineGeometry.js";
+import { LineSegments2 } from "three/addons/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/addons/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/addons/lines/LineMaterial.js";
-import { sampleAt } from "./playback.js";
-import { trajectoryBounds, displaySamples } from "./model.js";
+import { poseAt, trajectorySegments } from "./playback.js";
+import { trajectoryBounds } from "./model.js";
 import { COLORS } from "./top-view.js";
 import { createRobotModel } from "./robot-models.js";
 
@@ -78,17 +78,19 @@ export class SceneView {
       grid.material.depthWrite = false;
       this.scene.add(grid);
       for (const [source, replay] of this.recordings) {
-        const points = displaySamples(replay.samples).flatMap(({ position: p }) => [p.x, p.y, p.z + 0.012]);
+        const points = trajectorySegments(replay).flatMap((segment) => segment.slice(1).flatMap((sample, index) =>
+          [segment[index], sample].flatMap(({ position: p }) => [p.x, p.y, p.z + 0.012]),
+        ));
         // A stationary recording is valid; a single point has no segment.
         if (points.length >= 6) {
-          const geometry = new LineGeometry();
+          const geometry = new LineSegmentsGeometry();
           geometry.setPositions(points);
           const material = new LineMaterial({
             color: COLORS[source], linewidth: source === "baseline" ? 2.2 : 3,
             dashed: source === "baseline", dashSize: 0.13, gapSize: 0.10,
             transparent: true, opacity: source === "baseline" ? 0.7 : 0.95, depthWrite: false,
           });
-          const line = new Line2(geometry, material);
+          const line = new LineSegments2(geometry, material);
           line.name = `${source}-recorded-trajectory`;
           line.computeLineDistances();
           this.lineMaterials.push(material);
@@ -102,7 +104,8 @@ export class SceneView {
       }
       const primary = recordings.candidate ?? recordings.baseline;
       if (primary) {
-        this.addMarker(primary.samples[0].position, "СТАРТ", COLORS.candidate, 0.074);
+        this.addMarker(primary.recording ? primary.world.start : primary.samples[0].position,
+          primary.recording ? "ЗАДАННЫЙ СТАРТ" : "СТАРТ", COLORS.candidate, 0.074);
         this.addMarker(primary.world.goal, "ЦЕЛЬ", "#45cfb5", 0.1);
       }
       this.observer = new ResizeObserver(() => this.resize());
@@ -194,7 +197,7 @@ export class SceneView {
 
   focusRobot() {
     const entry = this.robots.find(({ source }) => source === "candidate") ?? this.robots[0];
-    if (!entry) return;
+    if (!entry || !entry.robot.visible) return;
     const { robot } = entry;
     const target = robot.position.clone().add(new THREE.Vector3(0, 0, robot.userData.height * 0.43));
     const distance = Math.max(robot.userData.height, 0.8) * Math.max(1, 1 / this.camera.aspect);
@@ -212,7 +215,9 @@ export class SceneView {
   setTime(time) {
     const before = this.focused ? this.focusedRobot.position.clone() : null;
     for (const { replay, robot } of this.robots) {
-      const pose = sampleAt(replay.samples, time);
+      const { pose } = poseAt(replay, time);
+      robot.visible = !!pose;
+      if (!pose) continue;
       robot.position.set(pose.position.x, pose.position.y, pose.position.z);
       robot.rotation.z = pose.orientation.yaw;
     }

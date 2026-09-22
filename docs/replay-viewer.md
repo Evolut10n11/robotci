@@ -88,18 +88,41 @@ are not a cryptographic binding between a trajectory and a result.
   full route.
 - **Playback:** play/pause, seek, 0.25×–4× speed, loop, and previous/next event.
 - **Events:** select a marker or log entry to jump to its recorded timestamp.
-- **Inspector:** interpolated candidate pose at the playhead, plus final run metrics.
+- **Inspector:** candidate pose when observation coverage permits it, or an
+  unknown-position indication with the last observation time; final run metrics
+  remain available.
 - **Robot model:** preview a rover, quadruped, or humanoid; return to the profile
   stored in the recording with **Из записи**.
 - **Export:** download the official gate JSON, or the candidate Replay v1 file
   when no gate is available.
 
-The timeline uses elapsed seconds, not normalized progress. Each trajectory
-holds its final recorded pose after its last sample. Sampling is interpolated
-between recorded poses, so it does not reconstruct unobserved behavior. Long
-trajectories are reduced for drawing only; the original samples remain available
-for pose lookup and export. The event list displays the first 1,000 events of a
-large recording; previous/next navigation still considers every recorded event.
+The timeline uses elapsed seconds, not normalized progress. New Nav2 recordings
+contain observed poses only. The configured start is stored separately and is
+not inserted as a pose; the recorder does not append an artificial terminal pose.
+
+For recordings with `recording.pose_source: "observed"`, exact sample timestamps
+have a known pose. The viewer interpolates only between adjacent observations
+separated by at most `recording.max_interpolation_gap_sec` (1 second by default).
+Before the first observation, after the last, or inside a longer gap, the position
+is unknown: the robot model is hidden, both 2D and 3D routes are split, and the
+timeline marks the interval with stripes. The inspector shows the last observation
+time when one exists. A recording with no samples has no known positions; a
+single sample provides a position only at its timestamp.
+
+Candidate and baseline coverage are evaluated independently using each file's
+recorded threshold. An event inside a gap remains visible in the journal and can
+be sought by time, but it receives no invented location on the route. The threshold
+is a display policy, not a robot fault threshold. Gaps do not change recorded
+metrics, statuses, or the deterministic gate.
+
+Legacy Replay v1 files without `recording` retain interpolation and endpoint
+holding. The viewer explicitly notes that their observation completeness is
+unknown; absence of gap metadata does not establish continuous telemetry.
+
+Long trajectories are reduced for drawing only; the original samples remain
+available for pose lookup and export. The event list displays the first 1,000
+events of a large recording; previous/next navigation still considers every
+recorded event.
 
 Different scenarios, coordinate frames, start positions, or goal positions disable
 the overlay and metric deltas. Spatial alignment alone does not establish the
@@ -133,8 +156,9 @@ goal dispatch, rounded to milliseconds; they are observation times, not precise
 start/end times of the individual recovery actions.
 
 Old recordings remain supported: counts alone cannot supply missing timestamps.
-No historical events are backfilled. Pose display remains interpolation between
-recorded feedback samples and is not an independently measured event position.
+No historical events are backfilled. A displayed event position can come from
+interpolation between nearby feedback samples; it is not an independently
+measured event position. Events in an observed-pose gap have no map marker.
 This is a trajectory viewer, not a simulator, map renderer, live robot controller,
 or video recording.
 
@@ -165,7 +189,10 @@ does not enable a new runtime, change navigation physics, or reconstruct gait.
 
 ## Record a real Nav2 run
 
-A single-scenario `robotci run` now records fresh Nav2 feedback poses automatically. The replay is written beside the normal result using the `.replay.json` suffix.
+A single-scenario `robotci run` records valid poses from fresh Nav2 feedback
+automatically. Missing, cached, or invalid pose feedback does not add a pose.
+The replay is written beside the normal result using the `.replay.json` suffix,
+including recordings with zero or one observed pose.
 
 ```bash
 robotci run --scenario simple_route
@@ -202,8 +229,17 @@ recording. A Replay v1 document contains:
 - `robot.visual_profile`: optional `rover`, `quadruped`, or `humanoid` display
   profile. Missing fields default to `rover`; no schema-version change is needed.
 - `world.frame`: coordinate frame label.
+- `world.start`: configured start position with finite `{x, y, z}` coordinates
+  in meters, required when `recording` is present. This is alignment metadata,
+  not an observed pose.
 - `world.goal`: `{x, y, z}` goal position in meters.
-- `samples`: ordered timestamped poses with `{x, y, z}` and yaw.
+- `recording`: optional observation metadata with `pose_source: "observed"` and
+  `max_interpolation_gap_sec`, the maximum adjacent observation interval that
+  permits interpolation. New Nav2 recordings store `1.0` seconds. This extension
+  keeps schema version `1` and does not alter the gate policy.
+- `samples`: timestamped poses with finite `{x, y, z}` and yaw. With `recording`,
+  timestamps must be strictly increasing and zero or one sample is valid. Without
+  it, the legacy contract requires at least two samples in timestamp order.
 - `metrics`: duration, path length, distance to goal, stuck-event count, and recovery count.
 - `events`: timestamped `START`, `REPLAN`, `STUCK`, `RECOVERY`, `GOAL`, or `FAIL` events.
 - `events[].count`: optional positive integer up to `2^53 - 1`, only for `STUCK`
@@ -223,25 +259,35 @@ Minimal shape:
   "runtime": "ros2_nav2",
   "duration_sec": 2.0,
   "robot": {"type": "generic_mobile_base"},
+  "recording": {
+    "pose_source": "observed",
+    "max_interpolation_gap_sec": 1.0
+  },
   "world": {
     "frame": "map",
+    "start": {"x": 0.0, "y": 0.0, "z": 0.0},
     "goal": {"x": 1.0, "y": 0.0, "z": 0.0}
   },
   "samples": [
     {
-      "t": 0.0,
-      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+      "t": 0.25,
+      "position": {"x": 0.1, "y": 0.0, "z": 0.0},
       "orientation": {"yaw": 0.0}
     },
     {
-      "t": 2.0,
+      "t": 1.0,
+      "position": {"x": 0.55, "y": 0.0, "z": 0.0},
+      "orientation": {"yaw": 0.0}
+    },
+    {
+      "t": 1.75,
       "position": {"x": 1.0, "y": 0.0, "z": 0.0},
       "orientation": {"yaw": 0.0}
     }
   ],
   "metrics": {
     "duration_sec": 2.0,
-    "path_length_m": 1.0,
+    "path_length_m": 0.9,
     "distance_to_goal_m": 0.0,
     "stuck_events": 0,
     "recoveries": 0
@@ -252,6 +298,10 @@ Minimal shape:
   ]
 }
 ```
+
+In this example, the configured start is not a pose sample. Position is unknown
+before `0.25` seconds and after `1.75` seconds, including at the terminal event at
+`2.0` seconds. The two short intervals between observations permit interpolation.
 
 RobotCI validates the file before starting the local server so malformed or unsupported replay data fails fast in the CLI rather than inside the browser.
 

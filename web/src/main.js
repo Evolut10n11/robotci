@@ -1,7 +1,7 @@
 import "./styles.css";
 import { sourceLabel, statusLabel, eventTitle, eventMessage, displayLabel, noticeText, formatTime, displayUnit } from "./ru.js";
 import shell from "./shell.html?raw";
-import { sampleAt } from "./playback.js";
+import { poseAt, recordingGaps } from "./playback.js";
 import { TopView } from "./top-view.js";
 import { ROBOT_PROFILES, visualProfile, profileIllustration } from "./robot-profiles.js";
 import {
@@ -85,24 +85,39 @@ function setTime(value) {
   state.renderer?.setTime(state.time);
   const replay = state.scenario?.candidate.replay;
   if (replay) {
-    const pose = sampleAt(replay.samples, state.time);
+    const { pose, kind, lastObserved, gap } = poseAt(replay, state.time);
     $("live-pose").innerHTML = [
-      ["x", pose.position.x, "м"],
-      ["y", pose.position.y, "м"],
-      ["z", pose.position.z, "м"],
-      ["Курс", (pose.orientation.yaw * 180) / Math.PI, "°"],
+      ["x", pose?.position.x, "м"],
+      ["y", pose?.position.y, "м"],
+      ["z", pose?.position.z, "м"],
+      ["Курс", pose ? (pose.orientation.yaw * 180) / Math.PI : null, "°"],
     ]
       .map(
         ([key, value, unit]) =>
-          `<div class="pose-cell">${key}<strong>${escape(formatNumber(value, 3))} ${unit}</strong></div>`,
+          `<div class="pose-cell">${key}<strong>${escape(formatNumber(value, 3))}${Number.isFinite(value) ? ` ${unit}` : ""}</strong></div>`,
       )
       .join("");
-    $("sample-note").textContent =
-      `Отсчётов: ${formatNumber(replay.samples.length, 0)} · ${state.time > replay.samples.at(-1).t ? "последнее записанное положение" : "интерполяция положения"}`;
+    const description = {
+      observed: "Записанное наблюдение",
+      interpolated: "Интерполяция между наблюдениями",
+      missing: lastObserved
+        ? `Положение неизвестно. Последнее наблюдение: ${formatTime(lastObserved.t)} с`
+        : "Положение неизвестно. Наблюдений ещё нет",
+      legacy: "Старая запись: полнота наблюдений неизвестна. Положение интерполируется, за границами отсчётов удерживается крайнее",
+    }[kind];
+    $("sample-note").textContent = `${description}.${gap ? ` Без положения: ${formatTime(gap.start)}–${formatTime(gap.end)} с.` : ""} Отсчётов: ${formatNumber(replay.samples.length, 0)}${replay.recording ? ` · порог интерполяции: ${formatNumber(replay.recording.max_interpolation_gap_sec, 3)} с` : ""}.`;
   } else {
     $("live-pose").textContent = "Нет записи положения";
     $("sample-note").textContent = "Метрики результата доступны ниже.";
   }
+  const missing = Object.entries(recordings()).filter(([, value]) => value && !poseAt(value, state.time).pose);
+  const poseNotice = missing.map(([source]) => `${sourceLabel(source)}: положение неизвестно`).join(" · ");
+  if ($("pose-notice").textContent !== poseNotice) {
+    $("pose-notice").textContent = poseNotice;
+    $("pose-notice").hidden = !poseNotice;
+  }
+  const primary = recordings().candidate ?? recordings().baseline;
+  $("focus-button").disabled = !primary || !poseAt(primary, state.time).pose;
   document.querySelectorAll(".track-cursor").forEach((cursor) => {
     cursor.style.left = `${state.duration ? (state.time / state.duration) * 100 : 0}%`;
   });
@@ -308,15 +323,27 @@ function renderEvents() {
   $("event-tracks").innerHTML =
     tracks
       .map(
-        ([source]) =>
-          `<div class="event-track"><span>${sourceLabel(source)}</span><div class="track-rail">${shown.map((event, index) => (event.source === source ? `<button class="track-event ${source}" data-event="${index}" style="left:${state.duration ? (event.t / state.duration) * 100 : 0}%" aria-label="${escape(`${sourceLabel(source)}: ${eventTitle(event)}, ${formatTime(event.t)} с`)}" title="${escape(`${eventTitle(event)} · ${formatTime(event.t)} с`)}">◆</button>` : "")).join("")}<span class="track-cursor"></span></div></div>`,
+        ([source, replay]) =>
+          `<div class="event-track"><span>${sourceLabel(source)}</span><div class="track-rail">${gapTrack(source, replay)}${shown.map((event, index) => (event.source === source ? `<button class="track-event ${source}" data-event="${index}" style="left:${state.duration ? (event.t / state.duration) * 100 : 0}%" aria-label="${escape(`${sourceLabel(source)}: ${eventTitle(event)}, ${formatTime(event.t)} с`)}" title="${escape(`${eventTitle(event)} · ${formatTime(event.t)} с`)}">◆</button>` : "")).join("")}<span class="track-cursor"></span></div></div>`,
       )
       .join("") ||
     '<span class="microcopy">Для воспроизведения нужна запись траектории.</span>';
-  $("sync-note").textContent =
-    tracks.length > 1
-      ? "Общее время · в конце — последнее положение"
+  $("sync-note").textContent = tracks.some(([, replay]) => recordingGaps(replay).length)
+    ? "Штриховка — нет наблюдений положения"
+    : tracks.some(([, replay]) => !replay.recording)
+      ? "Полнота старых записей неизвестна"
       : "Время от начала · секунды";
+}
+function gapTrack(source, replay) {
+  const gaps = recordingGaps(replay);
+  if (!gaps.length || !state.duration) return "";
+  // One SVG path keeps the timeline bounded to one element even with many gaps.
+  const path = gaps.map(({ start, end }) => {
+    const left = start / state.duration * 1000, right = end / state.duration * 1000;
+    return `M${left} 0H${right}V20H${left}Z`;
+  }).join("");
+  const label = `${sourceLabel(source)}: интервалы без наблюдений положения — ${formatNumber(gaps.length, 0)}`;
+  return `<svg class="track-gaps" viewBox="0 0 1000 20" preserveAspectRatio="none" role="img" aria-label="${escape(label)}"><title>${escape(label)}</title><defs><pattern id="gap-${source}" width="7" height="7" patternUnits="userSpaceOnUse"><path d="M0 0L7 7M-3 4L3 10M4 -3L10 3" stroke="#b5843c" stroke-width="2"/></pattern><mask id="gaps-${source}" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="20"><path d="${path}" fill="white"/></mask></defs><rect width="1000" height="20" fill="#f7edd9" mask="url(#gaps-${source})"/><rect width="1000" height="20" fill="url(#gap-${source})" mask="url(#gaps-${source})"/></svg>`;
 }
 async function mountViewport() {
   const version = ++state.renderVersion;
@@ -327,7 +354,7 @@ async function mountViewport() {
     available = Object.values(runs).some(Boolean);
   $("plot-empty").hidden = available;
   $("fit-button").disabled = !available;
-  $("focus-button").disabled = !available;
+  $("focus-button").disabled = !available || !poseAt(runs.candidate ?? runs.baseline, state.time).pose;
   $("scene-button").disabled = !available;
   $("top-button").setAttribute("aria-pressed", state.view === "top");
   $("scene-button").setAttribute("aria-pressed", state.view === "3d");
