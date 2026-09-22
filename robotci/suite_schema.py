@@ -12,6 +12,7 @@ from robotci.reproducibility import (
     SuiteExecutionIdentity,
     validate_suite_execution,
 )
+from robotci.result_schema import ResultSchemaError, ValidatedScenarioResult, load_result
 from robotci.results import ScenarioStatus
 
 SuiteResultErrorCode = Literal[
@@ -22,6 +23,8 @@ SuiteResultErrorCode = Literal[
     "unsupported_schema_version",
     "unsafe_result_path",
     "missing_result_file",
+    "invalid_result",
+    "inconsistent_result",
 ]
 
 
@@ -59,6 +62,7 @@ class ValidatedSuiteScenarioResult:
     duration_sec: float
     result_file: str
     result_path: Path
+    result: ValidatedScenarioResult
 
 
 @dataclass(frozen=True)
@@ -104,7 +108,7 @@ def _raise_metadata_error(
 
 
 def _scenario_status(value: object, name: str, *, path: Path) -> ScenarioStatus:
-    if value not in {"PASS", "FAIL", "TIMEOUT", "INFRA_ERROR"}:
+    if not isinstance(value, str) or value not in {"PASS", "FAIL", "TIMEOUT", "INFRA_ERROR"}:
         _raise_metadata_error(
             f"{name} has unsupported status {value!r}",
             path=path,
@@ -218,7 +222,7 @@ def _load_json_object(path: Path) -> dict[str, object]:
 
 
 def load_suite_result(path: str | Path) -> ValidatedSuiteResult:
-    """Load and validate a supported suite-result.json and its result references."""
+    """Load a suite and consistent, validated snapshots of every referenced result."""
 
     suite_path = Path(path).resolve()
     payload = _load_json_object(suite_path)
@@ -309,22 +313,57 @@ def load_suite_result(path: str | Path) -> ValidatedSuiteResult:
                 field=result_field,
             )
 
+        entry_status = _scenario_status(
+            raw_entry.get("status"), f"{entry_name}.status", path=suite_path
+        )
+        entry_duration = _duration(
+            raw_entry.get("duration_sec"), f"{entry_name}.duration_sec", path=suite_path
+        )
+        try:
+            result = load_result(result_path)
+        except ResultSchemaError as exc:
+            raise SuiteResultError(
+                "invalid_result",
+                f"result for scenario {scenario!r} is invalid: {exc}",
+                path=suite_path,
+                field=result_field,
+            ) from exc
+        for field, matches in (
+            ("scenario", result.scenario == scenario),
+            ("status", result.status == entry_status),
+            (
+                "duration_sec",
+                math.isclose(result.duration_sec, entry_duration, abs_tol=0.002, rel_tol=0),
+            ),
+        ):
+            if not matches:
+                raise SuiteResultError(
+                    "inconsistent_result",
+                    f"suite scenario {scenario!r} {field} does not match its scenario result: "
+                    f"summary has {raw_entry[field]!r}, result has {getattr(result, field)!r}",
+                    path=suite_path,
+                    field=f"scenarios[{index}].{field}",
+                )
         scenarios.append(
             ValidatedSuiteScenarioResult(
                 scenario=scenario,
-                status=_scenario_status(
-                    raw_entry.get("status"),
-                    f"{entry_name}.status",
-                    path=suite_path,
-                ),
-                duration_sec=_duration(
-                    raw_entry.get("duration_sec"),
-                    f"{entry_name}.duration_sec",
-                    path=suite_path,
-                ),
+                status=entry_status,
+                duration_sec=entry_duration,
                 result_file=result_file,
                 result_path=result_path,
+                result=result,
             )
+        )
+
+    # The runner uses the highest exit-code severity, not the last scenario's status.
+    severity = {"PASS": 0, "FAIL": 1, "TIMEOUT": 2, "INFRA_ERROR": 3}
+    expected_status = max((entry.status for entry in scenarios), key=severity.__getitem__)
+    if status != expected_status:
+        _raise_metadata_error(
+            "suite result.status does not match scenario statuses: "
+            f"expected {expected_status}, got {status}",
+            path=suite_path,
+            field="status",
         )
 
     return ValidatedSuiteResult(

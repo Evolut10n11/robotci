@@ -13,10 +13,15 @@ from robotci.paths import state_dir
 from robotci.project import DEFAULT_CONFIG_PATH, ProjectContext, resolve_project_context
 from robotci.regression import RegressionPolicy, RegressionReport
 from robotci.reproducibility import SuiteExecutionIdentity
-from robotci.result_schema import ValidatedScenarioResult, load_result
+from robotci.result_schema import ValidatedScenarioResult
 from robotci.results import ScenarioStatus
 from robotci.suite_comparison import SuiteRegressionReport, compare_suite_result_files
-from robotci.suite_schema import SuiteResultError, SuiteResultErrorCode, load_suite_result
+from robotci.suite_schema import (
+    SuiteResultError,
+    SuiteResultErrorCode,
+    ValidatedSuiteResult,
+    load_suite_result,
+)
 
 DiagnosticStatus = Literal["PASS", "FAIL"]
 
@@ -132,7 +137,7 @@ class RobotCIApplication:
         *,
         suite_path: str | Path | None = None,
     ) -> ValidatedScenarioResult:
-        suite = self._load_suite_result(
+        suite = self._load_validated_suite(
             self._latest_suite_path()
             if suite_path is None
             else self._resolve_project_path(suite_path)
@@ -147,13 +152,7 @@ class RobotCIApplication:
                 f"scenario {scenario!r} is not present in suite result; available: {available}"
             )
 
-        result = load_result(summary.result_path)
-        if result.scenario != summary.scenario:
-            raise ApplicationError(
-                f"suite scenario {summary.scenario!r} points to result for "
-                f"{result.scenario!r}"
-            )
-        return result
+        return summary.result
 
     def compare_scenario_results(
         self,
@@ -217,9 +216,9 @@ class RobotCIApplication:
             return requested.resolve()
         return (self._context.project_root / requested).resolve()
 
-    def _load_suite_result(self, path: Path) -> SuiteResultSnapshot:
+    def _load_validated_suite(self, path: Path) -> ValidatedSuiteResult:
         try:
-            suite = load_suite_result(path)
+            return load_suite_result(path)
         except SuiteResultError as exc:
             raise ApplicationError(
                 str(exc),
@@ -227,6 +226,9 @@ class RobotCIApplication:
                 path=exc.path,
                 field=exc.field,
             ) from exc
+
+    def _load_suite_result(self, path: Path) -> SuiteResultSnapshot:
+        suite = self._load_validated_suite(path)
         return SuiteResultSnapshot(
             path=suite.path,
             schema_version=suite.schema_version,

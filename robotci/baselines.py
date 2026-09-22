@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from robotci.comparison import ComparisonInputError, load_scenario_result
+from robotci.comparison import ComparisonInputError, require_comparable_result
 from robotci.replay import default_replay_path
 from robotci.suite_schema import SuiteResultError, ValidatedSuiteResult, load_suite_result
 from robotci.viewer import ViewerError, load_replay
@@ -52,33 +52,23 @@ def _validate_name(name: str) -> None:
         )
 
 
-def _validated_suite(
-    suite_path: Path,
-) -> tuple[ValidatedSuiteResult, list[tuple[str, Path]]]:
+def _validated_suite(suite_path: Path) -> ValidatedSuiteResult:
     try:
         suite = load_suite_result(suite_path)
     except SuiteResultError as exc:
         raise BaselineError(str(exc)) from exc
     if suite.status != "PASS":
         raise BaselineError("only PASS suites can be captured as known-good baselines")
-    validated: list[tuple[str, Path]] = []
     for item in suite.scenarios:
         if item.status != "PASS":
             raise BaselineError(f"scenario {item.scenario!r} is not PASS")
         try:
-            result = load_scenario_result(item.result_path)
+            require_comparable_result(item.result)
         except ComparisonInputError as exc:
             raise BaselineError(
                 f"result for scenario {item.scenario!r} is not baseline-compatible: {exc}"
             ) from exc
-        if result.scenario != item.scenario:
-            raise BaselineError(
-                f"scenario identity mismatch: suite has {item.scenario!r}, "
-                f"result has {result.scenario!r}"
-            )
-        validated.append((item.result_file, item.result_path))
-
-    return suite, validated
+    return suite
 
 
 def capture_baseline(
@@ -92,7 +82,7 @@ def capture_baseline(
 
     _validate_name(name)
     source_suite = Path(suite_path).resolve()
-    suite, result_files = _validated_suite(source_suite)
+    suite = _validated_suite(source_suite)
 
     root = Path(store_root)
     root.mkdir(parents=True, exist_ok=True)
@@ -113,8 +103,9 @@ def capture_baseline(
     with tempfile.TemporaryDirectory(prefix=f".{name}-", dir=root) as temp_dir:
         temp = Path(temp_dir)
         shutil.copy2(source_suite, temp / "suite-result.json")
-        for relative_name, source in result_files:
-            target = temp / relative_name
+        for item in suite.scenarios:
+            source = item.result_path
+            target = temp / item.result_file
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
             source_replay = default_replay_path(source)
@@ -123,12 +114,23 @@ def capture_baseline(
                     if not source_replay.resolve().is_relative_to(source_suite.parent):
                         raise ViewerError("replay sidecar is outside the suite directory")
                     replay = load_replay(source_replay)
-                    replay_matches_result(replay, load_scenario_result(source))
-                except (ViewerError, ComparisonInputError) as exc:
+                    replay_matches_result(replay, item.result)
+                except ViewerError as exc:
                     raise BaselineError(
-                        f"cannot capture replay for {relative_name}: {exc}"
+                        f"cannot capture replay for {item.result_file}: {exc}"
                     ) from exc
                 shutil.copy2(source_replay, default_replay_path(target))
+        # Validate the copied bundle before an explicit replacement removes the old baseline.
+        captured_suite = _validated_suite(temp / "suite-result.json")
+        for item in captured_suite.scenarios:
+            replay_path = default_replay_path(item.result_path)
+            if replay_path.is_file():
+                try:
+                    replay_matches_result(load_replay(replay_path), item.result)
+                except ViewerError as exc:
+                    raise BaselineError(
+                        f"cannot capture replay for {item.result_file}: {exc}"
+                    ) from exc
         (temp / "manifest.json").write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )

@@ -180,3 +180,32 @@ def test_diagnostics_fail_only_for_blocking_checks() -> None:
 
     assert report.status == "FAIL"
     assert report.selected_runtime == "none"
+
+
+@pytest.mark.parametrize("method", ["suite", "scenario"])
+@pytest.mark.parametrize("corruption", ["duration", "result"])
+def test_suite_and_scenario_reads_reject_broken_evidence_with_structured_errors(
+    tmp_path: Path, method: str, corruption: str,
+) -> None:
+    project = tmp_path / "project"
+    _write_config(project / "robotci.yaml")
+    suite_path = _copy_suite(project)
+    if corruption == "duration":
+        payload = json.loads(suite_path.read_text(encoding="utf-8"))
+        payload["scenarios"][0]["duration_sec"] = 999.0
+        suite_path.write_text(json.dumps(payload), encoding="utf-8")
+        expected_code, expected_field = "inconsistent_result", "scenarios[0].duration_sec"
+    else:
+        (suite_path.parent / "results/route.json").write_text("{broken", encoding="utf-8")
+        expected_code, expected_field = "invalid_result", "scenarios[0].result_file"
+    application = RobotCIApplication(project_root=project)
+
+    with pytest.raises(ApplicationError) as error:
+        if method == "suite":
+            application.get_latest_suite_result()
+        else:
+            application.get_scenario_result("route")
+
+    assert error.value.code == expected_code
+    assert error.value.path == suite_path.resolve()
+    assert error.value.field == expected_field

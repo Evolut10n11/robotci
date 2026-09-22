@@ -85,7 +85,7 @@ def _write_result(
     )
 
 
-def _write_suite(path: Path, scenarios: list[str]) -> None:
+def _write_suite(path: Path, values: dict[str, tuple[float, float]]) -> None:
     path.write_text(
         json.dumps(
             {
@@ -93,15 +93,15 @@ def _write_suite(path: Path, scenarios: list[str]) -> None:
                 "status": "PASS",
                 "runtime": "native",
                 "execution": asdict(_TEST_EXECUTION),
-                "duration_sec": 20.0,
+                "duration_sec": sum(duration for duration, _ in values.values()),
                 "scenarios": [
                     {
                         "scenario": scenario,
                         "status": "PASS",
-                        "duration_sec": 10.0,
+                        "duration_sec": duration,
                         "result_file": f"results/{scenario}.json",
                     }
-                    for scenario in scenarios
+                    for scenario, (duration, _) in values.items()
                 ],
             }
         ),
@@ -112,7 +112,7 @@ def _write_suite(path: Path, scenarios: list[str]) -> None:
 def _make_suite(root: Path, values: dict[str, tuple[float, float]]) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     suite = root / "suite-result.json"
-    _write_suite(suite, list(values))
+    _write_suite(suite, values)
     for scenario, (duration, path_length) in values.items():
         _write_result(
             root / "results" / f"{scenario}.json",
@@ -197,7 +197,7 @@ def test_suite_entry_must_point_to_its_declared_scenario(tmp_path: Path) -> None
         scenario="wrong_name",
     )
 
-    with pytest.raises(ComparisonInputError, match="points to result for 'wrong_name'"):
+    with pytest.raises(ComparisonInputError, match="wrong_name"):
         compare_suite_result_files(baseline_path=baseline, candidate_path=candidate)
 
 
@@ -249,4 +249,19 @@ def test_suite_comparison_rejects_legacy_suite_without_execution(tmp_path: Path)
     candidate.write_text(json.dumps(payload), encoding="utf-8")
 
     with pytest.raises(ComparisonInputError, match="schema_version must be 1"):
+        compare_suite_result_files(baseline_path=baseline, candidate_path=candidate)
+
+
+@pytest.mark.parametrize("changed_side", ["baseline", "candidate"])
+def test_suite_comparison_rejects_stale_summary_before_returning_a_gate_verdict(
+    tmp_path: Path, changed_side: str,
+) -> None:
+    baseline = _make_suite(tmp_path / "baseline", {"a": (10.0, 5.0)})
+    candidate = _make_suite(tmp_path / "candidate", {"a": (10.0, 5.0)})
+    changed = baseline if changed_side == "baseline" else candidate
+    payload = json.loads(changed.read_text(encoding="utf-8"))
+    payload["scenarios"][0]["duration_sec"] = 999.0
+    changed.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ComparisonInputError, match="duration"):
         compare_suite_result_files(baseline_path=baseline, candidate_path=candidate)

@@ -37,6 +37,11 @@ capability is absent until earlier product validation finishes.
    The Russian interface supports opening saved baselines by name and automatic
    free-port selection. Nav2 replay records observed stuck/recovery counter
    changes with links from metrics and regression findings; M8 remains open.
+4. Keep suite summaries consistent with their referenced results across baseline
+   capture, gates, replay, and MCP inspection. The shared reader validates
+   scenario identity, status, duration, and the aggregate verdict before these
+   consumers use the evidence. See the
+   [suite evidence contract](contracts.md#suite-evidence-consistency).
 
 ## Completion evidence
 

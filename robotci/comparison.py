@@ -19,7 +19,8 @@ class ComparisonInputError(ValueError):
 ScenarioSnapshot = ValidatedScenarioResult
 
 
-def _require_comparable(result: ValidatedScenarioResult) -> ScenarioSnapshot:
+def require_comparable_result(result: ValidatedScenarioResult) -> ScenarioSnapshot:
+    """Require current PASS evidence from an already validated result snapshot."""
     if result.source_schema_version == 0:
         raise ComparisonInputError(
             "legacy result schema v0 has incomplete task provenance; "
@@ -54,7 +55,7 @@ def parse_scenario_result(payload: object) -> ScenarioSnapshot:
         result = validate_result_payload(payload)
     except ResultSchemaError as exc:
         raise ComparisonInputError(str(exc)) from exc
-    return _require_comparable(result)
+    return require_comparable_result(result)
 
 
 def load_scenario_result(path: str | Path) -> ScenarioSnapshot:
@@ -62,7 +63,7 @@ def load_scenario_result(path: str | Path) -> ScenarioSnapshot:
         result = load_result(path)
     except ResultSchemaError as exc:
         raise ComparisonInputError(str(exc)) from exc
-    return _require_comparable(result)
+    return require_comparable_result(result)
 
 
 def compare_scenario_results(

@@ -241,6 +241,36 @@ async def test_application_error_metadata_survives_mcp_boundary(tmp_path: Path) 
     }
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize("corruption", ["duration", "result"])
+async def test_real_inconsistent_artifacts_cannot_be_reported_as_pass_through_mcp(
+    tmp_path: Path, corruption: str,
+) -> None:
+    project = _project_with_results(tmp_path, "pass")
+    suite_path = project / ".robotci/suite-result.json"
+    if corruption == "duration":
+        payload = json.loads(suite_path.read_text(encoding="utf-8"))
+        payload["scenarios"][0]["duration_sec"] = 999.0
+        suite_path.write_text(json.dumps(payload), encoding="utf-8")
+        expected_code, expected_field = "inconsistent_result", "scenarios[0].duration_sec"
+    else:
+        (suite_path.parent / "results/route.json").write_text("{broken", encoding="utf-8")
+        expected_code, expected_field = "invalid_result", "scenarios[0].result_file"
+    server = create_server(RobotCIApplication(project_root=project))
+
+    async with Client(server, raise_exceptions=True) as client:
+        for name, arguments in (
+            ("get_latest_suite", {}),
+            ("get_scenario_result", {"scenario": "route"}),
+        ):
+            with pytest.raises(MCPError) as error:
+                await client.call_tool(name, arguments)
+            assert error.value.error.code == INTERNAL_ERROR
+            assert error.value.error.data["code"] == expected_code
+            assert error.value.error.data["path"] == str(suite_path.resolve())
+            assert error.value.error.data["field"] == expected_field
+
+
 def test_project_root_resolution_precedence(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
