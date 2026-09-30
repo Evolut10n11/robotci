@@ -65,7 +65,7 @@ jobs:
 
       - name: Install RobotCI CLI into ROS Python
         run: |
-          python3 -m pip install --break-system-packages -e .
+          python3 -m pip install --break-system-packages -e '.[mcp]'
           robotci --help
 
       - name: Validate robotci.yaml
@@ -202,6 +202,11 @@ jobs:
           print(f"Navigation YAML suite + metrics PASS: {names}")
           PY
 
+      - name: Verify opted-in MCP managed native navigation
+        run: |
+          python3 scripts/managed_runtime_smoke.py \
+            --runtime native --output artifacts/managed-native
+
       - name: Upload suite results
         if: always()
         uses: actions/upload-artifact@v4
@@ -210,6 +215,8 @@ jobs:
           path: |
             artifacts/suite-result.json
             artifacts/results/*.json
+            artifacts/managed-native/project/.robotci/runs/
+          include-hidden-files: true
           if-no-files-found: warn
 
       - name: Upload Nav2 logs on failure

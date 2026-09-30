@@ -38,7 +38,8 @@ A public repository is a qualification signal, not evidence of adoption or deman
 
 The [roadmap](roadmap.md) is the canonical delivery-status table. The alpha already
 contains scenario execution, metrics, local baselines, regression gates, reports,
-a GitHub Action, a replay workbench, and a read-only MCP server.
+a GitHub Action, a replay workbench, and an MCP server with read-only inspection
+and explicitly enabled local execution.
 
 ## Visual debugging
 
@@ -58,8 +59,10 @@ Do not imply that the current recorder captures live video or every event type.
 
 ## Additional robot and simulator adapters
 
-Nav2 is the proving ground. Later backends may include Gazebo, MuJoCo, Isaac
-Sim/Lab, Unitree stacks, and custom ROS2 robots. Unitree Go2 with MuJoCo is a
+Nav2 is the proving ground. An experimental Gazebo Harmonic adapter for Nav2
+is available; its [acceptance record](validation/runtime-acceptance.md) documents
+the measured limits. Later backends may include MuJoCo, Isaac Sim/Lab, Unitree
+stacks, and custom ROS2 robots. Unitree Go2 with MuJoCo is a
 candidate for the first non-Nav2 experiment, subject to a reproducible public
 setup, suitable licensing, and a useful test scenario.
 
@@ -71,13 +74,17 @@ metrics, not fields supported by the current result schema.
 
 ## Agent integration
 
-The [read-only MCP server](mcp.md) exposes six inspection tools today. A future
-agent can combine GitHub diffs with RobotCI evidence to explain regressions,
-suggest likely causes, and point to relevant replay intervals.
+The [MCP server](mcp.md) exposes six inspection tools by default. Explicitly
+enabled execution adds four tools to start a suite, inspect its progress, cancel
+it, and compare a completed run with a named baseline. Execution is bound to a
+project and configuration selected when starting the server, with a fixed time
+budget, isolated artifacts, and cleanup of owned runtime processes.
 
-Stateful execution/cancellation and a LangGraph/LangChain reference workflow are
-future work. Add explicit project selection, bounded execution, and appropriate
-approval for actions that change state. Logs and external artifacts must never
+The [reference client](../examples/mcp-agent/README.md) demonstrates this workflow
+without requiring a particular model or agent framework. LangGraph/LangChain
+integrations and automated diagnosis remain future work. An agent can combine
+GitHub diffs with RobotCI evidence to explain regressions, suggest likely causes,
+and point to relevant replay intervals. Logs and external artifacts must never
 expand an agent's permissions.
 
 The integration should remain model-agnostic. Local models may handle routine
@@ -87,7 +94,9 @@ state rather than a single model conversation.
 
 ## Validate before building the team layer
 
-M8 is tracked in [issue #48](https://github.com/Evolut10n11/robotci/issues/48).
+The M8 criteria originated in [issue #48](https://github.com/Evolut10n11/robotci/issues/48).
+Completion requires observed outcomes in the evidence register, independently
+of the issue's closed state.
 For a five-team cohort, the success criteria are:
 
 - 3 complete a real navigation suite on their own repository;

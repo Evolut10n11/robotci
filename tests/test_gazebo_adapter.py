@@ -17,8 +17,12 @@ import yaml
 
 from robotci.ros import gazebo_cleanup
 from robotci.ros.gazebo_readiness import (
+    _read_parameters_bounded,
     asset_manifest,
+    behavior_tree_record,
+    decode_behavior_tree_parameters,
     decode_controller_parameters,
+    decode_local_costmap_frame,
     main,
     map_pose_is_free,
     parse_gazebo_pose,
@@ -112,9 +116,18 @@ def _asset_args(tmp_path: Path) -> argparse.Namespace:
     for name in ("world.sdf", "rendered.sdf", "launch.py"):
         (tmp_path / name).write_text(name)
     params = tmp_path / "controller.yaml"
-    params.write_text(yaml.safe_dump({"controller_server": {"ros__parameters": {
-        "FollowPath": {"plugin": "nav2_mppi_controller::MPPIController", "vx_max": 0.5},
-    }}}))
+    tree = _behavior_file(tmp_path)
+    params.write_text(yaml.safe_dump({
+        "controller_server": {"ros__parameters": {
+            "FollowPath": {
+                "plugin": "nav2_rotation_shim_controller::RotationShimController",
+                "primary_controller": "nav2_mppi_controller::MPPIController",
+                "rotate_to_goal_heading": True, "vx_max": 0.5,
+            },
+        }},
+        "bt_navigator": {"ros__parameters": {"default_nav_to_pose_bt_xml": str(tree)}},
+        "local_costmap": {"local_costmap": {"ros__parameters": {"global_frame": "map"}}},
+    }))
     shares = []
     for name in ("sim", "description"):
         share = tmp_path / name
@@ -150,6 +163,10 @@ def test_sut_digest_is_separate_from_stable_target_assets(tmp_path: Path, monkey
     assert baseline["world_partition"] != candidate["world_partition"]
     assert candidate["controller_expected"]["vx_max"] == 0.2
     assert candidate["packages"] == {"tb4_sim": "1.2.0", "tb4_description": "1.2.0"}
+    tree = params["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"]
+    assert baseline["behavior_tree_expected"] == behavior_tree_record(tree)
+    assert baseline["assets"]["behavior_tree"] == sha256_file(Path(tree))
+    assert baseline["local_costmap_frame_expected"] == "map"
 
 
 @pytest.mark.parametrize("speed", [True, "0.5", float("inf"), -0.5])
@@ -165,29 +182,36 @@ def test_sut_velocity_is_validated_before_ros_imports(tmp_path: Path, speed) -> 
 def _benchmark_preset() -> dict:
     return {"visualize": False, "regenerate_noises": False,
             "xy_goal_tolerance": 0.20, "yaw_goal_tolerance": 0.25, "stateful": True,
-            "goal_angle_activation_distance": 0.25}
+            "goal_angle_activation_distance": 0.20}
 
 
 def _controller_values() -> list[SimpleNamespace]:
     return [
-        SimpleNamespace(type=4, string_value="nav2_mppi_controller::MPPIController"),
+        SimpleNamespace(type=4,
+                        string_value="nav2_rotation_shim_controller::RotationShimController"),
         SimpleNamespace(type=3, double_value=0.5),
         SimpleNamespace(type=1, bool_value=False),
         SimpleNamespace(type=1, bool_value=False),
         SimpleNamespace(type=3, double_value=0.20),
         SimpleNamespace(type=3, double_value=0.25),
         SimpleNamespace(type=1, bool_value=True),
-        SimpleNamespace(type=3, double_value=0.25),
+        SimpleNamespace(type=3, double_value=0.20),
+        SimpleNamespace(type=4, string_value="nav2_mppi_controller::MPPIController"),
+        SimpleNamespace(type=1, bool_value=True),
     ]
 
 
 def test_effective_controller_and_fixed_preset_require_typed_ros_values() -> None:
     controller, preset = decode_controller_parameters(_controller_values())
-    assert controller == {"plugin": "nav2_mppi_controller::MPPIController", "vx_max": 0.5}
+    assert controller == {
+        "plugin": "nav2_rotation_shim_controller::RotationShimController",
+        "primary_controller": "nav2_mppi_controller::MPPIController",
+        "rotate_to_goal_heading": True, "vx_max": 0.5,
+    }
     assert preset == _benchmark_preset()
 
 
-@pytest.mark.parametrize("index", range(8))
+@pytest.mark.parametrize("index", range(10))
 def test_controller_readback_rejects_unset_or_wrong_parameter_types(index: int) -> None:
     values = _controller_values()
     values[index].type = 0
@@ -198,6 +222,42 @@ def test_controller_readback_rejects_unset_or_wrong_parameter_types(index: int) 
 def test_controller_readback_rejects_missing_fields() -> None:
     with pytest.raises(ValueError, match="incomplete"):
         decode_controller_parameters(_controller_values()[:-1])
+
+
+@pytest.mark.parametrize("name,value", [
+    ("plugin", "nav2_mppi_controller::MPPIController"), ("plugin", None),
+    ("primary_controller", "different::PrimaryController"),
+    ("primary_controller", None), ("rotate_to_goal_heading", False),
+    ("rotate_to_goal_heading", "true"), ("rotate_to_goal_heading", 1),
+    ("rotate_to_goal_heading", None),
+])
+def test_frozen_yaml_requires_rotation_shim_mppi_primary_and_enabled_goal_rotation(
+    tmp_path: Path, name: str, value,
+) -> None:
+    args = _asset_args(tmp_path)
+    data = yaml.safe_load(args.params.read_text())
+    follow_path = data["controller_server"]["ros__parameters"]["FollowPath"]
+    if value is None:
+        follow_path.pop(name)
+    else:
+        follow_path[name] = value
+    args.params.write_text(yaml.safe_dump(data))
+    with pytest.raises(ValueError, match="requires"):
+        asset_manifest(args)
+
+
+@pytest.mark.parametrize("index,attribute,value", [
+    (0, "string_value", "nav2_mppi_controller::MPPIController"),
+    (8, "string_value", "different::PrimaryController"),
+    (9, "bool_value", False), (9, "bool_value", 1),
+])
+def test_effective_controller_rejects_invalid_goal_phase_configuration(
+    index: int, attribute: str, value,
+) -> None:
+    values = _controller_values()
+    setattr(values[index], attribute, value)
+    with pytest.raises(ValueError, match="requires"):
+        decode_controller_parameters(values)
 
 
 @pytest.mark.parametrize("name,value", [
@@ -222,7 +282,7 @@ def test_asset_manifest_records_fixed_preset_from_sut_yaml(tmp_path: Path, monke
     controller["general_goal_checker"] = {
         "stateful": True, "xy_goal_tolerance": 0.20, "yaw_goal_tolerance": 0.25,
     }
-    controller["FollowPath"]["GoalAngleCritic"] = {"threshold_to_consider": 0.25}
+    controller["FollowPath"]["GoalAngleCritic"] = {"threshold_to_consider": 0.20}
     args.params.write_text(yaml.safe_dump(data))
     assert asset_manifest(args)["benchmark_preset_expected"] == _benchmark_preset()
     controller["general_goal_checker"]["xy_goal_tolerance"] = False
@@ -231,7 +291,10 @@ def test_asset_manifest_records_fixed_preset_from_sut_yaml(tmp_path: Path, monke
         asset_manifest(args)
 
 
-@pytest.mark.parametrize("change", [None, "speed", "preset", "goal_angle", "file"])
+@pytest.mark.parametrize("change", [
+    None, "speed", "preset", "goal_angle", "file", "plugin", "primary", "rotation",
+    "frame", "frame_type", "frame_missing",
+])
 def test_after_navigation_readback_detects_parameter_or_file_drift(
     tmp_path: Path, monkeypatch, change: str | None,
 ) -> None:
@@ -239,8 +302,12 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
     controller, preset = decode_controller_parameters(values)
     params = tmp_path / "controller.yaml"
     params.write_text("original controller configuration")
+    tree = behavior_tree_record(str(_behavior_file(tmp_path)))
     manifest = {"controller": controller, "benchmark_preset": preset,
-                "params_sha256": sha256_file(params), "checks": {}}
+                "params_sha256": sha256_file(params), "checks": {},
+                "behavior_tree_expected": tree, "behavior_tree": tree,
+                "local_costmap_frame_expected": "map", "local_costmap_frame": "map",
+                "assets": {"behavior_tree": tree["sha256"]}}
     if change == "speed":
         values[1].double_value = 0.2
     elif change == "preset":
@@ -249,10 +316,31 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
         values[7].double_value = 0.5
     elif change == "file":
         params.write_text("changed controller configuration")
+    elif change == "plugin":
+        values[0].string_value = "nav2_mppi_controller::MPPIController"
+    elif change == "primary":
+        values[8].string_value = "different::PrimaryController"
+    elif change == "rotation":
+        values[9].bool_value = False
     response = SimpleNamespace(values=values)
     future = SimpleNamespace(done=lambda: True, result=lambda: response)
     client = SimpleNamespace(service_is_ready=lambda: True, call_async=lambda request: future)
-    node = SimpleNamespace(create_client=lambda *args: client, destroy_node=lambda: None)
+    tree_response = SimpleNamespace(values=[SimpleNamespace(type=4, string_value=tree["path"])])
+    tree_future = SimpleNamespace(done=lambda: True, result=lambda: tree_response)
+    tree_client = SimpleNamespace(service_is_ready=lambda: True,
+                                  call_async=lambda request: tree_future)
+    frame_value = SimpleNamespace(type=4, string_value="odom" if change == "frame" else "map")
+    if change == "frame_type":
+        frame_value.type = 3
+    frame_response = SimpleNamespace(values=[] if change == "frame_missing" else [frame_value])
+    frame_future = SimpleNamespace(done=lambda: True, result=lambda: frame_response)
+    frame_client = SimpleNamespace(service_is_ready=lambda: True,
+                                   call_async=lambda request: frame_future)
+    clients = {"/controller_server/get_parameters": client,
+               "/bt_navigator/get_parameters": tree_client,
+               "/local_costmap/local_costmap/get_parameters": frame_client}
+    node = SimpleNamespace(create_client=lambda srv, path: clients[path],
+                           destroy_node=lambda: None)
     monkeypatch.setitem(sys.modules, "rclpy", SimpleNamespace(
         init=lambda **kwargs: None, shutdown=lambda: None, spin_once=lambda *args, **kwargs: None,
     ))
@@ -260,7 +348,22 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
     monkeypatch.setitem(sys.modules, "rcl_interfaces.srv", SimpleNamespace(
         GetParameters=SimpleNamespace(Request=SimpleNamespace),
     ))
-    if change:
+    deadlines = []
+
+    def read_parameters(node, client, names, deadline, description):
+        deadlines.append(deadline)
+        return _read_parameters_bounded(node, client, names, deadline, description)
+
+    monkeypatch.setattr("robotci.ros.gazebo_readiness._read_parameters_bounded", read_parameters)
+    if change in ("plugin", "primary", "rotation"):
+        with pytest.raises(ValueError, match="requires"):
+            verify_controller_unchanged(argparse.Namespace(params=params), manifest)
+        assert not manifest["checks"].get("controller_stable")
+    elif change in ("frame", "frame_type", "frame_missing"):
+        with pytest.raises(ValueError, match="local.costmap"):
+            verify_controller_unchanged(argparse.Namespace(params=params), manifest)
+        assert not manifest["checks"].get("local_costmap_frame_stable")
+    elif change:
         with pytest.raises(RuntimeError, match="changed during navigation"):
             verify_controller_unchanged(argparse.Namespace(params=params), manifest)
         assert not manifest["checks"].get("benchmark_preset_stable")
@@ -268,6 +371,119 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
         verify_controller_unchanged(argparse.Namespace(params=params), manifest)
         assert manifest["benchmark_preset_after"] == _benchmark_preset()
         assert manifest["checks"]["benchmark_preset_stable"] is True
+        assert manifest["behavior_tree_after"] == tree
+        assert manifest["checks"]["behavior_tree_stable"] is True
+        assert manifest["local_costmap_frame_after"] == "map"
+        assert manifest["checks"]["local_costmap_frame_stable"] is True
+        assert len(deadlines) == 3
+        assert len(set(deadlines)) == 1
+
+
+@pytest.mark.parametrize("value", [None, False, "", "odom", "/map", 1])
+def test_local_costmap_frame_must_be_map_in_frozen_yaml(tmp_path: Path, value) -> None:
+    args = _asset_args(tmp_path)
+    document = yaml.safe_load(args.params.read_text())
+    params = document["local_costmap"]["local_costmap"]["ros__parameters"]
+    if value is None:
+        params.pop("global_frame")
+    else:
+        params["global_frame"] = value
+    args.params.write_text(yaml.safe_dump(document))
+    with pytest.raises(ValueError, match="local_costmap.global_frame"):
+        asset_manifest(args)
+
+
+@pytest.mark.parametrize("values", [
+    [], [SimpleNamespace(type=0)], [SimpleNamespace(type=1)], [SimpleNamespace(type=3)],
+    [SimpleNamespace(type=4, string_value="odom")],
+])
+def test_local_costmap_frame_readback_requires_one_map_string(values) -> None:
+    with pytest.raises(ValueError, match="local.costmap"):
+        decode_local_costmap_frame(values, "map")
+    assert decode_local_costmap_frame([SimpleNamespace(type=4, string_value="map")], "map") == "map"
+
+
+def _behavior_file(tmp_path: Path, name: str = "navigation.xml") -> Path:
+    path = tmp_path / name
+    path.write_text('<root BTCPP_format="4"><BehaviorTree ID="MainTree">'
+                    '<AlwaysSuccess/></BehaviorTree></root>')
+    return path.resolve(strict=True)
+
+
+@pytest.mark.parametrize("value", [None, False, "", "navigation.xml"])
+def test_behavior_tree_must_be_explicit_in_frozen_yaml(
+    tmp_path: Path, monkeypatch, value,
+) -> None:
+    args = _asset_args(tmp_path)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "no-fuel")
+    params = yaml.safe_load(args.params.read_text())
+    params["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"] = value
+    args.params.write_text(yaml.safe_dump(params))
+    with pytest.raises(ValueError, match="absolute canonical XML path"):
+        asset_manifest(args)
+
+
+def test_behavior_tree_rejects_missing_noncanonical_nonregular_or_bad_xml(tmp_path: Path) -> None:
+    tree = _behavior_file(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        behavior_tree_record(str(tmp_path / "missing.xml"))
+    with pytest.raises(ValueError, match="canonical regular file"):
+        behavior_tree_record(str(tmp_path))
+    with pytest.raises(ValueError, match="canonical regular file"):
+        behavior_tree_record(str(tmp_path) + "/./navigation.xml")
+    tree.write_text('<package><name>NotABehaviorTree</name></package>')
+    with pytest.raises(ValueError, match="behavior-tree XML"):
+        behavior_tree_record(str(tree))
+
+
+@pytest.mark.parametrize("values", [[], [SimpleNamespace(type=0)], [SimpleNamespace(type=3)],
+                                   [SimpleNamespace(type=4), SimpleNamespace(type=4)]])
+def test_behavior_tree_readback_requires_one_ros_string_parameter(values) -> None:
+    with pytest.raises(ValueError, match="incomplete|wrong ROS parameter type"):
+        decode_behavior_tree_parameters(values, {})
+
+
+@pytest.mark.parametrize("change", [None, "path", "bytes"])
+def test_behavior_tree_readback_matches_frozen_path_and_content(tmp_path: Path, change) -> None:
+    tree = _behavior_file(tmp_path)
+    expected = behavior_tree_record(str(tree))
+    observed_path = str(tree)
+    if change == "path":
+        observed_path = str(_behavior_file(tmp_path, "different.xml"))
+    elif change == "bytes":
+        tree.write_text('<root><BehaviorTree ID="Changed"><AlwaysFailure/></BehaviorTree></root>')
+    values = [SimpleNamespace(type=4, string_value=observed_path)]
+    if change:
+        with pytest.raises(RuntimeError, match="differ from the frozen target"):
+            decode_behavior_tree_parameters(values, expected)
+    else:
+        assert decode_behavior_tree_parameters(values, expected) == expected
+
+
+@pytest.mark.parametrize("phase", ["service", "response"])
+@pytest.mark.parametrize("description,names", [
+    ("behavior-tree", ["default_nav_to_pose_bt_xml"]), ("local-costmap frame", ["global_frame"]),
+])
+def test_parameter_readback_is_bounded_and_cancels_pending_request(
+    monkeypatch, phase: str, description: str, names: list[str],
+) -> None:
+    clock = iter(index / 4 for index in range(20))
+    monkeypatch.setattr("robotci.ros.gazebo_readiness.time.monotonic", lambda: next(clock))
+    canceled = []
+    spins = []
+    future = SimpleNamespace(done=lambda: False, cancel=lambda: canceled.append(True))
+    client = SimpleNamespace(service_is_ready=lambda: phase == "response",
+                             call_async=lambda request: future)
+    monkeypatch.setitem(sys.modules, "rclpy", SimpleNamespace(
+        spin_once=lambda node, timeout_sec: spins.append(timeout_sec),
+    ))
+    monkeypatch.setitem(sys.modules, "rcl_interfaces.srv", SimpleNamespace(
+        GetParameters=SimpleNamespace(Request=SimpleNamespace),
+    ))
+    with pytest.raises(TimeoutError, match=f"{description}.*unavailable|{description}.*timed out"):
+        _read_parameters_bounded(None, client, names, 1.0, description)
+    assert len(spins) == 4
+    assert canceled == ([True] if phase == "response" else [])
 
 
 def test_invalid_cli_pose_persists_infrastructure_evidence(tmp_path: Path, monkeypatch) -> None:

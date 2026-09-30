@@ -41,6 +41,7 @@ from robotci.viewer_session import replay_matches_result
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_REPETITIONS = 5
 MPPI_PLUGIN = "nav2_mppi_controller::MPPIController"
+SHIM_PLUGIN = "nav2_rotation_shim_controller::RotationShimController"
 SUT_KEY = "controller_server.ros__parameters.FollowPath.vx_max"
 BENCHMARK_PRESET = {
     "visualize": False,
@@ -48,7 +49,7 @@ BENCHMARK_PRESET = {
     "xy_goal_tolerance": 0.20,
     "yaw_goal_tolerance": 0.25,
     "stateful": True,
-    "goal_angle_activation_distance": 0.25,
+    "goal_angle_activation_distance": 0.20,
 }
 
 
@@ -71,8 +72,10 @@ def candidate_parameters(original: bytes) -> bytes:
         document = yaml.safe_load(original)
         controller = document["controller_server"]["ros__parameters"]["FollowPath"]
         velocity = controller["vx_max"]
-        if controller.get("plugin") != MPPI_PLUGIN:
-            raise AcceptanceError("the baseline must use the MPPI FollowPath controller")
+        if (controller.get("plugin") != SHIM_PLUGIN
+                or controller.get("primary_controller") != MPPI_PLUGIN
+                or controller.get("rotate_to_goal_heading") is not True):
+            raise AcceptanceError("the baseline must use RotationShim with MPPI and goal rotation")
         if isinstance(velocity, bool) or not isinstance(velocity, int | float):
             raise AcceptanceError("baseline MPPI vx_max must be the numeric value 0.5")
         if velocity != 0.5:
@@ -117,12 +120,16 @@ def validate_target(
         "physical_start_verified", "map_footprints_free", "required_tf", "nav2_active",
         "navigate_to_pose", "controller_stable", "cmd_vel_type_verified",
         "benchmark_preset_verified", "benchmark_preset_stable",
+        "behavior_tree_verified", "behavior_tree_stable",
+        "local_costmap_frame_verified", "local_costmap_frame_stable",
     ):
         if not isinstance(checks, dict) or checks.get(name) is not True:
             raise AcceptanceError(f"Gazebo readiness evidence missing: {name}")
     controller = value.get("controller")
-    if not isinstance(controller, dict) or controller.get("plugin") != MPPI_PLUGIN:
-        raise AcceptanceError("runtime read-back did not confirm the MPPI controller")
+    if (not isinstance(controller, dict) or controller.get("plugin") != SHIM_PLUGIN
+            or controller.get("primary_controller") != MPPI_PLUGIN
+            or controller.get("rotate_to_goal_heading") is not True):
+        raise AcceptanceError("runtime read-back did not confirm RotationShim/MPPI goal rotation")
     velocity = controller.get("vx_max")
     if (
         isinstance(velocity, bool)
@@ -136,6 +143,11 @@ def validate_target(
         raise AcceptanceError("controller YAML digest changed during navigation")
     if value.get("controller_after") != controller:
         raise AcceptanceError("effective controller settings changed during navigation")
+    for phase in (
+        "local_costmap_frame_expected", "local_costmap_frame", "local_costmap_frame_after",
+    ):
+        if value.get(phase) != "map":
+            raise AcceptanceError(f"fixed local costmap frame read-back differs: {phase}")
     for phase in ("benchmark_preset", "benchmark_preset_after", "benchmark_preset_expected"):
         preset = value.get(phase)
         if not isinstance(preset, dict) or preset.keys() != BENCHMARK_PRESET.keys():
@@ -156,6 +168,7 @@ def validate_target(
     required_assets = {
         "map_yaml", "map_image", "world", "rendered_world", "launch",
         "tb4_sim_tree", "tb4_description_tree", "bridge_config",
+        "behavior_tree",
     }
     if not isinstance(assets, dict) or not required_assets <= assets.keys():
         raise AcceptanceError("Gazebo manifest does not identify every required target asset")
@@ -167,6 +180,20 @@ def validate_target(
             or any(char not in "0123456789abcdef" for char in fingerprint[7:])
         ):
             raise AcceptanceError(f"invalid Gazebo asset digest: {name}")
+    behavior = value.get("behavior_tree_expected")
+    if not isinstance(behavior, dict) or behavior.keys() != {"path", "sha256"}:
+        raise AcceptanceError("Gazebo manifest has no complete fixed behavior tree")
+    behavior_path = behavior["path"]
+    if (not isinstance(behavior_path, str) or not behavior_path
+            or any(char in behavior_path for char in ("\n", "\r", "\0"))
+            or not os.path.isabs(behavior_path)
+            or os.path.normpath(behavior_path) != behavior_path):
+        raise AcceptanceError("behavior tree path must be canonical and absolute")
+    if behavior["sha256"] != assets["behavior_tree"]:
+        raise AcceptanceError("behavior tree digest differs from the fixed target asset")
+    if (value.get("behavior_tree") != behavior
+            or value.get("behavior_tree_after") != behavior):
+        raise AcceptanceError("effective behavior tree changed during navigation")
     packages = value.get("packages")
     if not isinstance(packages, dict) or not packages:
         raise AcceptanceError("Gazebo manifest does not identify installed target packages")
@@ -182,7 +209,8 @@ def validate_target(
         ):
             raise AcceptanceError(f"effective {node} command message type differs from the bridge")
     return {"assets": assets, "packages": packages, "command_velocity_type": command_type,
-            "stamped_cmd_vel": velocity_flags, "benchmark_preset": value["benchmark_preset"]}
+            "stamped_cmd_vel": velocity_flags, "benchmark_preset": value["benchmark_preset"],
+            "behavior_tree": behavior, "local_costmap_frame": value["local_costmap_frame"]}
 
 
 def measurement_outcome(candidate_report: dict[str, object]) -> tuple[str, bool]:

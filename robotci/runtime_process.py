@@ -16,12 +16,32 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from threading import Event
+from typing import IO
 
 PROCESS_POLL_SEC = 0.5
 PROCESS_TERM_GRACE_SEC = 5.0
 PROCESS_KILL_WAIT_SEC = 2.0
 _OWNERSHIP_VARIABLE = "ROBOTCI_PROCESS_OWNER"
 _LOGGER = logging.getLogger(__name__)
+_MANAGED_CANCEL_EVENT: Event | None = None
+
+
+class RuntimeProcessCancelled(RuntimeError):
+    """An explicitly owned managed execution was canceled."""
+
+
+def set_managed_cancellation(event: Event) -> None:
+    """Install the private worker's cooperative cancellation event."""
+    global _MANAGED_CANCEL_EVENT
+    _MANAGED_CANCEL_EVENT = event
+
+
+def docker_container_name(kind: str) -> str:
+    """Give managed jobs an exact cleanup scope without changing provenance."""
+    owner = os.environ.get("ROBOTCI_MANAGED_RUN_ID", "")
+    prefix = f"{owner}-" if len(owner) == 32 and all(c in "0123456789abcdef" for c in owner) else ""
+    return f"robotci-{kind}-{prefix}{uuid.uuid4().hex}"
 
 
 @dataclass(frozen=True)
@@ -95,11 +115,12 @@ def _remember_tagged_processes(
     known: dict[int, _ProcessIdentity],
     table: dict[int, _ProcessIdentity],
     ownership: str,
+    *, variable: str = _OWNERSHIP_VARIABLE,
 ) -> None:
     # A setsid leader can exit between ancestry snapshots. Its orphaned children
     # still inherit this unguessable marker; identify them without adopting any
     # unrelated process that happened to acquire an old PID or process group.
-    marker = f"{_OWNERSHIP_VARIABLE}={ownership}".encode()
+    marker = f"{variable}={ownership}".encode()
     for pid, identity in table.items():
         try:
             environment = (Path("/proc") / str(pid) / "environ").read_bytes().split(b"\0")
@@ -115,10 +136,15 @@ def _signal_owned_processes(
     sig: int,
     *, root_alive: bool,
     ownership: str,
+    managed_ownership: str | None = None,
 ) -> None:
     table = _process_table()
     _remember_descendants(root, known, table, allow_root=root_alive)
     _remember_tagged_processes(known, table, ownership)
+    if managed_ownership is not None:
+        _remember_tagged_processes(
+            known, table, managed_ownership, variable="ROBOTCI_MANAGED_PROCESS_OWNER",
+        )
     groups: set[int] = set()
     # While Popen still owns an unreaped child, its PID cannot be recycled. This
     # is also the safe fallback when /proc is unavailable or another namespace.
@@ -166,11 +192,13 @@ def _stop_process(
     process: subprocess.Popen[bytes],
     known: dict[int, _ProcessIdentity],
     ownership: str,
+    *, managed_ownership: str | None = None,
 ) -> None:
     if os.name == "posix":
         _signal_owned_processes(
             process.pid, known, signal.SIGTERM,
             root_alive=process.poll() is None, ownership=ownership,
+            managed_ownership=managed_ownership,
         )
         grace_deadline = time.monotonic() + PROCESS_TERM_GRACE_SEC
         while time.monotonic() < grace_deadline:
@@ -180,6 +208,7 @@ def _stop_process(
         _signal_owned_processes(
             process.pid, known, signal.SIGKILL,
             root_alive=process.poll() is None, ownership=ownership,
+            managed_ownership=managed_ownership,
         )
         if process.poll() is None:
             # PID namespaces can hide the child from /proc / killpg. Popen
@@ -188,6 +217,17 @@ def _stop_process(
     else:
         # A Windows Docker CLI can have helper children. Killing that tree is
         # separate from deleting the named container in runner._run_docker.
+        if process.poll() is None and managed_ownership is not None:
+            # Give the worker's cancellation-file monitor time to unwind before
+            # forcing a Windows tree termination. A stdio client may terminate
+            # the server sooner; the worker then retains its own cleanup lease.
+            try:
+                process.send_signal(subprocess.CTRL_BREAK_EVENT)
+            except OSError:
+                pass  # A console may be unavailable; the monitor still polls.
+            grace_deadline = time.monotonic() + PROCESS_TERM_GRACE_SEC
+            while process.poll() is None and time.monotonic() < grace_deadline:
+                time.sleep(0.05)
         if process.poll() is None:
             try:
                 subprocess.run(
@@ -213,24 +253,52 @@ def run_runtime_process(
     cwd: Path,
     timeout: float,
     env: dict[str, str] | None = None,
+    cancel_event: Event | None = None,
+    stdin: IO[bytes] | int | None = None,
+    stdout: IO[bytes] | None = None,
+    stderr: IO[bytes] | int | None = None,
+    cleanup_on_exit: bool = False,
+    managed_cleanup: bool = False,
 ) -> subprocess.CompletedProcess[bytes]:
     """Run with inherited output, raising TimeoutExpired after bounded cleanup.
 
     The caller supplies a validated runtime budget. Forced cleanup adds at most
-    5 s for termination and 2 s for reaping (Windows tree termination uses the
-    same bounds). Runtime-owned Docker container cleanup belongs to the caller.
+    5 s for termination and 2 s for reaping. Managed Windows workers first get
+    another 5 s cooperative grace before tree termination. Runtime-owned Docker
+    container cleanup belongs to the caller.
     """
     options: dict[str, object] = {"start_new_session": True} if os.name == "posix" else {
         "creationflags": subprocess.CREATE_NEW_PROCESS_GROUP,
     }
-    ownership = uuid.uuid4().hex
+    active_cancel = cancel_event if cancel_event is not None else _MANAGED_CANCEL_EVENT
+    if active_cancel is not None and active_cancel.is_set():
+        raise RuntimeProcessCancelled("managed runtime cancellation requested")
     environment = dict(os.environ if env is None else env)
+    managed_owner = environment.get(
+        "ROBOTCI_MANAGED_PROCESS_OWNER", os.environ.get("ROBOTCI_MANAGED_PROCESS_OWNER", ""),
+    )
+    if not (len(managed_owner) == 32 and all(c in "0123456789abcdef" for c in managed_owner)):
+        managed_owner = ""
+    ownership = uuid.uuid4().hex
+    # A distinct outer marker scopes the managed parent's orphan cleanup.
+    # Every inner helper keeps a separate marker: it must never adopt its worker
+    # parent or siblings just because they belong to the same managed suite.
+    if managed_owner:
+        environment["ROBOTCI_MANAGED_PROCESS_OWNER"] = managed_owner
     environment[_OWNERSHIP_VARIABLE] = ownership
+    if stdin is not None:
+        options["stdin"] = stdin
+    if stdout is not None:
+        options["stdout"] = stdout
+    if stderr is not None:
+        options["stderr"] = stderr
     process = subprocess.Popen(command, cwd=cwd, env=environment, **options)
     deadline = time.monotonic() + timeout
     known: dict[int, _ProcessIdentity] = {}
     try:
         while True:
+            if active_cancel is not None and active_cancel.is_set():
+                raise RuntimeProcessCancelled("managed runtime cancellation requested")
             if os.name == "posix":
                 _remember_descendants(process.pid, known, _process_table())
             remaining = deadline - time.monotonic()
@@ -244,10 +312,20 @@ def run_runtime_process(
             # reaped the child, so another ancestry poll could see a reused PID.
             if time.monotonic() >= deadline:
                 raise subprocess.TimeoutExpired(command, timeout)
+            if active_cancel is not None and active_cancel.is_set():
+                raise RuntimeProcessCancelled("managed runtime cancellation requested")
+            if cleanup_on_exit:
+                if managed_cleanup and managed_owner:
+                    _stop_process(process, known, ownership, managed_ownership=managed_owner)
+                else:
+                    _stop_process(process, known, ownership)
             return subprocess.CompletedProcess(command, returncode)
     except BaseException:
         try:
-            _stop_process(process, known, ownership)
+            if managed_cleanup and managed_owner:
+                _stop_process(process, known, ownership, managed_ownership=managed_owner)
+            else:
+                _stop_process(process, known, ownership)
         except OSError as cleanup_exc:
             _LOGGER.warning("Cannot finish runtime process cleanup: %s", cleanup_exc)
         raise

@@ -1,5 +1,6 @@
 # Python environments and local configuration
 .venv/
+.review-venv/
 venv/
 env/
 ENV/
@@ -46,6 +47,7 @@ htmlcov/
 # RobotCI runs and local evidence (committed test fixtures stay visible)
 .robotci/
 /artifacts/
+/evidence/
 *.log
 
 # Machine-specific agent/editor state
@@ -61,6 +63,7 @@ Thumbs.db
 tempCodeRunnerFile.py
 
 # Frontend dependencies, builds, and browser-test output
+# robotci/viewer_assets/ is the tracked wheel bundle; keep it visible.
 web/node_modules/
 web/dist/
 web/.vite/

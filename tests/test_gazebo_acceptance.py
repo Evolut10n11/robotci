@@ -30,7 +30,9 @@ controller_server:
   ros__parameters:
     controller_frequency: 20.0
     FollowPath:
-      plugin: nav2_mppi_controller::MPPIController
+      plugin: nav2_rotation_shim_controller::RotationShimController
+      primary_controller: nav2_mppi_controller::MPPIController
+      rotate_to_goal_heading: true
       vx_max: 0.5
       vy_max: 0.0
 """
@@ -54,6 +56,19 @@ def test_intervention_requires_real_mppi_controller(subject: bytes) -> None:
     changed = subject.replace(b"nav2_mppi_controller::MPPIController", b"other::Controller")
     with pytest.raises(experiment.AcceptanceError, match="MPPI"):
         experiment.candidate_parameters(changed)
+
+
+@pytest.mark.parametrize("change", [
+    lambda value: value.update(plugin=experiment.MPPI_PLUGIN),
+    lambda value: value.pop("primary_controller"),
+    lambda value: value.update(rotate_to_goal_heading=False),
+    lambda value: value.update(rotate_to_goal_heading=1),
+])
+def test_intervention_requires_fixed_goal_rotation_wrapper(subject: bytes, change) -> None:
+    document = yaml.safe_load(subject)
+    change(document["controller_server"]["ros__parameters"]["FollowPath"])
+    with pytest.raises(experiment.AcceptanceError, match="RotationShim"):
+        experiment.candidate_parameters(yaml.safe_dump(document).encode())
 
 
 @pytest.mark.parametrize("failure", [RuntimeError("runtime failed"), KeyboardInterrupt()])
@@ -167,17 +182,27 @@ def provenance(subject: bytes) -> dict:
             "physical_start_verified", "map_footprints_free", "required_tf",
             "nav2_active", "navigate_to_pose", "controller_stable", "cmd_vel_type_verified",
             "benchmark_preset_verified", "benchmark_preset_stable",
+            "behavior_tree_verified", "behavior_tree_stable",
+            "local_costmap_frame_verified", "local_costmap_frame_stable",
         )},
-        "controller": {"plugin": experiment.MPPI_PLUGIN, "vx_max": 0.5},
-        "controller_after": {"plugin": experiment.MPPI_PLUGIN, "vx_max": 0.5},
+        **{key: "map" for key in (
+            "local_costmap_frame_expected", "local_costmap_frame", "local_costmap_frame_after",
+        )},
+        **{key: {"plugin": experiment.SHIM_PLUGIN, "primary_controller": experiment.MPPI_PLUGIN,
+                 "rotate_to_goal_heading": True, "vx_max": 0.5}
+           for key in ("controller", "controller_after")},
         "params_sha256": experiment.digest(subject),
         "params_sha256_after": experiment.digest(subject),
         "benchmark_preset": copy.deepcopy(experiment.BENCHMARK_PRESET),
         "benchmark_preset_after": copy.deepcopy(experiment.BENCHMARK_PRESET),
         "benchmark_preset_expected": copy.deepcopy(experiment.BENCHMARK_PRESET),
+        **{key: {"path": str((Path.cwd() / "synthetic-navigation.xml").resolve()),
+                 "sha256": "sha256:" + "a" * 64}
+           for key in ("behavior_tree_expected", "behavior_tree", "behavior_tree_after")},
         "assets": {key: "sha256:" + "a" * 64 for key in (
             "map_yaml", "map_image", "world", "rendered_world", "launch",
             "tb4_sim_tree", "tb4_description_tree", "bridge_config",
+            "behavior_tree",
         )},
         "packages": {"ros-jazzy-nav2-minimal-tb4-sim": "synthetic-unit-test-version"},
         "command_velocity_type": "geometry_msgs/msg/Twist",
@@ -193,12 +218,33 @@ def provenance(subject: bytes) -> dict:
     (lambda value: value["cleanup"].update(process_groups_stopped=False), "cleanup"),
     (lambda value: value["checks"].update(start_pose_verified=1), "start_pose"),
     (lambda value: value["controller"].update(vx_max=0.2), "read-back"),
+    (lambda value: value["controller"].update(plugin=experiment.MPPI_PLUGIN), "RotationShim"),
+    (lambda value: value["controller"].update(primary_controller="other::Controller"),
+     "RotationShim"),
+    (lambda value: value["controller"].update(rotate_to_goal_heading=False), "goal rotation"),
+    (lambda value: value["controller"].update(rotate_to_goal_heading=1), "goal rotation"),
     (lambda value: value.update(params_sha256="sha256:" + "b" * 64), "subject"),
     (lambda value: value["controller_after"].update(vx_max=0.2), "during navigation"),
+    (lambda value: value.pop("local_costmap_frame_expected"), "local costmap frame"),
+    (lambda value: value.update(local_costmap_frame="odom"), "local costmap frame"),
+    (lambda value: value.update(local_costmap_frame_after=True), "local costmap frame"),
+    (lambda value: value["checks"].update(local_costmap_frame_verified=False),
+     "local_costmap_frame_verified"),
+    (lambda value: value["checks"].update(local_costmap_frame_stable=1),
+     "local_costmap_frame_stable"),
     (lambda value: value.update(params_sha256_after="sha256:" + "b" * 64), "during navigation"),
     (lambda value: value["assets"].pop("world"), "target asset"),
     (lambda value: value["assets"].pop("launch"), "target asset"),
     (lambda value: value["assets"].pop("bridge_config"), "target asset"),
+    (lambda value: value["assets"].pop("behavior_tree"), "target asset"),
+    (lambda value: value["checks"].update(behavior_tree_verified=False), "behavior_tree_verified"),
+    (lambda value: value.pop("behavior_tree_expected"), "fixed behavior tree"),
+    (lambda value: value["behavior_tree_expected"].update(path="navigation.xml"), "canonical"),
+    (lambda value: value["behavior_tree_expected"].update(path=None), "canonical"),
+    (lambda value: value["behavior_tree_expected"].update(sha256="sha256:" + "b" * 64),
+     "digest differs"),
+    (lambda value: value["behavior_tree"].update(sha256="sha256:" + "b" * 64), "changed during"),
+    (lambda value: value["behavior_tree_after"].update(path="different.xml"), "changed during"),
     (lambda value: value["assets"].update(world="unknown"), "digest"),
     (lambda value: value.update(packages={}), "packages"),
     (lambda value: value["stamped_cmd_vel"].update(controller_server=True), "message type"),

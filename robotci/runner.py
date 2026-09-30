@@ -10,7 +10,6 @@ import subprocess
 import sys
 import tempfile
 import time
-import uuid
 from dataclasses import asdict
 from pathlib import Path
 from typing import Literal, cast
@@ -48,7 +47,11 @@ from robotci.results import (
     build_scenario_task,
     write_suite_result,
 )
-from robotci.runtime_process import run_runtime_process
+from robotci.runtime_process import (
+    RuntimeProcessCancelled,
+    docker_container_name,
+    run_runtime_process,
+)
 from robotci.viewer import ViewerError, load_replay
 from robotci.viewer_session import replay_matches_result
 
@@ -276,7 +279,7 @@ def _run_docker(
     build_image: bool = True,
 ) -> int:
     runtime_budget = _runtime_budget(timeout_sec, docker=True, build_image=build_image)
-    container_name = f"robotci-run-{uuid.uuid4().hex}"
+    container_name = docker_container_name("run")
     container_result = f"/workspace/artifacts/{scenario.name}/result.json"
     host_result = runtime_root / "artifacts" / scenario.name / "result.json"
     host_replay = default_replay_path(host_result)
@@ -315,7 +318,9 @@ def _run_docker(
 
     try:
         completed = run_runtime_process(command, cwd=runtime_root, timeout=runtime_budget)
-    except (subprocess.TimeoutExpired, KeyboardInterrupt, SystemExit, OSError) as exc:
+    except (
+        subprocess.TimeoutExpired, RuntimeProcessCancelled, KeyboardInterrupt, SystemExit, OSError,
+    ) as exc:
         # Killing Compose's client does not stop a container in the daemon.
         # A per-run name scopes force-removal to this one runtime, on Windows too.
         cleanup_error = ""
@@ -337,7 +342,7 @@ def _run_docker(
             )
         _clear_result_artifacts(host_result)
         _clear_result_artifacts(output)
-        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+        if isinstance(exc, (KeyboardInterrupt, SystemExit, RuntimeProcessCancelled)):
             raise
         if isinstance(exc, OSError):
             raise RuntimeUnavailableError(f"failed to start Docker runtime: {exc}") from exc

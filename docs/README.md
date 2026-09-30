@@ -22,7 +22,7 @@
 | [Runtime integrity](runtime-integrity.md) | Fresh results, readiness, failure semantics, and concurrency limits |
 | [Native runtime adapter](native-runtime-adapter.md) | Connect an existing Nav2 simulation |
 | [GitHub Action](github-action.md) | Reusable PR gate and JSON/Markdown/JUnit artifacts |
-| [Read-only MCP](mcp.md) | Local stdio server, project selection, and available tools |
+| [MCP inspection and execution](mcp.md) | Six default inspection tools and four explicitly enabled managed simulation tools |
 
 ## Develop and plan
 

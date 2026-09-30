@@ -186,6 +186,14 @@ jobs:
           print(f"Docker YAML suite + metrics PASS: {names}")
           PY
 
+      - name: Install host MCP integration for managed Docker smoke
+        run: python3 -m pip install --break-system-packages -e '.[mcp]'
+
+      - name: Verify opted-in MCP managed Docker navigation
+        run: |
+          python3 scripts/managed_runtime_smoke.py \
+            --runtime docker --output artifacts/managed-docker
+
       - name: Upload Docker suite results
         if: always()
         uses: actions/upload-artifact@v4
@@ -195,4 +203,6 @@ jobs:
             artifacts/docker-runtime.log
             artifacts/suite-result.json
             artifacts/results/*.json
+            artifacts/managed-docker/project/.robotci/runs/
+          include-hidden-files: true
           if-no-files-found: warn

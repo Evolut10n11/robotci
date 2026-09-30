@@ -17,7 +17,7 @@
 
 # RobotCI
 
-Deterministic behavior regression testing for ROS 2 / Nav2.
+Behavior regression testing for ROS 2 / Nav2 with deterministic verdicts.
 
 Run repeatable navigation scenarios in simulation, compare a candidate with a
 known-good baseline, and block changes that make robot behavior worse. RobotCI
@@ -36,11 +36,16 @@ is implemented; external validation is in progress. Start with simulation.
 | Gate a change | Named local baselines, compatibility checks, deterministic thresholds, and blocking exit codes |
 | Review results in CI | JSON, Markdown, JUnit, and a reusable GitHub Action |
 | Inspect a run | 2D/3D replay with robot visual profiles, synchronized comparison, observed stuck/recovery events, and six read-only MCP tools |
+| Orchestrate a simulation | Explicitly enabled MCP start/status/cancel/compare tools with isolated evidence and owned runtime cleanup |
 
 Navigation success alone is not enough. A robot can reach its goal and still take
 a longer path or require more recoveries. RobotCI measures those changes against
 the baseline. Missing telemetry or an incompatible environment produces an
 infrastructure/input error rather than a misleading behavioral verdict.
+
+Verdicts are deterministic for the same validated artifacts and policy.
+Simulation measurements can vary; unchanged runs must establish a usable
+baseline before a controller intervention is accepted.
 
 ## Start here
 
@@ -161,9 +166,18 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
   `--baseline-suite`, or open replay files directly in the browser. See the
   [viewer guide](docs/replay-viewer.md).
 - **MCP:** install `python -m pip install -e ".[mcp]"`, then run `robotci-mcp`.
-  The [MCP guide](docs/mcp.md) lists the six read-only inspection tools.
+  The [MCP guide](docs/mcp.md) lists the six default inspection tools and four
+  opt-in managed simulation tools. Execution requires an explicit project,
+  configuration and `--allow-execution`; the model does not decide gate verdicts.
+  The [reference workflow](examples/mcp-agent/README.md) demonstrates diagnosis,
+  owned execution, polling, cancellation and deterministic comparison.
 - **Your simulator:** use the [native adapter contract](docs/native-runtime-adapter.md)
   to integrate an existing Nav2 environment. Verify compatibility for that environment.
+- **Experimental Gazebo:** the [Jazzy/Harmonic TurtleBot example](examples/nav2-gazebo/README.md)
+  launches a fresh physical simulation and verifies readiness, controller
+  settings, telemetry and owned cleanup. Its
+  [acceptance record](docs/validation/runtime-acceptance.md) tracks measured
+  baseline stability and controller interventions.
 
 ## Project status
 
@@ -173,7 +187,8 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 | M8: real-world validation | In progress; external evidence pending |
 | M9: visual replay | Local workbench with robot visual profiles, playback, 2D/3D, synchronized comparison, and suite gate evidence |
 | M10: additional robot adapters | Planned; Unitree Go2 + MuJoCo is a candidate |
-| M11: agent integration | Read-only MCP shipped; execution tools and reference agent remain planned |
+| M11: agent integration | Six inspection tools, four opt-in managed simulation tools and a reference MCP workflow |
+| Nav2 / Gazebo acceptance | One complete cohort detected a real speed regression; an unchanged repeat was unstable, so reproducibility remains under investigation |
 | M12: team capabilities | Requires evidence from external pilots |
 
 See the [roadmap](docs/roadmap.md) for scope and the
