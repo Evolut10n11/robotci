@@ -282,7 +282,7 @@ def test_docker_cannot_copy_old_host_results_or_replays(
         assert not default_replay_path(destination).exists()
         return subprocess.CompletedProcess(command, returncode)
 
-    monkeypatch.setattr(runner.subprocess, "run", no_artifacts)
+    monkeypatch.setattr(runner, "run_runtime_process", no_artifacts)
     code, _, output = runner.run_scenario(
         scenario="route", output=destination, project_root=project,
     )
@@ -303,7 +303,7 @@ def test_docker_still_publishes_fresh_result_and_replay(
         default_replay_path(source).write_text("fresh", encoding="utf-8")
         return subprocess.CompletedProcess(command, 0)
 
-    monkeypatch.setattr(runner.subprocess, "run", valid_container)
+    monkeypatch.setattr(runner, "run_runtime_process", valid_container)
     code, _, _ = _invoke(project, mode)
     assert code == 0
     assert default_replay_path(_scenario_path(project, mode)).read_text() == "fresh"

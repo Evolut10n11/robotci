@@ -204,6 +204,8 @@ def test_capture_suite_execution_reads_environment_from_docker(
     compose_path = _write_compose(tmp_path)
 
     def fake_run(command, **kwargs):
+        container_name = command[10]
+        assert container_name.startswith("robotci-env-")
         assert command == [
             "docker",
             "compose",
@@ -214,6 +216,8 @@ def test_capture_suite_execution_reads_environment_from_docker(
             "run",
             "--rm",
             "--no-deps",
+            "--name",
+            container_name,
             "robotci",
             "python",
             "-m",
@@ -250,6 +254,8 @@ def test_capture_suite_execution_can_build_docker_image(
     compose_path = _write_compose(tmp_path)
 
     def fake_run(command, **kwargs):
+        container_name = command[10]
+        assert container_name.startswith("robotci-env-")
         assert command == [
             "docker",
             "compose",
@@ -260,6 +266,8 @@ def test_capture_suite_execution_can_build_docker_image(
             "run",
             "--rm",
             "--no-deps",
+            "--name",
+            container_name,
             "--build",
             "robotci",
             "python",
@@ -323,6 +331,99 @@ def test_docker_execution_identity_covers_audited_compose_bytes(
 
     assert first.environment.fingerprint != second.environment.fingerprint
     assert first.fingerprint != second.fingerprint
+
+
+@pytest.mark.parametrize("failure", [
+    subprocess.TimeoutExpired("docker compose", 60),
+    OSError("compose client could not start"),
+])
+def test_docker_environment_failure_removes_only_its_named_container(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, failure: Exception,
+) -> None:
+    _write_compose(tmp_path)
+    calls: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if len(calls) == 1:
+            assert kwargs["timeout"] == 60
+            assert command[9] == "--name"
+            raise failure
+        assert command == ["docker", "rm", "--force", calls[0][10]]
+        assert kwargs["timeout"] == 15
+        assert kwargs["capture_output"] is True
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
+    with pytest.raises(ReproducibilityError, match="cannot capture Docker runtime"):
+        capture_suite_execution(
+            config=_config(), timeout_sec=None, runtime="docker", runtime_root=tmp_path,
+        )
+    assert len(calls) == 2
+
+
+def test_docker_environment_cleanup_timeout_remains_an_infrastructure_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_compose(tmp_path)
+    calls: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
+    with pytest.raises(ReproducibilityError, match="cleanup could not be confirmed"):
+        capture_suite_execution(
+            config=_config(), timeout_sec=None, runtime="docker", runtime_root=tmp_path,
+            build_docker_image=True,
+        )
+    assert len(calls) == 2
+    assert calls[1] == ["docker", "rm", "--force", calls[0][10]]
+
+
+@pytest.mark.parametrize("interruption", [KeyboardInterrupt(), SystemExit(130)])
+def test_docker_environment_interruption_removes_container_and_propagates(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, interruption: BaseException,
+) -> None:
+    _write_compose(tmp_path)
+    calls: list[list[str]] = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+        if len(calls) == 1:
+            raise interruption
+        assert command == ["docker", "rm", "--force", calls[0][10]]
+        assert kwargs["timeout"] == 15
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
+    with pytest.raises(type(interruption)):
+        capture_suite_execution(
+            config=_config(), timeout_sec=None, runtime="docker", runtime_root=tmp_path,
+        )
+    assert len(calls) == 2
+
+
+def test_docker_probe_names_are_unique_without_changing_execution_identity(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_compose(tmp_path)
+    environment = _environment(containerized=True)
+    names: list[str] = []
+
+    def fake_run(command, **kwargs):
+        names.append(command[10])
+        return subprocess.CompletedProcess(
+            command, 0, stdout=json.dumps(asdict(environment)), stderr="",
+        )
+
+    monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
+    executions = [capture_suite_execution(
+        config=_config(), timeout_sec=None, runtime="docker", runtime_root=tmp_path,
+    ) for _ in range(2)]
+    assert len(set(names)) == 2
+    assert executions[0].fingerprint == executions[1].fingerprint
 
 
 def test_docker_execution_rejects_unaudited_compose_model(

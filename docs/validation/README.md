@@ -10,6 +10,9 @@ The public [shortlist](../pilot-targets.md) contains prospects, not participants
 - [Clearpath preflight](clearpath-preflight.md): source inspection and RobotCI
   onboarding in a separate public checkout; simulation is blocked by missing ROS
   and Docker in the execution environment. This is internal evidence only.
+- [Nav2/Gazebo runtime acceptance](runtime-acceptance.md): a pinned target,
+  repeated baselines, unchanged controls, and a real controller-parameter
+  intervention; simulation and adapter verification remain pending.
 - [cohort.json](cohort.json): five empty slots for actual external participants.
 - `scripts/pilot_report.py`: standard-library-only evidence validation and a
   JSON/Markdown summary, runnable on Windows or Linux from the RobotCI checkout.

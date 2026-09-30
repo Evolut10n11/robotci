@@ -15,6 +15,7 @@ from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 from typing import Literal, cast
 from urllib.parse import unquote, urlparse
+from uuid import uuid4
 
 import yaml
 
@@ -1463,11 +1464,14 @@ def _collect_docker_environment(
     build_image: bool = False,
 ) -> RuntimeEnvironment:
     compose_before = _docker_compose_fingerprint(runtime_root)
+    container_name = f"robotci-env-{uuid4().hex}"
     command = [
         *docker_compose_command_prefix(runtime_root),
         "run",
         "--rm",
         "--no-deps",
+        "--name",
+        container_name,
     ]
     if build_image:
         command.append("--build")
@@ -1488,9 +1492,26 @@ def _collect_docker_environment(
             timeout=300 if build_image else 60,
             check=False,
         )
-    except (OSError, subprocess.TimeoutExpired) as exc:
+    except (OSError, subprocess.TimeoutExpired, KeyboardInterrupt, SystemExit) as exc:
+        # subprocess.run kills the Compose client on timeout, not its container.
+        # Address only this probe; never remove a shared Compose project.
+        cleanup_detail = ""
+        try:
+            cleanup = subprocess.run(
+                ["docker", "rm", "--force", container_name],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            if cleanup.returncode != 0 and "No such container" not in cleanup.stderr:
+                cleanup_detail = "; named probe container cleanup failed"
+        except (OSError, subprocess.TimeoutExpired):
+            cleanup_detail = "; named probe container cleanup could not be confirmed"
+        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+            raise
         raise ReproducibilityError(
-            f"cannot capture Docker runtime environment: {exc}"
+            f"cannot capture Docker runtime environment: {exc}{cleanup_detail}"
         ) from exc
     compose_after = _docker_compose_fingerprint(runtime_root)
     if compose_after != compose_before:

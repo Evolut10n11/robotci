@@ -97,7 +97,9 @@ def test_navigation_boundary_writes_observations_with_matching_result(navigation
             return self.index == 3
 
         def getFeedback(self):
-            return [feedback(1), feedback(2), feedback(3, x=1, recoveries=2)][self.index]
+            return [feedback(1), feedback(2), feedback(3, x=1, recoveries=2)][
+                min(self.index, 2)
+            ]
 
         def getResult(self):
             return navigation.TaskResult.SUCCEEDED
@@ -105,7 +107,7 @@ def test_navigation_boundary_writes_observations_with_matching_result(navigation
         def destroy_node(self):
             pass
 
-    times = iter([90, 100, 100.1, 105.2, 106.3, 107])
+    times = iter([90, 100, 100.1, 105.2, 106.3, 106.4, 107])
     navigation.time = NS(monotonic=lambda: next(times), sleep=lambda _: None)
     navigation.BasicNavigator = Navigator
     target = tmp_path / "result.json"

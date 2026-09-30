@@ -19,7 +19,7 @@ EXIT_FAIL = 1
 EXIT_TIMEOUT = 2
 EXIT_INFRA_ERROR = 3
 
-FeedbackKey = tuple[int, int, int, int]
+FeedbackKey = tuple[int, int, int, int, int]
 
 
 def _pose_stamped(navigator: BasicNavigator, pose: Pose2D) -> PoseStamped:
@@ -44,6 +44,7 @@ def _feedback_key(feedback: object) -> FeedbackKey:
         int(pose_stamp.nanosec),
         int(navigation_time.sec),
         int(navigation_time.nanosec),
+        int(feedback.number_of_recoveries),
     )
 
 
@@ -106,6 +107,18 @@ def run_navigation_scenario(
     goal_tolerance_m: float = 0.25,
     min_feedback_samples: int = 1,
 ) -> int:
+    try:
+        timeout_is_valid = (
+            not isinstance(timeout_sec, bool)
+            and isinstance(timeout_sec, int | float)
+            and math.isfinite(timeout_sec)
+            and timeout_sec > 0
+        )
+    except OverflowError:
+        timeout_is_valid = False
+    if not timeout_is_valid:
+        raise ValueError("timeout_sec must be a finite number greater than zero")
+
     started_at = time.monotonic()
     navigator: BasicNavigator | None = None
     tracker = NavigationMetricsTracker(
@@ -160,7 +173,8 @@ def run_navigation_scenario(
             timed_out = False
             last_feedback_key: FeedbackKey | None = None
 
-            while not navigator.isTaskComplete():
+            while True:
+                task_complete = navigator.isTaskComplete()
                 now = time.monotonic()
                 last_feedback_key = _record_feedback(
                     navigator,
@@ -171,14 +185,23 @@ def run_navigation_scenario(
                 )
 
                 if now - started_at >= timeout_sec:
-                    navigator.cancelTask()
+                    if not task_complete:
+                        navigator.cancelTask()
                     timed_out = True
+                    break
+
+                # isTaskComplete spins the ROS executor and can deliver the
+                # final feedback together with the result. Capture that observed
+                # pose before deciding success; cached feedback is deduplicated.
+                if task_complete:
                     break
                 time.sleep(0.1)
 
             if timed_out:
                 status = "TIMEOUT"
-                navigation_result = "CANCELED_BY_TIMEOUT"
+                navigation_result = (
+                    "COMPLETED_AFTER_TIMEOUT" if task_complete else "CANCELED_BY_TIMEOUT"
+                )
                 reason_code = "timeout"
                 exit_code = EXIT_TIMEOUT
             else:
