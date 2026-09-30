@@ -175,9 +175,13 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
   to integrate an existing Nav2 environment. Verify compatibility for that environment.
 - **Experimental Gazebo:** the [Jazzy/Harmonic TurtleBot example](examples/nav2-gazebo/README.md)
   launches a fresh physical simulation and verifies readiness, controller
-  settings, telemetry and owned cleanup. Its
+  settings, local-costmap frame, telemetry and owned cleanup. Its
   [acceptance record](docs/validation/runtime-acceptance.md) tracks measured
-  baseline stability and controller interventions.
+  baseline stability and controller interventions. Two independent map-frame
+  experiments each passed all 20 within-cohort comparisons and both controls,
+  then detected sole duration regressions of +120.816% and +102.056%. Runner
+  dependency changes produced separate fingerprints; direct cross-cohort gates
+  remain incompatible.
 
 ## Project status
 
@@ -188,7 +192,7 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 | M9: visual replay | Local workbench with robot visual profiles, playback, 2D/3D, synchronized comparison, and suite gate evidence |
 | M10: additional robot adapters | Planned; Unitree Go2 + MuJoCo is a candidate |
 | M11: agent integration | Six inspection tools, four opt-in managed simulation tools and a reference MCP workflow |
-| Nav2 / Gazebo acceptance | One complete cohort detected a real speed regression; an unchanged repeat was unstable, so reproducibility remains under investigation |
+| Nav2 / Gazebo acceptance | Experimental setup succeeded in two separately fingerprinted internal experiments; each passed 20/20 baseline gates and both controls, and detected the real speed regression |
 | M12: team capabilities | Requires evidence from external pilots |
 
 See the [roadmap](docs/roadmap.md) for scope and the

@@ -3,12 +3,14 @@
 This example runs a real TurtleBot 4 in Gazebo Harmonic with ROS 2 Jazzy on
 Ubuntu 24.04. The route is checked against the depot occupancy map before
 navigation. It is an internal integration experiment, not an external M8 pilot.
-The first nine-run cohort with conditional replanning detected the real speed
-intervention. Its independent same-head repetition passed 19 of 20 unchanged
-gates but failed final-distance stability, despite stable timing and no recoveries
-or stuck events. The following RotationShim warmup failed navigation. Repeatable
-acceptance is not established. The next fixed experiment keeps RotationShim and
-sets the local costmap frame to `map`; its full series and repetition are pending.
+Two independent map-frame/RotationShim experiments each passed their own 20
+baseline gates and both controls, and detected sole duration regressions of
++120.816% and +102.056% from the real speed intervention. All eighteen routes
+passed without recoveries or stuck events. Six system dependency changes gave
+the runners different fingerprints; direct cross-cohort gates remain incompatible.
+This validates the recorded experimental setup, with earlier unstable cohorts
+and failed warmups preserved in
+the [acceptance record](../../docs/validation/runtime-acceptance.md).
 
 ## Run the complete experiment
 
@@ -24,7 +26,7 @@ ordered baseline comparisons, an independent unchanged control, one MPPI
 Baseline 1 is selected before measurement. The default regression policy stays
 unchanged throughout the experiment.
 
-For the next fixed experiment, freeze this setup before warm-up and keep it the
+For the current fixed experiment, freeze this setup before warm-up and keep it the
 same for every run:
 
 | Nav2 setting | Value |
@@ -43,7 +45,8 @@ same for every run:
 This disables trajectory visualization and repeated noise generation, uses
 Nav2's position latch before final orientation, and matches final-heading cost
 activation to the XY capture boundary. RotationShim wraps MPPI in the same
-`FollowPath` namespace. These settings are an unverified structural hypothesis.
+`FollowPath` namespace. This setup has two independently completed measurement
+experiments in separately fingerprinted runner environments.
 The adapter must verify the actual wrapper plugin, primary controller, heading
 flag, preset, speed, and local-costmap frame before and after navigation.
 Controller frequency remains `20 Hz`, batch size remains `2000`, and the
@@ -103,7 +106,7 @@ baselines, controls, or speed candidate. The
 [runbook](../../docs/validation/runtime-acceptance.md#observed-rotationshim-warmup-navigation-failed)
 retains run 36761957082 and artifact 11118939322 with the exact measurements.
 
-## Next frame experiment: local costmap in map
+## Map-frame experiment
 
 In the exact
 [Nav2 1.3.13 controller](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_controller/src/controller_server.cpp),
@@ -130,12 +133,27 @@ selection is the sole new setup change. The candidate still changes only
 comparison gates remain 10% for
 duration/path, 0.1 m for distance increase, and zero additional event counts.
 
-This new frame hypothesis requires a fresh warmup, five baselines, all twenty
-comparisons,
-preselected baseline-1 capture, held-out control, candidate, and restored control,
-then an independent fresh repetition of the frozen setup. Both series are
-pending. No failed or successful earlier run supplies a baseline for this setup,
-and no threshold is relaxed after seeing the results.
+The first map-frame experiment completed fresh warmup, five baselines, all twenty
+comparisons, preselected baseline-1 capture, held-out control, candidate, and
+restored control. Both controls and all baseline gates passed. Its sole candidate
+finding was duration 13.610 to 30.053 seconds, +120.816%, against the unchanged
+10% allowance. Typed before/after frame, controller, and BT evidence passed;
+the original subject bytes were restored and the restored-control route passed.
+
+An independent fresh job on the exact same PR head completed a second experiment,
+passing its own twenty baseline gates and both controls. Its sole candidate
+finding was duration 13.524 to 27.326 seconds, +102.056%. Source, subject, target
+assets, and policy match the first experiment, while six system dependency
+versions changed. Each cohort is internally compatible; direct cross-cohort
+comparison correctly refuses the differing runtime environment.
+
+The [runbook](../../docs/validation/runtime-acceptance.md) records all measurements,
+artifacts 11122550938 and 11122693635, both fingerprint sets, exact dependency
+deltas, digests, cleanup, and observed log events.
+No failed or successful earlier run supplies a baseline for this setup, and no
+threshold is relaxed after seeing the results. The measured success supports
+these recorded static-route experiments, without proving the frame interaction
+was the sole cause of earlier failures or establishing broader simulator reliability.
 
 ## Inspect the evidence
 
