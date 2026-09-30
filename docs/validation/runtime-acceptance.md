@@ -1,11 +1,13 @@
 # Native Nav2 / Gazebo runtime acceptance
 
-Status on 2026-09-30: the complete internal regression-detection experiment is
-verified on the recorded Nav2/Gazebo setup. Five unchanged runs passed every
-ordered-pair comparison, both unchanged controls passed, and the real controller
-speed intervention produced a duration regression. Earlier failed calibration
-attempts are retained below. This is evidence for one recorded setup and cohort,
-not a broad simulator or statistical false-positive guarantee. The
+Status on 2026-09-30: one full internal cohort completed the regression-detection
+experiment, but a fresh repetition with the same controller preset was unstable.
+The successful nine-run cohort remains valid historical evidence; repeatable
+acceptance under the default policy is **not established**. The latest repetition
+stopped before control or candidate collection. A fixed behavior-tree experiment
+is prepared from the installed Nav2 1.3.13 source; its full measurement series is
+pending. All outcomes and earlier failed calibrations are retained below. No
+simulator-wide or statistical false-positive guarantee is claimed. The
 maintenance environment is Ubuntu 24.04 with Python 3.12, but has no `ros2`,
 `gz`, Docker executable, or `/opt/ros/jazzy/setup.bash`. Unit tests and the
 existing Loopback CI alone are not evidence that this Gazebo integration works.
@@ -148,7 +150,7 @@ near-goal turning, positional drift, and recovery cycles. This pattern supports
 testing a completion protocol that can capture arrival before the final turn;
 it does not establish a stable comparison result for that protocol.
 
-## Current frozen preset: verified on the recorded setup
+## Controller preset: one successful cohort, repeat validation failed
 
 The successful full series kept visualization and per-iteration noise regeneration
 disabled. It used a stateful goal checker with 0.20 m XY tolerance and the
@@ -170,9 +172,10 @@ shows that stateful checking retains the satisfied XY criterion while checking
 the final yaw. MPPI's final-heading critic is gated by position distance; the
 0.25 m activation makes that objective available before the 0.20 m capture
 boundary. The earlier pre-recovery arrivals motivated this fixed hypothesis.
-The completed cohort below supports it on the recorded setup; it does not
-establish reliability or bounded drift across other environments. RobotCI
-still evaluates the observed final pose against the unchanged scenario policy.
+One completed cohort below supports it for that particular experiment, but the
+subsequent unchanged repetition was unstable. It does not establish repeatable
+completion, bounded drift, or reliable gates for the preset. RobotCI still
+evaluates the observed final pose against the unchanged scenario policy.
 
 The controller's XY completion tolerance remains stricter than its original
 0.25 m. These are controller settings frozen before collecting new data;
@@ -186,7 +189,7 @@ limitations. Their runs were not reused or handpicked as a known-good baseline.
 The successful cohort used fresh measurements for the warmup, five unchanged
 runs, all 20 ordered-pair gates, held-out control, candidate, and restored control.
 
-## Completed internal cohort and regression proof
+## Historical completed cohort and regression proof
 
 [Gazebo CI run 36749494953](https://github.com/Evolut10n11/robotci/actions/runs/36749494953)
 completed successfully for PR head `c461b555`. Its retained
@@ -251,9 +254,106 @@ SUT digests are recorded separately:
 Before/after read-back digests match the corresponding subject bytes, and
 `experiment.json` records `subject_restored=true`. Thus the slower candidate
 was evaluated under the same harness and task, with passing controls and
-restoration evidence. This completes the internal experiment on this pinned
-configuration. It contributes **zero external teams** to M8; an independent
-team's reproduction and broader environment validation remain separate work.
+restoration evidence. That run completed one internal experiment on the recorded
+configuration. The later failed repetition below prevents treating this as
+reproducibly validated acceptance. It contributes **zero external teams** to M8;
+an independent team's reproduction and broader validation remain separate work.
+
+## Latest repetition: unchanged baseline stability failed
+
+[Gazebo CI run 36752331669](https://github.com/Evolut10n11/robotci/actions/runs/36752331669)
+for PR head `b8addf5b` attempted a fresh complete measurement series with the
+same frozen controller preset. Retained
+[artifact 11116210736](https://github.com/Evolut10n11/robotci/actions/runs/36752331669/artifacts/11116210736)
+records checkout revision `c778b1eb60dbbee8140579b47f718e1b831efc53`.
+Warmup and all five unchanged navigation runs finished with `PASS`, but the
+third baseline required five recoveries and produced two stuck events.
+
+| Run | Duration, seconds | Path, metres | Final distance, metres | Recoveries | Stuck events |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| warmup | 15.787 | 5.452 | 0.153 | 0 | 0 |
+| baseline-1 | 17.143 | 5.535 | 0.252 | 0 | 0 |
+| baseline-2 | 16.196 | 5.423 | 0.112 | 0 | 0 |
+| baseline-3 | 61.036 | 6.176 | 0.031 | 5 | 2 |
+| baseline-4 | 16.049 | 5.295 | 0.155 | 0 | 0 |
+| baseline-5 | 16.563 | 5.443 | 0.134 | 0 | 0 |
+
+Only 11 of 20 directed unchanged-baseline gates passed; nine reported
+`REGRESSION`. Comparisons against baseline-3 identified additional duration,
+path, stuck events, and recoveries. Other comparisons also exceeded the
+unchanged 0.1 m final-distance allowance; for example baseline-2 to baseline-1
+increased final distance by approximately 0.140 m. The instability is therefore
+not confined to one slow duration measurement.
+
+The driver correctly stopped with `UNCHANGED_BASELINES_UNSTABLE`. It did not
+capture a known-good baseline or execute the held-out control, speed candidate,
+or restored-control navigation. `subject_restored=true` records restoration of
+the source controller bytes; it does not imply that a restored-control run was
+performed. Read-back confirmed the fixed preset and 0.5 m/s speed before and
+after each of the six navigations. Their target checks and owned-process cleanup
+records passed with no survivors.
+
+All six suites are internally comparable under execution fingerprint
+`sha256:a4e0df18181be5ed6a03a63f2d078e38972f450fa10679d09d81fd851c43dc40`.
+The original/controller digest remained
+`sha256:9a66eefe15a5aec140ecf3d910e131ee193d8850d26e0ab2137385cecc4af26d`.
+The latest and historical successful cohorts have different execution
+fingerprints; no cross-cohort gate or rewritten fingerprint was used.
+
+The earlier +92.273% candidate result remains a completed observation from its
+own successful cohort. It is not a candidate result for this failed repetition,
+and the failed unchanged series cannot be dropped or replaced by selected runs.
+Further engineering and a fresh complete measurement series are required before
+claiming repeatable acceptance. The default 10% duration/path, 0.1 m distance,
+zero-additional-event policy and predeclared selection of baseline run 1 remain
+unchanged. External M8 evidence remains zero.
+
+## Next fixed behavior-tree experiment: runtime verification pending
+
+Inspection of installed Nav2 1.3.13 exposes a control-flow interaction worth
+testing separately from controller tolerances. In
+[ControllerServer](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_controller/src/controller_server.cpp),
+accepting a new `FollowPath` goal calls `setPlannerPath`, which resets the
+selected goal checker. The
+[default navigation tree](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_bt_navigator/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml)
+requests a global replan at 1 Hz. Thus periodic path updates can clear the
+stateful arrival latch while the robot turns toward its final heading. This
+source-backed mechanism is a hypothesis for the near-goal failures; the source
+does not prove that it explains every unstable run.
+
+The next series selects the exact installed tree
+[`navigate_w_recovery_and_replanning_only_if_path_becomes_invalid.xml`](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_bt_navigator/behavior_trees/navigate_w_recovery_and_replanning_only_if_path_becomes_invalid.xml).
+It retains planning, control, and system recovery branches. Its 1 Hz planning
+branch checks for a changed goal or invalid existing path before computing a
+replacement, rather than unconditionally replacing a valid path each second.
+An initial path is still computed, and an invalid path or changed goal still
+triggers replanning. The experiment is scoped to this fixed static depot route;
+it is not a recommendation for arbitrary dynamic environments.
+
+Before warmup, the workflow copies the installed XML outside the checkout and
+sets `bt_navigator.ros__parameters.default_nav_to_pose_bt_xml` in the explicit
+SUT YAML to that stable absolute path. Installed ROS resources are not patched.
+The copied XML is frozen for the complete series and identified by content
+digest. The adapter must verify the actual typed string parameter before and
+after each navigation, verify the selected file's digest, and include the XML
+among the invariant target assets. Missing, changed, or inconsistent tree
+provenance rejects the run instead of admitting it into the comparison series.
+
+The controller preset remains unchanged: visualization and noise regeneration
+disabled, stateful XY capture at 0.20 m, yaw tolerance 0.25 rad, and final-heading
+activation at 0.25 m. All runs use the same frozen XML. The candidate still
+changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s. RobotCI's scenario, 10%
+duration/path allowance, 0.1 m distance allowance, and zero additional event
+allowance remain unchanged.
+
+This new tree selection is an experiment setup change, not a successful
+measurement. No earlier run is reused, discarded, or promoted to establish it.
+Verification remains pending a fresh warmup, all five unchanged baselines,
+all 20 ordered-pair gates, the preselected baseline-1 capture, held-out control,
+real speed candidate, and restored control. A complete passing unchanged
+series and actual candidate findings are required before making a new
+regression-detection claim. The previous successful and failed cohorts remain
+separate observations, and external M8 participation remains zero.
 
 ## Target and experiment boundary
 

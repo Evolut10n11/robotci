@@ -188,7 +188,7 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 | M9: visual replay | Local workbench with robot visual profiles, playback, 2D/3D, synchronized comparison, and suite gate evidence |
 | M10: additional robot adapters | Planned; Unitree Go2 + MuJoCo is a candidate |
 | M11: agent integration | Six inspection tools, four opt-in managed simulation tools and a reference MCP workflow |
-| Nav2 / Gazebo acceptance | Pinned experiment passed nine fresh-world runs, unchanged controls and a real speed-regression test; broader compatibility remains experimental |
+| Nav2 / Gazebo acceptance | One complete cohort detected a real speed regression; an unchanged repeat was unstable, so reproducibility remains under investigation |
 | M12: team capabilities | Requires evidence from external pilots |
 
 See the [roadmap](docs/roadmap.md) for scope and the

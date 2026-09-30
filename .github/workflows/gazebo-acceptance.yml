@@ -85,10 +85,15 @@ jobs:
 
           bringup = Path(get_package_share_directory("nav2_bringup"))
           sim = Path(get_package_share_directory("nav2_minimal_tb4_sim"))
+          navigator = Path(get_package_share_directory("nav2_bt_navigator"))
           # Executable launch code belongs outside the checkout: a .py under
           # artifacts would make that directory a fingerprinted import namespace.
           target = Path(os.environ["RUNNER_TEMP"]) / "robotci-gazebo-target"
           archive = Path("artifacts/target")
+          behavior_source = navigator / "behavior_trees/navigate_w_recovery_and_replanning_only_if_path_becomes_invalid.xml"
+          behavior_tree = target / "navigation.xml"
+          shutil.copyfile(behavior_source, behavior_tree)
+          shutil.copyfile(behavior_tree, archive / "navigation.xml")
           shutil.copyfile(target / "tb4_simulation_launch.py", archive / "tb4_simulation_launch.py.txt")
           shutil.copyfile(bringup / "params/nav2_params.yaml", target / "controller.yaml")
           # Releases differ in cmd_vel message type. Use the actually installed
@@ -106,6 +111,10 @@ jobs:
           cmd_type = cmd_types.pop()
           params = target / "controller.yaml"
           document = yaml.safe_load(params.read_text())
+          # A valid static route must retain its path while finishing yaw:
+          # ControllerServer resets the stateful goal checker on every new path.
+          # Keep Nav2's standard recoveries and replan when the path is invalid.
+          document["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"] = str(behavior_tree.resolve())
           for node in ("controller_server", "behavior_server", "velocity_smoother", "collision_monitor"):
               document[node]["ros__parameters"]["enable_stamped_cmd_vel"] = supported[cmd_type]
           # The first measured upstream-default experiment rejected unchanged
@@ -133,6 +142,8 @@ jobs:
               "installed_cmd_vel_ros_type": cmd_type,
               "enable_stamped_cmd_vel": supported[cmd_type],
               "installed_bridge_sha256": "sha256:" + hashlib.sha256(bridge_file.read_bytes()).hexdigest(),
+              "installed_behavior_tree": str(behavior_source),
+              "behavior_tree_sha256": "sha256:" + hashlib.sha256(behavior_tree.read_bytes()).hexdigest(),
               "note": "Pinned launch source; apt runtime versions recorded separately."
           }, indent=2) + "\n")
           PY

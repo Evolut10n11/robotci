@@ -42,6 +42,7 @@ CONTROLLER_PARAMETER_NAMES = (
     "general_goal_checker.yaw_goal_tolerance", "general_goal_checker.stateful",
     "FollowPath.GoalAngleCritic.threshold_to_consider",
 )
+BEHAVIOR_TREE_PARAMETER = "default_nav_to_pose_bt_xml"
 
 
 def validate_benchmark_preset(preset: dict[str, Any]) -> None:
@@ -89,6 +90,32 @@ def sha256_file(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return f"sha256:{digest.hexdigest()}"
+
+
+def behavior_tree_record(value: Any) -> dict[str, str]:
+    """Require an explicitly frozen, canonical regular behavior-tree XML file."""
+    if not isinstance(value, str) or not value or not Path(value).is_absolute():
+        raise ValueError("default_nav_to_pose_bt_xml must be an absolute canonical XML path")
+    path = Path(value).resolve(strict=True)
+    if str(path) != value or not path.is_file():
+        raise ValueError("default_nav_to_pose_bt_xml must be an absolute canonical regular file")
+    tree = ET.parse(path).getroot()
+    if tree.tag != "root" or tree.find("BehaviorTree") is None:
+        raise ValueError("default_nav_to_pose_bt_xml is not a behavior-tree XML document")
+    return {"path": str(path), "sha256": sha256_file(path)}
+
+
+def decode_behavior_tree_parameters(
+    values: list[Any], expected: dict[str, str],
+) -> dict[str, str]:
+    if len(values) != 1:
+        raise ValueError("behavior-tree read-back is incomplete")
+    if values[0].type != 4:
+        raise ValueError("behavior-tree path has the wrong ROS parameter type")
+    observed = behavior_tree_record(values[0].string_value)
+    if observed != expected:
+        raise RuntimeError("effective behavior-tree path or contents differ from the frozen target")
+    return observed
 
 
 def sha256_tree(path: Path) -> str:
@@ -195,6 +222,9 @@ def asset_manifest(args: argparse.Namespace) -> dict[str, Any]:
         ),
     }
     validate_benchmark_preset(preset)
+    behavior_tree = behavior_tree_record(
+        params.get("bt_navigator", {}).get("ros__parameters", {}).get(BEHAVIOR_TREE_PARAMETER)
+    )
     packages = {}
     for share in (args.sim_share, args.description_share):
         package = ET.parse(share / "package.xml").getroot()
@@ -216,6 +246,7 @@ def asset_manifest(args: argparse.Namespace) -> dict[str, Any]:
         "tb4_sim_tree": sha256_tree(args.sim_share),
         "tb4_description_tree": sha256_tree(args.description_share),
         "bridge_config": sha256_file(bridge_path),
+        "behavior_tree": behavior_tree["sha256"],
     }
     # Fuel models are downloaded before collection. Their bytes are separate
     # from the world URI and must not silently change between control/candidate.
@@ -231,6 +262,7 @@ def asset_manifest(args: argparse.Namespace) -> dict[str, Any]:
         "params_sha256": sha256_file(args.params),
         "controller_expected": expected,
         "benchmark_preset_expected": preset,
+        "behavior_tree_expected": behavior_tree,
         "command_velocity_type": command_types[0],
         "renderer": {"headless": True, "software": True, "engine": "ogre2"},
         "packages": packages,
@@ -252,6 +284,30 @@ def _ros_pose(pose: Any) -> dict[str, float]:
     }
 
 
+def _read_parameters_bounded(
+    node: Any, client: Any, names: list[str], deadline: float, description: str,
+) -> list[Any]:
+    import rclpy
+    from rcl_interfaces.srv import GetParameters
+
+    while not client.service_is_ready() and time.monotonic() < deadline:
+        rclpy.spin_once(node, timeout_sec=0.1)
+    if not client.service_is_ready():
+        raise TimeoutError(f"post-navigation {description} parameter service unavailable")
+    request = GetParameters.Request()
+    request.names = names
+    future = client.call_async(request)
+    while not future.done() and time.monotonic() < deadline:
+        rclpy.spin_once(node, timeout_sec=0.1)
+    if not future.done():
+        future.cancel()
+        raise TimeoutError(f"post-navigation {description} parameter read-back timed out")
+    response = future.result()
+    if response is None:
+        raise RuntimeError(f"post-navigation {description} read-back is incomplete")
+    return response.values
+
+
 def verify_controller_unchanged(args: argparse.Namespace, manifest: dict[str, Any]) -> None:
     """Read the effective SUT again after navigation, before process cleanup."""
     import rclpy
@@ -261,24 +317,12 @@ def verify_controller_unchanged(args: argparse.Namespace, manifest: dict[str, An
     rclpy.init(args=[])
     node = Node("robotci_gazebo_controller_verification")
     client = node.create_client(GetParameters, "/controller_server/get_parameters")
+    behavior_parameters = node.create_client(GetParameters, "/bt_navigator/get_parameters")
     deadline = time.monotonic() + 10
     try:
-        while not client.service_is_ready() and time.monotonic() < deadline:
-            rclpy.spin_once(node, timeout_sec=0.1)
-        if not client.service_is_ready():
-            raise TimeoutError("post-navigation controller parameter service unavailable")
-        request = GetParameters.Request()
-        request.names = list(CONTROLLER_PARAMETER_NAMES)
-        future = client.call_async(request)
-        while not future.done() and time.monotonic() < deadline:
-            rclpy.spin_once(node, timeout_sec=0.1)
-        if not future.done():
-            future.cancel()
-            raise TimeoutError("post-navigation controller parameter read-back timed out")
-        response = future.result()
-        if response is None:
-            raise RuntimeError("post-navigation controller read-back is incomplete")
-        observed, preset = decode_controller_parameters(response.values)
+        observed, preset = decode_controller_parameters(_read_parameters_bounded(
+            node, client, list(CONTROLLER_PARAMETER_NAMES), deadline, "controller",
+        ))
         manifest["controller_after"] = observed
         manifest["benchmark_preset_after"] = preset
         manifest["params_sha256_after"] = sha256_file(args.params)
@@ -287,6 +331,14 @@ def verify_controller_unchanged(args: argparse.Namespace, manifest: dict[str, An
             raise RuntimeError("controller configuration changed during navigation")
         manifest["checks"]["controller_stable"] = True
         manifest["checks"]["benchmark_preset_stable"] = True
+        behavior_tree = decode_behavior_tree_parameters(_read_parameters_bounded(
+            node, behavior_parameters, [BEHAVIOR_TREE_PARAMETER], deadline, "behavior-tree",
+        ), manifest["behavior_tree_expected"])
+        manifest["behavior_tree_after"] = behavior_tree
+        if (behavior_tree != manifest["behavior_tree"]
+                or behavior_tree["sha256"] != manifest["assets"]["behavior_tree"]):
+            raise RuntimeError("behavior-tree configuration changed during navigation")
+        manifest["checks"]["behavior_tree_stable"] = True
     finally:
         node.destroy_node()
         rclpy.shutdown()
@@ -349,6 +401,7 @@ def wait_until_ready(args: argparse.Namespace, manifest: dict[str, Any]) -> None
     clients = {name: node.create_client(GetState, f"/{name}/get_state")
                for name in REQUIRED_LIFECYCLE_NODES}
     parameters = node.create_client(GetParameters, "/controller_server/get_parameters")
+    behavior_parameters = node.create_client(GetParameters, "/bt_navigator/get_parameters")
     velocity_parameters = {
         name: node.create_client(GetParameters, f"/{name}/get_parameters")
         for name in ("controller_server", "behavior_server", "velocity_smoother",
@@ -482,6 +535,15 @@ def wait_until_ready(args: argparse.Namespace, manifest: dict[str, Any]) -> None
                 raise RuntimeError(f"controller read-back does not match the SUT: {controller}")
             if sha256_file(args.params) != manifest["params_sha256"]:
                 raise RuntimeError("controller YAML changed during runtime setup")
+            request = GetParameters.Request()
+            request.names = [BEHAVIOR_TREE_PARAMETER]
+            response = call(behavior_parameters, request)
+            if response is None:
+                last_problem = "behavior-tree parameter service is not yet discovered"
+                continue
+            behavior_tree = decode_behavior_tree_parameters(
+                response.values, manifest["behavior_tree_expected"],
+            )
             expected_stamped = manifest["command_velocity_type"].endswith("TwistStamped")
             velocity_flags = {}
             velocity_discovered = True
@@ -511,9 +573,11 @@ def wait_until_ready(args: argparse.Namespace, manifest: dict[str, Any]) -> None
                            "physical_spawn_verified": True, "tf_verified": True,
                            "cmd_vel_type_verified": True,
                            "benchmark_preset_verified": True,
+                           "behavior_tree_verified": True,
                            "required_tf": True, "nav2_active": True, "navigate_to_pose": True},
                 "controller": controller,
                 "benchmark_preset": preset,
+                "behavior_tree": behavior_tree,
                 "lifecycle": states,
                 "clock": {"first": clock_start, "last": clock_last},
                 "sensor_samples": counts,
@@ -525,7 +589,10 @@ def wait_until_ready(args: argparse.Namespace, manifest: dict[str, Any]) -> None
             # A first warm-up may download Fuel assets while Gazebo starts.
             # READY requires real sensors/robot state, so capture the completed
             # cache here rather than an incomplete pre-launch download tree.
-            manifest["assets"] = asset_manifest(args)["assets"]
+            completed_assets = asset_manifest(args)["assets"]
+            if completed_assets["behavior_tree"] != behavior_tree["sha256"]:
+                raise RuntimeError("behavior-tree contents changed during runtime setup")
+            manifest["assets"] = completed_assets
             return
         raise TimeoutError(f"Gazebo readiness exceeded {args.timeout_sec}s: {last_problem}")
     finally:

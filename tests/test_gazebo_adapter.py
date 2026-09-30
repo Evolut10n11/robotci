@@ -17,7 +17,10 @@ import yaml
 
 from robotci.ros import gazebo_cleanup
 from robotci.ros.gazebo_readiness import (
+    _read_parameters_bounded,
     asset_manifest,
+    behavior_tree_record,
+    decode_behavior_tree_parameters,
     decode_controller_parameters,
     main,
     map_pose_is_free,
@@ -112,9 +115,13 @@ def _asset_args(tmp_path: Path) -> argparse.Namespace:
     for name in ("world.sdf", "rendered.sdf", "launch.py"):
         (tmp_path / name).write_text(name)
     params = tmp_path / "controller.yaml"
-    params.write_text(yaml.safe_dump({"controller_server": {"ros__parameters": {
-        "FollowPath": {"plugin": "nav2_mppi_controller::MPPIController", "vx_max": 0.5},
-    }}}))
+    tree = _behavior_file(tmp_path)
+    params.write_text(yaml.safe_dump({
+        "controller_server": {"ros__parameters": {
+            "FollowPath": {"plugin": "nav2_mppi_controller::MPPIController", "vx_max": 0.5},
+        }},
+        "bt_navigator": {"ros__parameters": {"default_nav_to_pose_bt_xml": str(tree)}},
+    }))
     shares = []
     for name in ("sim", "description"):
         share = tmp_path / name
@@ -150,6 +157,9 @@ def test_sut_digest_is_separate_from_stable_target_assets(tmp_path: Path, monkey
     assert baseline["world_partition"] != candidate["world_partition"]
     assert candidate["controller_expected"]["vx_max"] == 0.2
     assert candidate["packages"] == {"tb4_sim": "1.2.0", "tb4_description": "1.2.0"}
+    tree = params["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"]
+    assert baseline["behavior_tree_expected"] == behavior_tree_record(tree)
+    assert baseline["assets"]["behavior_tree"] == sha256_file(Path(tree))
 
 
 @pytest.mark.parametrize("speed", [True, "0.5", float("inf"), -0.5])
@@ -239,8 +249,11 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
     controller, preset = decode_controller_parameters(values)
     params = tmp_path / "controller.yaml"
     params.write_text("original controller configuration")
+    tree = behavior_tree_record(str(_behavior_file(tmp_path)))
     manifest = {"controller": controller, "benchmark_preset": preset,
-                "params_sha256": sha256_file(params), "checks": {}}
+                "params_sha256": sha256_file(params), "checks": {},
+                "behavior_tree_expected": tree, "behavior_tree": tree,
+                "assets": {"behavior_tree": tree["sha256"]}}
     if change == "speed":
         values[1].double_value = 0.2
     elif change == "preset":
@@ -252,7 +265,13 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
     response = SimpleNamespace(values=values)
     future = SimpleNamespace(done=lambda: True, result=lambda: response)
     client = SimpleNamespace(service_is_ready=lambda: True, call_async=lambda request: future)
-    node = SimpleNamespace(create_client=lambda *args: client, destroy_node=lambda: None)
+    tree_response = SimpleNamespace(values=[SimpleNamespace(type=4, string_value=tree["path"])])
+    tree_future = SimpleNamespace(done=lambda: True, result=lambda: tree_response)
+    tree_client = SimpleNamespace(service_is_ready=lambda: True,
+                                  call_async=lambda request: tree_future)
+    node = SimpleNamespace(create_client=lambda srv, path:
+                           tree_client if path.startswith("/bt_navigator/") else client,
+                           destroy_node=lambda: None)
     monkeypatch.setitem(sys.modules, "rclpy", SimpleNamespace(
         init=lambda **kwargs: None, shutdown=lambda: None, spin_once=lambda *args, **kwargs: None,
     ))
@@ -268,6 +287,89 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
         verify_controller_unchanged(argparse.Namespace(params=params), manifest)
         assert manifest["benchmark_preset_after"] == _benchmark_preset()
         assert manifest["checks"]["benchmark_preset_stable"] is True
+        assert manifest["behavior_tree_after"] == tree
+        assert manifest["checks"]["behavior_tree_stable"] is True
+
+
+def _behavior_file(tmp_path: Path, name: str = "navigation.xml") -> Path:
+    path = tmp_path / name
+    path.write_text('<root BTCPP_format="4"><BehaviorTree ID="MainTree">'
+                    '<AlwaysSuccess/></BehaviorTree></root>')
+    return path.resolve(strict=True)
+
+
+@pytest.mark.parametrize("value", [None, False, "", "navigation.xml"])
+def test_behavior_tree_must_be_explicit_in_frozen_yaml(
+    tmp_path: Path, monkeypatch, value,
+) -> None:
+    args = _asset_args(tmp_path)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "no-fuel")
+    params = yaml.safe_load(args.params.read_text())
+    params["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"] = value
+    args.params.write_text(yaml.safe_dump(params))
+    with pytest.raises(ValueError, match="absolute canonical XML path"):
+        asset_manifest(args)
+
+
+def test_behavior_tree_rejects_missing_noncanonical_nonregular_or_bad_xml(tmp_path: Path) -> None:
+    tree = _behavior_file(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        behavior_tree_record(str(tmp_path / "missing.xml"))
+    with pytest.raises(ValueError, match="canonical regular file"):
+        behavior_tree_record(str(tmp_path))
+    with pytest.raises(ValueError, match="canonical regular file"):
+        behavior_tree_record(str(tmp_path) + "/./navigation.xml")
+    tree.write_text('<package><name>NotABehaviorTree</name></package>')
+    with pytest.raises(ValueError, match="behavior-tree XML"):
+        behavior_tree_record(str(tree))
+
+
+@pytest.mark.parametrize("values", [[], [SimpleNamespace(type=0)], [SimpleNamespace(type=3)],
+                                   [SimpleNamespace(type=4), SimpleNamespace(type=4)]])
+def test_behavior_tree_readback_requires_one_ros_string_parameter(values) -> None:
+    with pytest.raises(ValueError, match="incomplete|wrong ROS parameter type"):
+        decode_behavior_tree_parameters(values, {})
+
+
+@pytest.mark.parametrize("change", [None, "path", "bytes"])
+def test_behavior_tree_readback_matches_frozen_path_and_content(tmp_path: Path, change) -> None:
+    tree = _behavior_file(tmp_path)
+    expected = behavior_tree_record(str(tree))
+    observed_path = str(tree)
+    if change == "path":
+        observed_path = str(_behavior_file(tmp_path, "different.xml"))
+    elif change == "bytes":
+        tree.write_text('<root><BehaviorTree ID="Changed"><AlwaysFailure/></BehaviorTree></root>')
+    values = [SimpleNamespace(type=4, string_value=observed_path)]
+    if change:
+        with pytest.raises(RuntimeError, match="differ from the frozen target"):
+            decode_behavior_tree_parameters(values, expected)
+    else:
+        assert decode_behavior_tree_parameters(values, expected) == expected
+
+
+@pytest.mark.parametrize("phase", ["service", "response"])
+def test_behavior_tree_parameter_readback_is_bounded_and_cancels_pending_request(
+    monkeypatch, phase: str,
+) -> None:
+    clock = iter(index / 4 for index in range(20))
+    monkeypatch.setattr("robotci.ros.gazebo_readiness.time.monotonic", lambda: next(clock))
+    canceled = []
+    spins = []
+    future = SimpleNamespace(done=lambda: False, cancel=lambda: canceled.append(True))
+    client = SimpleNamespace(service_is_ready=lambda: phase == "response",
+                             call_async=lambda request: future)
+    monkeypatch.setitem(sys.modules, "rclpy", SimpleNamespace(
+        spin_once=lambda node, timeout_sec: spins.append(timeout_sec),
+    ))
+    monkeypatch.setitem(sys.modules, "rcl_interfaces.srv", SimpleNamespace(
+        GetParameters=SimpleNamespace(Request=SimpleNamespace),
+    ))
+    with pytest.raises(TimeoutError, match="behavior-tree.*unavailable|behavior-tree.*timed out"):
+        _read_parameters_bounded(None, client, ["default_nav_to_pose_bt_xml"], 1.0,
+                                 "behavior-tree")
+    assert len(spins) == 4
+    assert canceled == ([True] if phase == "response" else [])
 
 
 def test_invalid_cli_pose_persists_infrastructure_evidence(tmp_path: Path, monkeypatch) -> None:
