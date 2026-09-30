@@ -348,6 +348,7 @@ class ExecutionManager:
                     timeout=run.budget_sec,
                     env=environment,
                     cancel_event=run.cancel,
+                    stdin=subprocess.DEVNULL,
                     stdout=log,
                     stderr=subprocess.STDOUT,
                     cleanup_on_exit=True,

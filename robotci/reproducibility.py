@@ -1516,9 +1516,13 @@ def _collect_docker_environment(
         "--no-deps",
         "--name",
         container_name,
+        "--no-tty",
+        "--interactive=false",
+        "--quiet-pull",
     ]
     if build_image:
-        command.append("--build")
+        # Build progress is not part of the single JSON provenance record.
+        command.extend(["--build", "--quiet-build"])
     command.extend(
         [
             "robotci",
@@ -1588,7 +1592,9 @@ def _collect_docker_environment(
         payload = json.loads(completed.stdout.strip())
     except json.JSONDecodeError as exc:
         raise ReproducibilityError(
-            "Docker runtime returned invalid environment metadata"
+            "Docker runtime returned invalid environment metadata; "
+            f"stdout starts with {completed.stdout[:512]!r}; "
+            f"stderr starts with {completed.stderr[:256]!r}"
         ) from exc
     environment = parse_runtime_environment(
         payload,

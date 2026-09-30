@@ -219,6 +219,9 @@ def test_capture_suite_execution_reads_environment_from_docker(
             "--no-deps",
             "--name",
             container_name,
+            "--no-tty",
+            "--interactive=false",
+            "--quiet-pull",
             "robotci",
             "python",
             "-m",
@@ -247,9 +250,11 @@ def test_capture_suite_execution_reads_environment_from_docker(
     assert execution.environment.robotci_build != environment.robotci_build
 
 
+@pytest.mark.parametrize("managed", [False, True])
 def test_capture_suite_execution_can_build_docker_image(
     tmp_path,
     monkeypatch: pytest.MonkeyPatch,
+    managed: bool,
 ) -> None:
     environment = _environment(containerized=True)
     compose_path = _write_compose(tmp_path)
@@ -269,13 +274,23 @@ def test_capture_suite_execution_can_build_docker_image(
             "--no-deps",
             "--name",
             container_name,
+            "--no-tty",
+            "--interactive=false",
+            "--quiet-pull",
             "--build",
+            "--quiet-build",
             "robotci",
             "python",
             "-m",
             "robotci.reproducibility",
         ]
         assert kwargs["timeout"] == 300
+        if managed:
+            # Managed probes capture real binary files rather than PIPEs. Build
+            # progress must not prefix the one JSON provenance record.
+            kwargs["stdout"].write(json.dumps(asdict(environment)).encode())
+            kwargs["stderr"].write(b"container created\n")
+            return subprocess.CompletedProcess(command, 0)
         return subprocess.CompletedProcess(
             command,
             0,
@@ -283,7 +298,12 @@ def test_capture_suite_execution_can_build_docker_image(
             stderr="",
         )
 
-    monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
+    if managed:
+        monkeypatch.setenv("ROBOTCI_MANAGED_RUN_ID", "a" * 32)
+        monkeypatch.setattr("robotci.runtime_process.run_runtime_process", fake_run)
+    else:
+        monkeypatch.delenv("ROBOTCI_MANAGED_RUN_ID", raising=False)
+        monkeypatch.setattr("robotci.reproducibility.subprocess.run", fake_run)
 
     execution = capture_suite_execution(
         config=_config(),

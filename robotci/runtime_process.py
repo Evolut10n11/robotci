@@ -254,6 +254,7 @@ def run_runtime_process(
     timeout: float,
     env: dict[str, str] | None = None,
     cancel_event: Event | None = None,
+    stdin: IO[bytes] | int | None = None,
     stdout: IO[bytes] | None = None,
     stderr: IO[bytes] | int | None = None,
     cleanup_on_exit: bool = False,
@@ -285,6 +286,8 @@ def run_runtime_process(
     if managed_owner:
         environment["ROBOTCI_MANAGED_PROCESS_OWNER"] = managed_owner
     environment[_OWNERSHIP_VARIABLE] = ownership
+    if stdin is not None:
+        options["stdin"] = stdin
     if stdout is not None:
         options["stdout"] = stdout
     if stderr is not None:

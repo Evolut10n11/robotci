@@ -87,6 +87,7 @@ def _terminal(manager: ExecutionManager, run_id: str) -> dict[str, object]:
 
 
 def _success(command, **kwargs):
+    assert kwargs["stdin"] == subprocess.DEVNULL
     _write_completed(command)
     return subprocess.CompletedProcess(command, 0)
 
@@ -565,6 +566,39 @@ def test_managed_docker_probe_cancellation_removes_its_exact_owned_container(
     name = started[0][started[0].index("--name") + 1]
     assert re.fullmatch(rf"robotci-env-{owner}-[a-f0-9]{{32}}", name)
     assert removed == [["docker", "rm", "--force", name]]
+
+
+def test_managed_docker_probe_malformed_output_remains_strict_and_diagnostic(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from robotci import reproducibility, runtime_process
+
+    monkeypatch.setenv("ROBOTCI_MANAGED_RUN_ID", "a" * 32)
+    monkeypatch.setattr(reproducibility, "_docker_compose_fingerprint", lambda path: "fixed")
+
+    def noisy(command, **kwargs):
+        kwargs["stdout"].write(b"unexpected build progress\n" + b"x" * 2048)
+        kwargs["stderr"].write(b"diagnostic\n" + b"y" * 2048)
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(runtime_process, "run_runtime_process", noisy)
+    with pytest.raises(reproducibility.ReproducibilityError) as error:
+        reproducibility._collect_docker_environment(tmp_path, build_image=True)
+    message = str(error.value)
+    assert "invalid environment metadata" in message
+    assert "unexpected build progress" in message
+    assert "diagnostic" in message
+    assert len(message) < 1000
+
+
+def test_owned_runtime_stdin_can_be_detached_from_the_mcp_protocol(tmp_path: Path) -> None:
+    with (tmp_path / "log").open("wb") as log:
+        completed = run_runtime_process(
+            [sys.executable, "-c", "import sys; print(repr(sys.stdin.buffer.read()), flush=True)"],
+            cwd=tmp_path, timeout=5, stdin=subprocess.DEVNULL, stdout=log,
+        )
+    assert completed.returncode == 0
+    assert (tmp_path / "log").read_text().strip() == "b''"
 
 
 def test_parent_reservation_identity_rejects_a_different_server() -> None:
