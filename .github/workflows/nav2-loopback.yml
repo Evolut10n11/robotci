@@ -43,6 +43,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Configure bounded Ubuntu package downloads
+        timeout-minutes: 1
+        run: bash scripts/configure_ci_apt.sh
+
       - name: Set up ROS2 Jazzy
         uses: ros-tooling/setup-ros@v0.7
         with:
