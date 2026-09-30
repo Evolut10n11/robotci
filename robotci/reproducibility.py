@@ -7,6 +7,7 @@ import re
 import stat
 import subprocess
 import sys
+import tempfile
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass
 from hashlib import sha256
@@ -15,7 +16,6 @@ from importlib.metadata import PackageNotFoundError, distribution
 from pathlib import Path
 from typing import Literal, cast
 from urllib.parse import unquote, urlparse
-from uuid import uuid4
 
 import yaml
 
@@ -1502,7 +1502,13 @@ def _collect_docker_environment(
     build_image: bool = False,
 ) -> RuntimeEnvironment:
     compose_before = _docker_compose_fingerprint(runtime_root)
-    container_name = f"robotci-env-{uuid4().hex}"
+    from robotci.runtime_process import (
+        RuntimeProcessCancelled,
+        docker_container_name,
+        run_runtime_process,
+    )
+
+    container_name = docker_container_name("env")
     command = [
         *docker_compose_command_prefix(runtime_root),
         "run",
@@ -1522,15 +1528,32 @@ def _collect_docker_environment(
         ]
     )
     try:
-        completed = subprocess.run(
-            command,
-            cwd=runtime_root,
-            capture_output=True,
-            text=True,
-            timeout=300 if build_image else 60,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired, KeyboardInterrupt, SystemExit) as exc:
+        if os.environ.get("ROBOTCI_MANAGED_RUN_ID"):
+            # The managed worker's event must interrupt even a Windows probe
+            # build. File capture avoids pipes filling and keeps MCP stdout clean.
+            with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+                result = run_runtime_process(
+                    command, cwd=runtime_root, timeout=300 if build_image else 60,
+                    stdout=stdout, stderr=stderr,
+                )
+                stdout.seek(0)
+                stderr.seek(0)
+                completed = subprocess.CompletedProcess(
+                    command, result.returncode,
+                    stdout=stdout.read().decode("utf-8"), stderr=stderr.read().decode("utf-8"),
+                )
+        else:
+            completed = subprocess.run(
+                command,
+                cwd=runtime_root,
+                capture_output=True,
+                text=True,
+                timeout=300 if build_image else 60,
+                check=False,
+            )
+    except (
+        OSError, subprocess.TimeoutExpired, RuntimeProcessCancelled, KeyboardInterrupt, SystemExit,
+    ) as exc:
         # subprocess.run kills the Compose client on timeout, not its container.
         # Address only this probe; never remove a shared Compose project.
         cleanup_detail = ""
@@ -1546,7 +1569,7 @@ def _collect_docker_environment(
                 cleanup_detail = "; named probe container cleanup failed"
         except (OSError, subprocess.TimeoutExpired):
             cleanup_detail = "; named probe container cleanup could not be confirmed"
-        if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+        if isinstance(exc, (KeyboardInterrupt, SystemExit, RuntimeProcessCancelled)):
             raise
         raise ReproducibilityError(
             f"cannot capture Docker runtime environment: {exc}{cleanup_detail}"

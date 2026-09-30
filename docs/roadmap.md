@@ -20,7 +20,7 @@ capability is absent until earlier product validation finishes.
 | M8 · Validation | In progress | Five external teams, observed outcomes, and a reviewed product decision |
 | M9 · Visual replay | Local workbench implemented | Configurable robot visual profiles, observed-pose gaps, playback, 2D/3D, synchronized replay comparison, and existing suite gate evidence |
 | M10 · Robot adapters | Planned | First non-Nav2 backend; evaluate Unitree Go2 + MuJoCo |
-| M11 · MCP / agent API | Partially implemented | Six read-only tools exist; execution/cancellation and reference agent remain planned |
+| M11 · MCP / agent API | Local orchestration implemented | Six inspection tools, four opt-in owned simulation tools, and a reference MCP workflow |
 | M12 · Team product validation | Planned, evidence-gated | Shared baselines/history and narrowly scoped paid experiments |
 
 ## Current focus

@@ -36,6 +36,7 @@ is implemented; external validation is in progress. Start with simulation.
 | Gate a change | Named local baselines, compatibility checks, deterministic thresholds, and blocking exit codes |
 | Review results in CI | JSON, Markdown, JUnit, and a reusable GitHub Action |
 | Inspect a run | 2D/3D replay with robot visual profiles, synchronized comparison, observed stuck/recovery events, and six read-only MCP tools |
+| Orchestrate a simulation | Explicitly enabled MCP start/status/cancel/compare tools with isolated evidence and owned runtime cleanup |
 
 Navigation success alone is not enough. A robot can reach its goal and still take
 a longer path or require more recoveries. RobotCI measures those changes against
@@ -161,7 +162,11 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
   `--baseline-suite`, or open replay files directly in the browser. See the
   [viewer guide](docs/replay-viewer.md).
 - **MCP:** install `python -m pip install -e ".[mcp]"`, then run `robotci-mcp`.
-  The [MCP guide](docs/mcp.md) lists the six read-only inspection tools.
+  The [MCP guide](docs/mcp.md) lists the six default inspection tools and four
+  opt-in managed simulation tools. Execution requires an explicit project,
+  configuration and `--allow-execution`; the model does not decide gate verdicts.
+  The [reference workflow](examples/mcp-agent/README.md) demonstrates diagnosis,
+  owned execution, polling, cancellation and deterministic comparison.
 - **Your simulator:** use the [native adapter contract](docs/native-runtime-adapter.md)
   to integrate an existing Nav2 environment. Verify compatibility for that environment.
 
@@ -173,7 +178,7 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 | M8: real-world validation | In progress; external evidence pending |
 | M9: visual replay | Local workbench with robot visual profiles, playback, 2D/3D, synchronized comparison, and suite gate evidence |
 | M10: additional robot adapters | Planned; Unitree Go2 + MuJoCo is a candidate |
-| M11: agent integration | Read-only MCP shipped; execution tools and reference agent remain planned |
+| M11: agent integration | Six inspection tools, four opt-in managed simulation tools and a reference MCP workflow |
 | M12: team capabilities | Requires evidence from external pilots |
 
 See the [roadmap](docs/roadmap.md) for scope and the

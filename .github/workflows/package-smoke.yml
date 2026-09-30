@@ -10,6 +10,7 @@ on:
       - "examples/**"
       - "tests/test_version.py"
       - "tests/test_public_alpha_examples.py"
+      - "scripts/installed_surface_smoke.py"
       - ".github/workflows/package-smoke.yml"
   push:
     branches:
@@ -20,6 +21,7 @@ on:
       - "examples/**"
       - "tests/test_version.py"
       - "tests/test_public_alpha_examples.py"
+      - "scripts/installed_surface_smoke.py"
       - ".github/workflows/package-smoke.yml"
   workflow_dispatch:
 
@@ -27,6 +29,7 @@ jobs:
   wheel:
     name: Build and install public alpha wheel
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
 
     steps:
       - name: Checkout repository
@@ -48,19 +51,16 @@ jobs:
       - name: Install wheel in a clean environment
         shell: bash
         run: |
-          python -m venv .wheel-smoke
-          .wheel-smoke/bin/python -m pip install --upgrade pip
-          .wheel-smoke/bin/python -m pip install dist/robotci-0.1.0a1-py3-none-any.whl
+          python -m venv "$RUNNER_TEMP/robotci-wheel-smoke"
+          "$RUNNER_TEMP/robotci-wheel-smoke/bin/python" -m pip install --upgrade pip
+          "$RUNNER_TEMP/robotci-wheel-smoke/bin/python" -m pip install \
+            'dist/robotci-0.1.0a1-py3-none-any.whl[mcp]'
 
-      - name: Verify packaged CLI and public example
+      - name: Verify installed CLI, viewer, and MCP outside the checkout
         shell: bash
         run: |
-          test "$(.wheel-smoke/bin/robotci version)" = "RobotCI 0.1.0a1"
-          .wheel-smoke/bin/robotci validate --config examples/nav2-loopback/robotci.yaml
-          .wheel-smoke/bin/robotci plan --config examples/nav2-loopback/robotci.yaml
-          .wheel-smoke/bin/robotci-init --help
-          .wheel-smoke/bin/robotci-baseline --help
-          .wheel-smoke/bin/robotci-support-bundle --help
+          "$RUNNER_TEMP/robotci-wheel-smoke/bin/python" -I scripts/installed_surface_smoke.py \
+            --checkout-root "$GITHUB_WORKSPACE"
 
       - name: Upload public alpha wheel
         uses: actions/upload-artifact@v4
