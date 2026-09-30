@@ -42,6 +42,13 @@ ROOT = Path(__file__).resolve().parents[1]
 BASELINE_REPETITIONS = 5
 MPPI_PLUGIN = "nav2_mppi_controller::MPPIController"
 SUT_KEY = "controller_server.ros__parameters.FollowPath.vx_max"
+BENCHMARK_PRESET = {
+    "visualize": False,
+    "regenerate_noises": False,
+    "xy_goal_tolerance": 0.05,
+    "yaw_goal_tolerance": 0.10,
+    "stateful": False,
+}
 
 
 class AcceptanceError(ValueError):
@@ -108,6 +115,7 @@ def validate_target(
         "clock_progressing", "scan_received", "odom_received", "start_pose_verified",
         "physical_start_verified", "map_footprints_free", "required_tf", "nav2_active",
         "navigate_to_pose", "controller_stable", "cmd_vel_type_verified",
+        "benchmark_preset_verified", "benchmark_preset_stable",
     ):
         if not isinstance(checks, dict) or checks.get(name) is not True:
             raise AcceptanceError(f"Gazebo readiness evidence missing: {name}")
@@ -127,6 +135,22 @@ def validate_target(
         raise AcceptanceError("controller YAML digest changed during navigation")
     if value.get("controller_after") != controller:
         raise AcceptanceError("effective controller settings changed during navigation")
+    for phase in ("benchmark_preset", "benchmark_preset_after", "benchmark_preset_expected"):
+        preset = value.get(phase)
+        if not isinstance(preset, dict) or preset.keys() != BENCHMARK_PRESET.keys():
+            raise AcceptanceError(f"Gazebo manifest has no complete fixed {phase}")
+        for name, expected in BENCHMARK_PRESET.items():
+            observed = preset[name]
+            if isinstance(expected, bool):
+                valid = observed is expected
+            else:
+                valid = (
+                    not isinstance(observed, bool)
+                    and isinstance(observed, int | float)
+                    and observed == expected
+                )
+            if not valid:
+                raise AcceptanceError(f"fixed benchmark preset differs: {phase}.{name}")
     assets = value.get("assets")
     required_assets = {
         "map_yaml", "map_image", "world", "rendered_world", "launch",
@@ -157,7 +181,7 @@ def validate_target(
         ):
             raise AcceptanceError(f"effective {node} command message type differs from the bridge")
     return {"assets": assets, "packages": packages, "command_velocity_type": command_type,
-            "stamped_cmd_vel": velocity_flags}
+            "stamped_cmd_vel": velocity_flags, "benchmark_preset": value["benchmark_preset"]}
 
 
 def measurement_outcome(candidate_report: dict[str, object]) -> tuple[str, bool]:
@@ -251,6 +275,7 @@ def run_experiment(
         "adapter_sha256": digest(adapter.read_bytes()),
         "subject": {"key": SUT_KEY, "baseline": 0.5, "candidate": 0.2,
                     "baseline_sha256": digest(original), "candidate_sha256": digest(candidate)},
+        "benchmark_preset": BENCHMARK_PRESET,
         "policy": {"duration_pct": 10, "path_pct": 10, "distance_m": 0.1,
                    "additional_stuck_events": 0, "additional_recoveries": 0},
         "runs": [], "unchanged_pair_gates": [], "duration_regression_detected": False,

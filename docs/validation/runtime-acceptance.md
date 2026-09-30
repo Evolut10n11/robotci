@@ -1,10 +1,11 @@
 # Native Nav2 / Gazebo runtime acceptance
 
-Status on 2026-09-30: adapter and automated experiment implemented; real CI
-verification is pending. The
+Status on 2026-09-30: the adapter completed real Gazebo navigation, but the first
+unchanged baseline series was unstable under the default policy. A revised,
+frozen controller benchmark preset requires a new complete measurement series. The
 maintenance environment is Ubuntu 24.04 with Python 3.12, but has no `ros2`,
 `gz`, Docker executable, or `/opt/ros/jazzy/setup.bash`. Unit tests and the
-existing Loopback CI are not evidence that this Gazebo integration works.
+existing Loopback CI alone are not evidence that this Gazebo integration works.
 This experiment contributes zero external participants to M8.
 
 ## Checked-in experiment
@@ -26,6 +27,64 @@ Every invocation uses a new world/transport partition and verifies physical
 Gazebo pose separately from the localized pose. Controller settings are read
 back before and after navigation, and cleanup must be confirmed before the run
 is admitted into the comparison series.
+
+## Observed first experiment: unchanged baselines were unstable
+
+The real [Gazebo CI run 36732478638](https://github.com/Evolut10n11/robotci/actions/runs/36732478638),
+at revision `19506bb4`, completed the warmup and all five baseline navigations
+with `PASS`. Retained artifact `11105484556` contains the original controller
+YAML, per-run results/replays/read-back, logs, and all 20 ordered-pair gates.
+There were no observed stuck events or recoveries in those five baselines.
+
+| Unchanged run | Duration, seconds | Path length, metres | Final goal distance, metres |
+| --- | ---: | ---: | ---: |
+| baseline-1 | 15.193 | 5.327 | 0.185 |
+| baseline-2 | 13.301 | 5.089 | 0.305 |
+| baseline-3 | 14.588 | 5.299 | 0.234 |
+| baseline-4 | 15.193 | 5.355 | 0.190 |
+| baseline-5 | 16.193 | 5.448 | 0.292 |
+
+Eight of the 20 unchanged-pair comparisons produced `REGRESSION`: four exceeded
+the default 10% duration allowance and four exceeded the default 0.1 m goal
+distance allowance. The duration range was 21.7% relative to the shortest run;
+goal distance varied by approximately 0.120 m. The driver stopped with
+`UNCHANGED_BASELINES_UNSTABLE`. It did not capture a known-good baseline or run
+the held-out control, speed intervention, or restored control. Navigation
+success therefore did not establish usable regression detection for this setup.
+
+The original installed controller enabled MPPI trajectory visualization and
+noise regeneration, and used a stateful goal checker with 0.25 m XY and
+0.25 rad yaw tolerances. Replay shows the first four runs reaching x=4 m in
+11.190–11.596 seconds, while final completion varies more; the final poses are
+consistent with a broad arrival criterion and a variable completion tail.
+The logs contain no missed-controller-loop warnings. These observations support
+testing a more precise, less costly controller preset; they do not prove that
+one setting explains every source of variance.
+
+Before any new warmup or measured run, the workflow now freezes these settings
+in the explicit SUT controller YAML:
+
+| Setting | Frozen value |
+| --- | --- |
+| `FollowPath.visualize` | `false` |
+| `FollowPath.regenerate_noises` | `false` |
+| `general_goal_checker.xy_goal_tolerance` | `0.05` m |
+| `general_goal_checker.yaw_goal_tolerance` | `0.10` rad |
+| `general_goal_checker.stateful` | `false` |
+
+The preset removes visualization work and per-iteration noise-thread wakeups,
+and requires the XY criterion to remain satisfied while checking yaw. It does
+not make a general determinism guarantee for MPPI, AMCL, or shared-host timing.
+Readiness and post-navigation probes must confirm the exact preset, alongside
+the controller's effective speed and source digest. The speed intervention
+still changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s.
+
+The first series remains a failed stability experiment. Its runs are not reused
+or selected as a baseline. The revised setup must repeat warmup, all five
+baselines, all 20 stability gates, the held-out control, candidate, and restored
+control. Default regression thresholds and the predeclared selection of run 1
+remain unchanged. Success of the revised series remains pending until its
+measurements are retained and reviewed.
 
 ## Target and experiment boundary
 

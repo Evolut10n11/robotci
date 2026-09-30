@@ -18,6 +18,25 @@ ordered baseline comparisons, an independent unchanged control, one MPPI
 Baseline 1 is selected before measurement. The default regression policy stays
 unchanged throughout the experiment.
 
+Before warm-up, the workflow freezes the same benchmark preset for every run:
+
+| Nav2 setting | Value |
+| --- | --- |
+| `FollowPath.visualize` | `false` |
+| `FollowPath.regenerate_noises` | `false` |
+| `general_goal_checker.stateful` | `false` |
+| `general_goal_checker.xy_goal_tolerance` | `0.05 m` |
+| `general_goal_checker.yaw_goal_tolerance` | `0.10 rad` |
+
+This disables trajectory visualization and repeated noise generation, and
+requires the robot to satisfy position and orientation tolerances together.
+The adapter verifies the actual parameter values before and after navigation.
+Controller frequency remains `20 Hz`, batch size remains `2000`, and the
+intervention changes only `vx_max`. This preset does not guarantee deterministic
+navigation; the five unchanged baselines must still pass all default gates.
+The runbook preserves the first experiment that rejected unstable baselines
+with the upstream settings. The new preset needs fresh runtime measurements.
+
 Download its artifact to inspect `experiment.json`, scenario results, observed
 replays, target manifests, logs, and JSON/Markdown/JUnit comparison reports.
 The artifact records failed attempts as well as completed measurements.

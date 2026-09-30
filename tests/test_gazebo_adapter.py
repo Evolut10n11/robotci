@@ -18,12 +18,15 @@ import yaml
 from robotci.ros import gazebo_cleanup
 from robotci.ros.gazebo_readiness import (
     asset_manifest,
+    decode_controller_parameters,
     main,
     map_pose_is_free,
     parse_gazebo_pose,
     pose_matches,
     sha256_file,
     sha256_tree,
+    validate_benchmark_preset,
+    verify_controller_unchanged,
 )
 
 
@@ -157,6 +160,107 @@ def test_sut_velocity_is_validated_before_ros_imports(tmp_path: Path, speed) -> 
     args.params.write_text(yaml.safe_dump(data))
     with pytest.raises(ValueError, match="finite positive"):
         asset_manifest(args)
+
+
+def _benchmark_preset() -> dict:
+    return {"visualize": False, "regenerate_noises": False,
+            "xy_goal_tolerance": 0.05, "yaw_goal_tolerance": 0.10, "stateful": False}
+
+
+def _controller_values() -> list[SimpleNamespace]:
+    return [
+        SimpleNamespace(type=4, string_value="nav2_mppi_controller::MPPIController"),
+        SimpleNamespace(type=3, double_value=0.5),
+        SimpleNamespace(type=1, bool_value=False),
+        SimpleNamespace(type=1, bool_value=False),
+        SimpleNamespace(type=3, double_value=0.05),
+        SimpleNamespace(type=3, double_value=0.10),
+        SimpleNamespace(type=1, bool_value=False),
+    ]
+
+
+def test_effective_controller_and_fixed_preset_require_typed_ros_values() -> None:
+    controller, preset = decode_controller_parameters(_controller_values())
+    assert controller == {"plugin": "nav2_mppi_controller::MPPIController", "vx_max": 0.5}
+    assert preset == _benchmark_preset()
+
+
+@pytest.mark.parametrize("index", range(7))
+def test_controller_readback_rejects_unset_or_wrong_parameter_types(index: int) -> None:
+    values = _controller_values()
+    values[index].type = 0
+    with pytest.raises(ValueError, match="wrong ROS parameter type"):
+        decode_controller_parameters(values)
+
+
+def test_controller_readback_rejects_missing_fields() -> None:
+    with pytest.raises(ValueError, match="incomplete"):
+        decode_controller_parameters(_controller_values()[:-1])
+
+
+@pytest.mark.parametrize("name,value", [
+    ("visualize", "false"), ("regenerate_noises", 0), ("stateful", None),
+    ("xy_goal_tolerance", True), ("xy_goal_tolerance", 0),
+    ("yaw_goal_tolerance", float("nan")), ("yaw_goal_tolerance", -0.1),
+])
+def test_benchmark_preset_rejects_coercible_or_invalid_values(name: str, value) -> None:
+    preset = dict(_benchmark_preset(), **{name: value})
+    with pytest.raises(ValueError, match="benchmark"):
+        validate_benchmark_preset(preset)
+
+
+def test_asset_manifest_records_fixed_preset_from_sut_yaml(tmp_path: Path, monkeypatch) -> None:
+    args = _asset_args(tmp_path)
+    monkeypatch.setattr(Path, "home", lambda: tmp_path / "no-fuel")
+    data = yaml.safe_load(args.params.read_text())
+    controller = data["controller_server"]["ros__parameters"]
+    controller["FollowPath"].update(visualize=False, regenerate_noises=False)
+    controller["general_goal_checker"] = {
+        "stateful": False, "xy_goal_tolerance": 0.05, "yaw_goal_tolerance": 0.10,
+    }
+    args.params.write_text(yaml.safe_dump(data))
+    assert asset_manifest(args)["benchmark_preset_expected"] == _benchmark_preset()
+    controller["general_goal_checker"]["xy_goal_tolerance"] = False
+    args.params.write_text(yaml.safe_dump(data))
+    with pytest.raises(ValueError, match="finite positive"):
+        asset_manifest(args)
+
+
+@pytest.mark.parametrize("change", [None, "speed", "preset", "file"])
+def test_after_navigation_readback_detects_parameter_or_file_drift(
+    tmp_path: Path, monkeypatch, change: str | None,
+) -> None:
+    values = _controller_values()
+    controller, preset = decode_controller_parameters(values)
+    params = tmp_path / "controller.yaml"
+    params.write_text("original controller configuration")
+    manifest = {"controller": controller, "benchmark_preset": preset,
+                "params_sha256": sha256_file(params), "checks": {}}
+    if change == "speed":
+        values[1].double_value = 0.2
+    elif change == "preset":
+        values[6].bool_value = True
+    elif change == "file":
+        params.write_text("changed controller configuration")
+    response = SimpleNamespace(values=values)
+    future = SimpleNamespace(done=lambda: True, result=lambda: response)
+    client = SimpleNamespace(service_is_ready=lambda: True, call_async=lambda request: future)
+    node = SimpleNamespace(create_client=lambda *args: client, destroy_node=lambda: None)
+    monkeypatch.setitem(sys.modules, "rclpy", SimpleNamespace(
+        init=lambda **kwargs: None, shutdown=lambda: None, spin_once=lambda *args, **kwargs: None,
+    ))
+    monkeypatch.setitem(sys.modules, "rclpy.node", SimpleNamespace(Node=lambda name: node))
+    monkeypatch.setitem(sys.modules, "rcl_interfaces.srv", SimpleNamespace(
+        GetParameters=SimpleNamespace(Request=SimpleNamespace),
+    ))
+    if change:
+        with pytest.raises(RuntimeError, match="changed during navigation"):
+            verify_controller_unchanged(argparse.Namespace(params=params), manifest)
+        assert not manifest["checks"].get("benchmark_preset_stable")
+    else:
+        verify_controller_unchanged(argparse.Namespace(params=params), manifest)
+        assert manifest["benchmark_preset_after"] == _benchmark_preset()
+        assert manifest["checks"]["benchmark_preset_stable"] is True
 
 
 def test_invalid_cli_pose_persists_infrastructure_evidence(tmp_path: Path, monkeypatch) -> None:
