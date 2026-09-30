@@ -164,8 +164,8 @@ def test_sut_velocity_is_validated_before_ros_imports(tmp_path: Path, speed) -> 
 
 def _benchmark_preset() -> dict:
     return {"visualize": False, "regenerate_noises": False,
-            "xy_goal_tolerance": 0.15, "yaw_goal_tolerance": 0.25, "stateful": False,
-            "goal_angle_activation_distance": 0.15}
+            "xy_goal_tolerance": 0.20, "yaw_goal_tolerance": 0.25, "stateful": True,
+            "goal_angle_activation_distance": 0.25}
 
 
 def _controller_values() -> list[SimpleNamespace]:
@@ -174,10 +174,10 @@ def _controller_values() -> list[SimpleNamespace]:
         SimpleNamespace(type=3, double_value=0.5),
         SimpleNamespace(type=1, bool_value=False),
         SimpleNamespace(type=1, bool_value=False),
-        SimpleNamespace(type=3, double_value=0.15),
+        SimpleNamespace(type=3, double_value=0.20),
         SimpleNamespace(type=3, double_value=0.25),
-        SimpleNamespace(type=1, bool_value=False),
-        SimpleNamespace(type=3, double_value=0.15),
+        SimpleNamespace(type=1, bool_value=True),
+        SimpleNamespace(type=3, double_value=0.25),
     ]
 
 
@@ -220,9 +220,9 @@ def test_asset_manifest_records_fixed_preset_from_sut_yaml(tmp_path: Path, monke
     controller = data["controller_server"]["ros__parameters"]
     controller["FollowPath"].update(visualize=False, regenerate_noises=False)
     controller["general_goal_checker"] = {
-        "stateful": False, "xy_goal_tolerance": 0.15, "yaw_goal_tolerance": 0.25,
+        "stateful": True, "xy_goal_tolerance": 0.20, "yaw_goal_tolerance": 0.25,
     }
-    controller["FollowPath"]["GoalAngleCritic"] = {"threshold_to_consider": 0.15}
+    controller["FollowPath"]["GoalAngleCritic"] = {"threshold_to_consider": 0.25}
     args.params.write_text(yaml.safe_dump(data))
     assert asset_manifest(args)["benchmark_preset_expected"] == _benchmark_preset()
     controller["general_goal_checker"]["xy_goal_tolerance"] = False
@@ -244,7 +244,7 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
     if change == "speed":
         values[1].double_value = 0.2
     elif change == "preset":
-        values[6].bool_value = True
+        values[6].bool_value = False
     elif change == "goal_angle":
         values[7].double_value = 0.5
     elif change == "file":

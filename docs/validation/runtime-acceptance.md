@@ -1,8 +1,11 @@
 # Native Nav2 / Gazebo runtime acceptance
 
-Status on 2026-09-30: the adapter completed real Gazebo navigation, but the first
-unchanged baseline series was unstable and the next, tighter controller preset
-timed out during warmup. A revised frozen preset requires a new complete series. The
+Status on 2026-09-30: the complete internal regression-detection experiment is
+verified on the recorded Nav2/Gazebo setup. Five unchanged runs passed every
+ordered-pair comparison, both unchanged controls passed, and the real controller
+speed intervention produced a duration regression. Earlier failed calibration
+attempts are retained below. This is evidence for one recorded setup and cohort,
+not a broad simulator or statistical false-positive guarantee. The
 maintenance environment is Ubuntu 24.04 with Python 3.12, but has no `ros2`,
 `gz`, Docker executable, or `/opt/ros/jazzy/setup.bash`. Unit tests and the
 existing Loopback CI alone are not evidence that this Gazebo integration works.
@@ -111,28 +114,65 @@ The early alignment objective is a plausible contributor to the observed
 near-goal stall; changing the goal checker alone did not resolve it. The
 experiment does not establish that this is the only cause.
 
-## Current frozen preset: verification pending
+## Observed third preset: two unchanged cohorts remained unstable
 
-The next full series will keep visualization and per-iteration noise regeneration
-disabled and the goal checker non-stateful. It will delay the final-heading
-critic until the robot is within 0.15 m and use a 0.15 m XY goal tolerance with
-the original 0.25 rad yaw tolerance:
+The third preset used 0.15 m XY tolerance, 0.25 rad yaw tolerance, a non-stateful
+goal checker, and a final-heading activation distance of 0.15 m. Visualization
+and per-iteration noise regeneration remained disabled. Two separate CI runs
+tested this same preset on the Gazebo PR and the subsequent integration PR:
+
+- [PR #93 run 36742707538](https://github.com/Evolut10n11/robotci/actions/runs/36742707538),
+  artifact `11111976272`, recorded checkout revision `75846c8`.
+- [PR #94 run 36742824636](https://github.com/Evolut10n11/robotci/actions/runs/36742824636),
+  artifact `11111881793`, recorded checkout revision `39e35c5`.
+
+Each cohort completed its warmup and all five unchanged routes with `PASS`.
+Warmup durations were 17.558 and 16.566 seconds respectively. Each internally
+comparable cohort produced 13 passing and seven regressing ordered-pair gates,
+then stopped with `UNCHANGED_BASELINES_UNSTABLE`. Neither run selected a
+known-good baseline or evaluated a held-out control, candidate, or restored
+control. No comparison across these different checkout revisions was used.
+
+| Unchanged run | PR #93 duration, seconds | Recoveries | PR #94 duration, seconds | Recoveries |
+| --- | ---: | ---: | ---: | ---: |
+| baseline-1 | 15.942 | 0 | 15.249 | 0 |
+| baseline-2 | 16.737 | 0 | 15.715 | 0 |
+| baseline-3 | 15.748 | 0 | 16.474 | 0 |
+| baseline-4 | 62.938 | 5 | 48.998 | 4 |
+| baseline-5 | 43.849 | 3 | 42.127 | 3 |
+
+The late two runs in both cohorts reached approximately 0.142–0.181 m from the
+goal before their first recovery. At those closest pre-recovery samples, the
+absolute yaw errors were approximately 0.464–1.037 rad. Their traces then show
+near-goal turning, positional drift, and recovery cycles. This pattern supports
+testing a completion protocol that can capture arrival before the final turn;
+it does not establish a stable comparison result for that protocol.
+
+## Current frozen preset: verified on the recorded setup
+
+The successful full series kept visualization and per-iteration noise regeneration
+disabled. It used a stateful goal checker with 0.20 m XY tolerance and the
+original 0.25 rad yaw tolerance. The final-heading critic activates within
+0.25 m, before the position capture boundary:
 
 | Setting | Frozen value |
 | --- | --- |
 | `FollowPath.visualize` | `false` |
 | `FollowPath.regenerate_noises` | `false` |
-| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.15` m |
-| `general_goal_checker.xy_goal_tolerance` | `0.15` m |
+| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.25` m |
+| `general_goal_checker.xy_goal_tolerance` | `0.20` m |
 | `general_goal_checker.yaw_goal_tolerance` | `0.25` rad |
-| `general_goal_checker.stateful` | `false` |
+| `general_goal_checker.stateful` | `true` |
 
-The final-heading activation distance equals the XY goal-checker tolerance.
-Inspection of Nav2 1.3.13 shows that the heading critic is gated by position
-distance. Matching the thresholds avoids a near-goal band that can satisfy
-the XY completion criterion while leaving the explicit final-heading objective
-inactive. This is an inference from the source, not observed proof that the
-revised controller will complete reliably or meet the regression policy.
+Inspection of the installed
+[Nav2 1.3.13 SimpleGoalChecker](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_controller/plugins/simple_goal_checker.cpp)
+shows that stateful checking retains the satisfied XY criterion while checking
+the final yaw. MPPI's final-heading critic is gated by position distance; the
+0.25 m activation makes that objective available before the 0.20 m capture
+boundary. The earlier pre-recovery arrivals motivated this fixed hypothesis.
+The completed cohort below supports it on the recorded setup; it does not
+establish reliability or bounded drift across other environments. RobotCI
+still evaluates the observed final pose against the unchanged scenario policy.
 
 The controller's XY completion tolerance remains stricter than its original
 0.25 m. These are controller settings frozen before collecting new data;
@@ -141,18 +181,87 @@ RobotCI's task and comparison policy remain unchanged, including the default
 back the complete preset before and after each navigation. Candidate YAML
 changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s.
 
-Both failed attempts remain evidence of setup limitations. No run from either
-attempt is reused or handpicked as a known-good baseline. The revised preset
-must complete a fresh warmup, five unchanged runs, all 20 ordered-pair gates,
-the held-out control, candidate, and restored control. Its success remains
-pending until the actual measurements and reports are retained and reviewed.
+All failed attempts and both third-preset cohorts remain evidence of setup
+limitations. Their runs were not reused or handpicked as a known-good baseline.
+The successful cohort used fresh measurements for the warmup, five unchanged
+runs, all 20 ordered-pair gates, held-out control, candidate, and restored control.
+
+## Completed internal cohort and regression proof
+
+[Gazebo CI run 36749494953](https://github.com/Evolut10n11/robotci/actions/runs/36749494953)
+completed successfully for PR head `c461b555`. Its retained
+[artifact 11114463143](https://github.com/Evolut10n11/robotci/actions/runs/36749494953/artifacts/11114463143)
+contains 145 files, including all nine navigation result/replay/target bundles,
+20 stability gates, captured baseline, control/candidate/restored gate reports
+in JSON/Markdown/JUnit, original/candidate YAML, package inventory, and logs.
+The archive SHA256 is
+`c6dc9edb37359980abaad3112f8f1944d6a2eebe8279aa4f9d84125b559b6a0a`.
+The recorded checkout revision is `9cc8d1459973846f5b9547a46b497077ca3d7c73`;
+the upstream launch remains pinned at
+`645abd95f2be02a13ca539b29c2ddc065db34f89`. Installed package versions and
+actual map/world/launch/TurtleBot/bridge/Fuel bytes are identified in the bundle.
+
+| Run | MPPI speed cap, m/s | Duration, seconds | Path, metres | Final distance, metres | Feedback/replay samples |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| warmup | 0.5 | 15.480 | 5.529 | 0.167 | 78 |
+| baseline-1 | 0.5 | 14.921 | 5.432 | 0.152 | 75 |
+| baseline-2 | 0.5 | 15.294 | 5.511 | 0.197 | 77 |
+| baseline-3 | 0.5 | 14.320 | 5.379 | 0.216 | 72 |
+| baseline-4 | 0.5 | 15.075 | 5.487 | 0.134 | 75 |
+| baseline-5 | 0.5 | 15.289 | 5.451 | 0.155 | 77 |
+| held-out control | 0.5 | 15.135 | 5.390 | 0.181 | 76 |
+| candidate | 0.2 | 28.689 | 5.411 | 0.084 | 144 |
+| restored control | 0.5 | 14.725 | 5.444 | 0.195 | 74 |
+
+Every navigation completed with `PASS`, valid final pose, zero invalid pose
+samples, and zero observed stuck events or recoveries. The five baseline
+durations ranged from 14.320 to 15.294 seconds, with median 15.075 seconds;
+the largest ordered-pair duration increase was 6.802%. Their final-distance
+spread was 0.0823 m. All **20 of 20** separate directed stability gates passed
+the unchanged default policy. Baseline run 1 was selected by the rule declared
+before collection, not by post-candidate performance.
+
+The held-out and restored controls passed with no regression findings. The
+candidate changed only `controller_server.ros__parameters.FollowPath.vx_max`
+from 0.5 to 0.2 m/s. Its gate reported exactly one finding: navigation duration
+increased from 14.921 to 28.689 seconds, **+92.273%**, exceeding the unchanged
+10% allowance. Path length, final distance, recoveries, and stuck counters did
+not produce regression findings. The experiment status is
+`COMPLETED_DURATION_REGRESSION`.
+
+Every `results/depot_route.gazebo.json` records physical start, map clearance,
+progressing clock, sensors, required TF, active Nav2/action endpoint, command
+type, and fixed-preset verification. Controller and preset read-back were
+stable before and after each navigation. Baseline/control/restored runs read
+back 0.5 m/s and the candidate read back 0.2 m/s. All nine runs used different
+Gazebo transport partitions. Each cleanup record reports both
+`process_groups_stopped=true` and `owned_processes_stopped=true`, with an empty
+survivor list. These are observations of the adapter's owned processes, not an
+unrestricted claim about unrelated host processes.
+
+The comparable suites share execution fingerprint
+`sha256:0db5f99a76acd97085f51fadbb7febc6463e5fbf2e160c3e6f8391e90106576f`.
+SUT digests are recorded separately:
+
+- original/restored controller:
+  `sha256:9a66eefe15a5aec140ecf3d910e131ee193d8850d26e0ab2137385cecc4af26d`;
+- speed-intervention controller:
+  `sha256:3833afe0515b07b8f5b79c297dd281a30c86a610a21307c8128ae82a6b217e16`.
+
+Before/after read-back digests match the corresponding subject bytes, and
+`experiment.json` records `subject_restored=true`. Thus the slower candidate
+was evaluated under the same harness and task, with passing controls and
+restoration evidence. This completes the internal experiment on this pinned
+configuration. It contributes **zero external teams** to M8; an independent
+team's reproduction and broader environment validation remain separate work.
 
 ## Target and experiment boundary
 
 Use the official Nav2 TurtleBot 4 Gazebo demo first, in an isolated Ubuntu
-24.04 / ROS 2 Jazzy simulation workspace. Its empty ROS namespace avoids the
-unresolved Clearpath namespace integration described in
-[clearpath-preflight.md](clearpath-preflight.md).
+24.04 / ROS 2 Jazzy simulation workspace. Its empty ROS namespace keeps this
+cohort separate from the Clearpath integration described in
+[clearpath-preflight.md](clearpath-preflight.md). Namespace support is implemented;
+execution against the actual Clearpath project has not been verified.
 
 The inspected upstream revision is
 [`ros-navigation/navigation2@645abd95f2be02a13ca539b29c2ddc065db34f89`](https://github.com/ros-navigation/navigation2/tree/645abd95f2be02a13ca539b29c2ddc065db34f89).

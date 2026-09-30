@@ -12,7 +12,10 @@ The public [shortlist](../pilot-targets.md) contains prospects, not participants
   and Docker in the execution environment. This is internal evidence only.
 - [Nav2/Gazebo runtime acceptance](runtime-acceptance.md): a pinned target,
   repeated baselines, unchanged controls, and a real controller-parameter
-  intervention; simulation and adapter verification remain pending.
+  intervention. The pinned experiment passed nine fresh-world runs, all 20
+  unchanged comparisons, both controls and a measured speed regression.
+  This internal result does not establish external adoption or general
+  simulator compatibility.
 - [cohort.json](cohort.json): five empty slots for actual external participants.
 - `scripts/pilot_report.py`: standard-library-only evidence validation and a
   JSON/Markdown summary, runnable on Windows or Linux from the RobotCI checkout.

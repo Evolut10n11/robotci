@@ -208,6 +208,31 @@ def test_invalid_optional_replay_does_not_replace_existing_baseline(tmp_path: Pa
     assert (captured.path / "results" / sidecar.name).read_bytes() == original
 
 
+def test_replaced_baseline_keeps_the_new_replay_and_metrics_after_source_removal(
+    tmp_path: Path,
+) -> None:
+    suite = copy_suite(tmp_path, "baseline")
+    sidecar = add_sidecar(suite)
+    store = tmp_path / "saved"
+    capture_baseline("known-good", suite, store_root=store)
+    result_path = suite.parent / "results" / "route.json"
+    result = json.loads(result_path.read_text())
+    result["metrics"]["path_length_m"] = 4.5
+    result_path.write_text(json.dumps(result))
+    add_sidecar(suite)
+    replacement_replay = sidecar.read_bytes()
+
+    captured = capture_baseline("known-good", suite, store_root=store, replace=True)
+    shutil.rmtree(suite.parent)
+
+    assert (captured.path / "results" / sidecar.name).read_bytes() == replacement_replay
+    session = suite_session(captured.path / "suite-result.json")
+    saved = session["scenarios"][0]["candidate"]
+    assert saved["metrics"]["path_length_m"] == 4.5
+    assert saved["replay"]["metrics"]["path_length_m"] == 4.5
+    assert list(store.iterdir()) == [captured.path]
+
+
 def test_suite_session_is_served_without_exposing_filesystem_paths(tmp_path: Path) -> None:
     session = suite_session(copy_suite(tmp_path, "baseline"))
     server = create_viewer_server(None, session=session, port=0)

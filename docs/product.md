@@ -59,8 +59,10 @@ Do not imply that the current recorder captures live video or every event type.
 
 ## Additional robot and simulator adapters
 
-Nav2 is the proving ground. Later backends may include Gazebo, MuJoCo, Isaac
-Sim/Lab, Unitree stacks, and custom ROS2 robots. Unitree Go2 with MuJoCo is a
+Nav2 is the proving ground. An experimental Gazebo Harmonic adapter for Nav2
+is available; its [acceptance record](validation/runtime-acceptance.md) documents
+the measured limits. Later backends may include MuJoCo, Isaac Sim/Lab, Unitree
+stacks, and custom ROS2 robots. Unitree Go2 with MuJoCo is a
 candidate for the first non-Nav2 experiment, subject to a reproducible public
 setup, suitable licensing, and a useful test scenario.
 
@@ -92,7 +94,9 @@ state rather than a single model conversation.
 
 ## Validate before building the team layer
 
-M8 is tracked in [issue #48](https://github.com/Evolut10n11/robotci/issues/48).
+The M8 criteria originated in [issue #48](https://github.com/Evolut10n11/robotci/issues/48).
+Completion requires observed outcomes in the evidence register, independently
+of the issue's closed state.
 For a five-team cohort, the success criteria are:
 
 - 3 complete a real navigation suite on their own repository;

@@ -45,10 +45,10 @@ SUT_KEY = "controller_server.ros__parameters.FollowPath.vx_max"
 BENCHMARK_PRESET = {
     "visualize": False,
     "regenerate_noises": False,
-    "xy_goal_tolerance": 0.15,
+    "xy_goal_tolerance": 0.20,
     "yaw_goal_tolerance": 0.25,
-    "stateful": False,
-    "goal_angle_activation_distance": 0.15,
+    "stateful": True,
+    "goal_angle_activation_distance": 0.25,
 }
 
 

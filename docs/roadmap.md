@@ -25,12 +25,16 @@ capability is absent until earlier product validation finishes.
 
 ## Current focus
 
-1. Collect real M8 evidence under [issue #48](https://github.com/Evolut10n11/robotci/issues/48).
+1. Collect real M8 evidence against the criteria introduced in
+   [issue #48](https://github.com/Evolut10n11/robotci/issues/48).
    Use the [register](validation/README.md); internal demo runs and repository
    inspections do not count as external participation.
-2. Fix demonstrated onboarding/runtime blockers. The
-   [Clearpath preflight](validation/clearpath-preflight.md) identifies the need for
-   a simulation environment and an explicit namespace-aware integration.
+2. Verify the experimental [Nav2/Gazebo adapter](../examples/nav2-gazebo/README.md)
+   with repeated unchanged baselines and a real controller intervention; retain
+   successful and failed evidence in the [acceptance record](validation/runtime-acceptance.md).
+   Canonical ROS namespaces and bounded action-server readiness are implemented.
+   The [Clearpath preflight](validation/clearpath-preflight.md) still requires an
+   actual Clearpath simulation before compatibility can be claimed.
 3. Validate the replay workbench on real baseline/candidate recordings. Use
    observed debugging needs to prioritize map context, event recording, and
    deeper agent integration.
@@ -63,6 +67,10 @@ capability is absent until earlier product validation finishes.
 | M7 | [PR #82](https://github.com/Evolut10n11/robotci/pull/82) |
 | M8 preparation | [PR #83](https://github.com/Evolut10n11/robotci/pull/83); milestone remains open |
 | M9 local replay workbench | [PR #86](https://github.com/Evolut10n11/robotci/pull/86) |
+| Nav2 telemetry and runtime cleanup | [PR #92](https://github.com/Evolut10n11/robotci/pull/92) |
+| Experimental Gazebo and ROS namespaces | [PR #93](https://github.com/Evolut10n11/robotci/pull/93); acceptance status is recorded separately |
+| Managed MCP execution and installed-wheel checks | [PR #94](https://github.com/Evolut10n11/robotci/pull/94) |
+| Baseline publication, Action report freshness and portable scenario names | [PR #95](https://github.com/Evolut10n11/robotci/pull/95) |
 
 New adapters, hosted infrastructure, and paid services depend on an observed use
 case. Agents may explain evidence; regression decisions remain deterministic.

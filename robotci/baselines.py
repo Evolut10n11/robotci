@@ -71,6 +71,47 @@ def _validated_suite(suite_path: Path) -> ValidatedSuiteResult:
     return suite
 
 
+def _publish_baseline(staged: Path, destination: Path, *, replace: bool) -> None:
+    """Publish a verified bundle without copying over or deleting the current one."""
+    backup_parent: Path | None = None
+    backup: Path | None = None
+    published = False
+    try:
+        if destination.exists():
+            if not replace:
+                raise BaselineError(f"baseline already exists: {destination.name}")
+            backup_parent = Path(
+                tempfile.mkdtemp(prefix=f".{destination.name}-backup-", dir=destination.parent)
+            )
+            backup = backup_parent / "previous"
+            destination.rename(backup)
+        try:
+            # Both paths belong to the same store/filesystem. A failed rename
+            # cannot leave a partially copied bundle at the public path.
+            staged.rename(destination)
+            published = True
+        except BaseException as exc:
+            if backup is not None:
+                try:
+                    backup.rename(destination)
+                except BaseException as rollback_exc:
+                    # Never let cleanup erase the only remaining known-good copy.
+                    raise BaselineError(
+                        f"cannot publish baseline {destination.name!r}: {exc}; "
+                        f"previous baseline preserved at {backup.resolve()}; "
+                        f"cannot restore it: {rollback_exc}"
+                    ) from exc
+            if not isinstance(exc, OSError):
+                raise
+            raise BaselineError(f"cannot publish baseline {destination.name!r}: {exc}") from exc
+    finally:
+        if backup_parent is not None and (published or backup is None or not backup.exists()):
+            # Publication or rollback has completed. Cleanup is best effort so
+            # a Windows file lock cannot turn a successful save into an error.
+            # An interruption before either completes must keep the old bundle.
+            shutil.rmtree(backup_parent, ignore_errors=True)
+
+
 def capture_baseline(
     name: str,
     suite_path: Path | str,
@@ -100,7 +141,9 @@ def capture_baseline(
         "scenarios": [item.scenario for item in suite.scenarios],
     }
 
-    with tempfile.TemporaryDirectory(prefix=f".{name}-", dir=root) as temp_dir:
+    with tempfile.TemporaryDirectory(
+        prefix=f".{name}-", dir=root, ignore_cleanup_errors=True,
+    ) as temp_dir:
         temp = Path(temp_dir)
         shutil.copy2(source_suite, temp / "suite-result.json")
         for item in suite.scenarios:
@@ -120,7 +163,7 @@ def capture_baseline(
                         f"cannot capture replay for {item.result_file}: {exc}"
                     ) from exc
                 shutil.copy2(source_replay, default_replay_path(target))
-        # Validate the copied bundle before an explicit replacement removes the old baseline.
+        # Validate the complete copied bundle before touching the old baseline.
         captured_suite = _validated_suite(temp / "suite-result.json")
         for item in captured_suite.scenarios:
             replay_path = default_replay_path(item.result_path)
@@ -135,9 +178,7 @@ def capture_baseline(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
 
-        if destination.exists():
-            shutil.rmtree(destination)
-        shutil.copytree(temp, destination)
+        _publish_baseline(temp, destination, replace=replace)
 
     return BaselineInfo(
         name=name,

@@ -17,7 +17,7 @@
 
 # RobotCI
 
-Deterministic behavior regression testing for ROS 2 / Nav2.
+Behavior regression testing for ROS 2 / Nav2 with deterministic verdicts.
 
 Run repeatable navigation scenarios in simulation, compare a candidate with a
 known-good baseline, and block changes that make robot behavior worse. RobotCI
@@ -42,6 +42,10 @@ Navigation success alone is not enough. A robot can reach its goal and still tak
 a longer path or require more recoveries. RobotCI measures those changes against
 the baseline. Missing telemetry or an incompatible environment produces an
 infrastructure/input error rather than a misleading behavioral verdict.
+
+Verdicts are deterministic for the same validated artifacts and policy.
+Simulation measurements can vary; unchanged runs must establish a usable
+baseline before a controller intervention is accepted.
 
 ## Start here
 
@@ -169,6 +173,11 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
   owned execution, polling, cancellation and deterministic comparison.
 - **Your simulator:** use the [native adapter contract](docs/native-runtime-adapter.md)
   to integrate an existing Nav2 environment. Verify compatibility for that environment.
+- **Experimental Gazebo:** the [Jazzy/Harmonic TurtleBot example](examples/nav2-gazebo/README.md)
+  launches a fresh physical simulation and verifies readiness, controller
+  settings, telemetry and owned cleanup. Its
+  [acceptance record](docs/validation/runtime-acceptance.md) tracks measured
+  baseline stability and controller interventions.
 
 ## Project status
 
@@ -179,6 +188,7 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 | M9: visual replay | Local workbench with robot visual profiles, playback, 2D/3D, synchronized comparison, and suite gate evidence |
 | M10: additional robot adapters | Planned; Unitree Go2 + MuJoCo is a candidate |
 | M11: agent integration | Six inspection tools, four opt-in managed simulation tools and a reference MCP workflow |
+| Nav2 / Gazebo acceptance | Pinned experiment passed nine fresh-world runs, unchanged controls and a real speed-regression test; broader compatibility remains experimental |
 | M12: team capabilities | Requires evidence from external pilots |
 
 See the [roadmap](docs/roadmap.md) for scope and the
