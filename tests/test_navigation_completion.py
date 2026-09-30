@@ -57,6 +57,7 @@ def _run(
         def __init__(self, **kwargs):
             self.frames = iter(frames)
             self.feedback = None
+            self.nav_to_pose_client = NS(wait_for_server=lambda **kwargs: True)
 
         def get_clock(self):
             return NS(now=lambda: NS(to_msg=lambda: NS()))

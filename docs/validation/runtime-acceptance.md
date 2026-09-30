@@ -1,10 +1,31 @@
 # Native Nav2 / Gazebo runtime acceptance
 
-Status on 2026-09-30: experiment prepared, simulation **not executed**. The
+Status on 2026-09-30: adapter and automated experiment implemented; real CI
+verification is pending. The
 maintenance environment is Ubuntu 24.04 with Python 3.12, but has no `ros2`,
 `gz`, Docker executable, or `/opt/ros/jazzy/setup.bash`. Unit tests and the
 existing Loopback CI are not evidence that this Gazebo integration works.
 This experiment contributes zero external participants to M8.
+
+## Checked-in experiment
+
+The [Gazebo example](../../examples/nav2-gazebo/README.md),
+[fresh-world adapter](../../scripts/run_gazebo_attempt.sh),
+[readiness probe](../../robotci/ros/gazebo_readiness.py), and
+[acceptance driver](../../scripts/gazebo_acceptance.py) implement this sequence.
+The [Gazebo Acceptance workflow](../../.github/workflows/gazebo-acceptance.yml)
+provisions an isolated Ubuntu runner and retains measurements, manifests, logs
+and comparison artifacts even on failure. It selects command-velocity message
+type from the installed TurtleBot bridge before freezing the baseline setup.
+
+Target launch/controller files are kept outside the RobotCI source tree.
+Otherwise a Python launch file can make an output directory an importable
+namespace whose changing contents alter the harness fingerprint. The source
+identity contract is preserved; target/controller bytes are recorded separately.
+Every invocation uses a new world/transport partition and verifies physical
+Gazebo pose separately from the localized pose. Controller settings are read
+back before and after navigation, and cleanup must be confirmed before the run
+is admitted into the comparison series.
 
 ## Target and experiment boundary
 
@@ -65,8 +86,10 @@ Keep a small `robotci_adapter.sh` in the simulation workspace, following the
    beside each suite. Resolve any Gazebo-generated cache or asset download
    before freezing the environment and collecting comparable runs.
 
-Implement and verify this adapter on the provisioned host before calling the
-commands below. No untested Gazebo adapter is checked in as supported behavior.
+Verify the checked-in adapter or the target-specific equivalent on the
+provisioned host before calling the manual commands below. The automated driver
+performs the complete measurement series and reports incomplete or unstable
+experiments explicitly; code being present alone is not runtime evidence.
 `robotci doctor` checks the current Jazzy/Loopback requirements; it does not
 validate the extra Gazebo dependencies or this adapter's reset/readiness logic.
 

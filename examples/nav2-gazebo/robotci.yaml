@@ -1,0 +1,19 @@
+# Initial route checked against upstream depot.pgm occupancy. Each run also
+# checks map clearance and physically observed spawn/localization in Gazebo.
+# Physical success and unchanged-run stability are established by acceptance CI.
+version: 1
+runtime: native
+scenarios:
+  - name: depot_route
+    map_id: nav2-gazebo-depot
+    start:
+      x: 0.0
+      y: 0.0
+      yaw: 0.0
+    goal:
+      x: 5.0
+      y: 0.0
+      yaw: 0.0
+    timeout_sec: 120
+    goal_tolerance_m: 0.35
+    min_feedback_samples: 10
