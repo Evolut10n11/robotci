@@ -164,7 +164,8 @@ def test_sut_velocity_is_validated_before_ros_imports(tmp_path: Path, speed) -> 
 
 def _benchmark_preset() -> dict:
     return {"visualize": False, "regenerate_noises": False,
-            "xy_goal_tolerance": 0.05, "yaw_goal_tolerance": 0.10, "stateful": False}
+            "xy_goal_tolerance": 0.15, "yaw_goal_tolerance": 0.25, "stateful": False,
+            "goal_angle_activation_distance": 0.15}
 
 
 def _controller_values() -> list[SimpleNamespace]:
@@ -173,9 +174,10 @@ def _controller_values() -> list[SimpleNamespace]:
         SimpleNamespace(type=3, double_value=0.5),
         SimpleNamespace(type=1, bool_value=False),
         SimpleNamespace(type=1, bool_value=False),
-        SimpleNamespace(type=3, double_value=0.05),
-        SimpleNamespace(type=3, double_value=0.10),
+        SimpleNamespace(type=3, double_value=0.15),
+        SimpleNamespace(type=3, double_value=0.25),
         SimpleNamespace(type=1, bool_value=False),
+        SimpleNamespace(type=3, double_value=0.15),
     ]
 
 
@@ -185,7 +187,7 @@ def test_effective_controller_and_fixed_preset_require_typed_ros_values() -> Non
     assert preset == _benchmark_preset()
 
 
-@pytest.mark.parametrize("index", range(7))
+@pytest.mark.parametrize("index", range(8))
 def test_controller_readback_rejects_unset_or_wrong_parameter_types(index: int) -> None:
     values = _controller_values()
     values[index].type = 0
@@ -202,6 +204,8 @@ def test_controller_readback_rejects_missing_fields() -> None:
     ("visualize", "false"), ("regenerate_noises", 0), ("stateful", None),
     ("xy_goal_tolerance", True), ("xy_goal_tolerance", 0),
     ("yaw_goal_tolerance", float("nan")), ("yaw_goal_tolerance", -0.1),
+    ("goal_angle_activation_distance", True), ("goal_angle_activation_distance", 0),
+    ("goal_angle_activation_distance", float("nan")),
 ])
 def test_benchmark_preset_rejects_coercible_or_invalid_values(name: str, value) -> None:
     preset = dict(_benchmark_preset(), **{name: value})
@@ -216,8 +220,9 @@ def test_asset_manifest_records_fixed_preset_from_sut_yaml(tmp_path: Path, monke
     controller = data["controller_server"]["ros__parameters"]
     controller["FollowPath"].update(visualize=False, regenerate_noises=False)
     controller["general_goal_checker"] = {
-        "stateful": False, "xy_goal_tolerance": 0.05, "yaw_goal_tolerance": 0.10,
+        "stateful": False, "xy_goal_tolerance": 0.15, "yaw_goal_tolerance": 0.25,
     }
+    controller["FollowPath"]["GoalAngleCritic"] = {"threshold_to_consider": 0.15}
     args.params.write_text(yaml.safe_dump(data))
     assert asset_manifest(args)["benchmark_preset_expected"] == _benchmark_preset()
     controller["general_goal_checker"]["xy_goal_tolerance"] = False
@@ -226,7 +231,7 @@ def test_asset_manifest_records_fixed_preset_from_sut_yaml(tmp_path: Path, monke
         asset_manifest(args)
 
 
-@pytest.mark.parametrize("change", [None, "speed", "preset", "file"])
+@pytest.mark.parametrize("change", [None, "speed", "preset", "goal_angle", "file"])
 def test_after_navigation_readback_detects_parameter_or_file_drift(
     tmp_path: Path, monkeypatch, change: str | None,
 ) -> None:
@@ -240,6 +245,8 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
         values[1].double_value = 0.2
     elif change == "preset":
         values[6].bool_value = True
+    elif change == "goal_angle":
+        values[7].double_value = 0.5
     elif change == "file":
         params.write_text("changed controller configuration")
     response = SimpleNamespace(values=values)

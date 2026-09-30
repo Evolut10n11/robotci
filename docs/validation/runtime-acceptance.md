@@ -1,8 +1,8 @@
 # Native Nav2 / Gazebo runtime acceptance
 
 Status on 2026-09-30: the adapter completed real Gazebo navigation, but the first
-unchanged baseline series was unstable under the default policy. A revised,
-frozen controller benchmark preset requires a new complete measurement series. The
+unchanged baseline series was unstable and the next, tighter controller preset
+timed out during warmup. A revised frozen preset requires a new complete series. The
 maintenance environment is Ubuntu 24.04 with Python 3.12, but has no `ros2`,
 `gz`, Docker executable, or `/opt/ros/jazzy/setup.bash`. Unit tests and the
 existing Loopback CI alone are not evidence that this Gazebo integration works.
@@ -61,8 +61,8 @@ The logs contain no missed-controller-loop warnings. These observations support
 testing a more precise, less costly controller preset; they do not prove that
 one setting explains every source of variance.
 
-Before any new warmup or measured run, the workflow now freezes these settings
-in the explicit SUT controller YAML:
+For the second attempt, the workflow froze these settings before warmup in the
+explicit SUT controller YAML:
 
 | Setting | Frozen value |
 | --- | --- |
@@ -80,11 +80,72 @@ the controller's effective speed and source digest. The speed intervention
 still changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s.
 
 The first series remains a failed stability experiment. Its runs are not reused
-or selected as a baseline. The revised setup must repeat warmup, all five
+or selected as a baseline. Every revised setup must repeat warmup, all five
 baselines, all 20 stability gates, the held-out control, candidate, and restored
 control. Default regression thresholds and the predeclared selection of run 1
-remain unchanged. Success of the revised series remains pending until its
-measurements are retained and reviewed.
+remain unchanged.
+
+## Observed second experiment: tight goal-checker warmup timed out
+
+The next [Gazebo CI run 36736326803](https://github.com/Evolut10n11/robotci/actions/runs/36736326803)
+used the 0.05 m / 0.10 rad non-stateful goal checker listed above. Retained
+artifact `11107048798` records a warmup `TIMEOUT` after 120.023 seconds, with
+six observed stuck events and ten recoveries. The final reported distance was
+0.136 m; all 596 recorded pose samples were valid. The driver reported
+`INCOMPLETE`, restored the original controller bytes, and collected no
+baselines, controls, or candidate comparison.
+
+Before the first stuck event at 20.875 seconds, the closest observed position
+was 0.309 m from the goal at 15.036 seconds, with yaw error approximately
+0.089 rad. Over the entire run, the minimum observed XY distance was 0.106 m
+at 61.495 seconds, with yaw error approximately 0.520 rad. Among samples
+satisfying the 0.10 rad yaw criterion, the closest XY distance was 0.126 m.
+No recorded sample satisfied even a 0.10 m XY criterion. The tighter checker
+therefore did not produce a usable completion condition for this controller.
+
+Inspection of the installed
+[Nav2 1.3.13 MPPI source](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_mppi_controller/src/critics/goal_angle_critic.cpp)
+and retained parameters shows `GoalAngleCritic` becoming active within 0.5 m
+of the goal, with cost weight 3, while the goal-position critic has weight 5.
+The early alignment objective is a plausible contributor to the observed
+near-goal stall; changing the goal checker alone did not resolve it. The
+experiment does not establish that this is the only cause.
+
+## Current frozen preset: verification pending
+
+The next full series will keep visualization and per-iteration noise regeneration
+disabled and the goal checker non-stateful. It will delay the final-heading
+critic until the robot is within 0.15 m and use a 0.15 m XY goal tolerance with
+the original 0.25 rad yaw tolerance:
+
+| Setting | Frozen value |
+| --- | --- |
+| `FollowPath.visualize` | `false` |
+| `FollowPath.regenerate_noises` | `false` |
+| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.15` m |
+| `general_goal_checker.xy_goal_tolerance` | `0.15` m |
+| `general_goal_checker.yaw_goal_tolerance` | `0.25` rad |
+| `general_goal_checker.stateful` | `false` |
+
+The final-heading activation distance equals the XY goal-checker tolerance.
+Inspection of Nav2 1.3.13 shows that the heading critic is gated by position
+distance. Matching the thresholds avoids a near-goal band that can satisfy
+the XY completion criterion while leaving the explicit final-heading objective
+inactive. This is an inference from the source, not observed proof that the
+revised controller will complete reliably or meet the regression policy.
+
+The controller's XY completion tolerance remains stricter than its original
+0.25 m. These are controller settings frozen before collecting new data;
+RobotCI's task and comparison policy remain unchanged, including the default
+10% duration/path and 0.1 m final-distance allowances. The adapter must read
+back the complete preset before and after each navigation. Candidate YAML
+changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s.
+
+Both failed attempts remain evidence of setup limitations. No run from either
+attempt is reused or handpicked as a known-good baseline. The revised preset
+must complete a fresh warmup, five unchanged runs, all 20 ordered-pair gates,
+the held-out control, candidate, and restored control. Its success remains
+pending until the actual measurements and reports are retained and reviewed.
 
 ## Target and experiment boundary
 
