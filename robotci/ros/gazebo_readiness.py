@@ -36,6 +36,49 @@ REQUIRED_LIFECYCLE_NODES = (
     "velocity_smoother",
     "collision_monitor",
 )
+CONTROLLER_PARAMETER_NAMES = (
+    "FollowPath.plugin", "FollowPath.vx_max", "FollowPath.visualize",
+    "FollowPath.regenerate_noises", "general_goal_checker.xy_goal_tolerance",
+    "general_goal_checker.yaw_goal_tolerance", "general_goal_checker.stateful",
+)
+
+
+def validate_benchmark_preset(preset: dict[str, Any]) -> None:
+    for name in ("visualize", "regenerate_noises", "stateful"):
+        if not isinstance(preset.get(name), bool):
+            raise ValueError(f"benchmark {name} must be a boolean")
+    for name in ("xy_goal_tolerance", "yaw_goal_tolerance"):
+        value = preset.get(name)
+        try:
+            valid = (not isinstance(value, bool) and isinstance(value, int | float)
+                     and math.isfinite(value) and value > 0)
+        except OverflowError:
+            valid = False
+        if not valid:
+            raise ValueError(f"benchmark {name} must be a finite positive number")
+
+
+def decode_controller_parameters(values: list[Any]) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Validate ROS ParameterValue types before recording effective settings."""
+    if len(values) != len(CONTROLLER_PARAMETER_NAMES):
+        raise ValueError("controller read-back is incomplete")
+    for name, value, expected_type in zip(
+        CONTROLLER_PARAMETER_NAMES, values, (4, 3, 1, 1, 3, 3, 1), strict=True
+    ):
+        if value.type != expected_type:
+            raise ValueError(f"controller {name} has the wrong ROS parameter type")
+    plugin, speed, visualize, noises, xy, yaw, stateful = values
+    controller = {"plugin": plugin.string_value, "vx_max": speed.double_value}
+    if (not math.isfinite(speed.double_value) or speed.double_value <= 0
+            or isinstance(speed.double_value, bool)):
+        raise ValueError("effective FollowPath.vx_max must be finite and positive")
+    preset = {
+        "visualize": visualize.bool_value, "regenerate_noises": noises.bool_value,
+        "xy_goal_tolerance": xy.double_value, "yaw_goal_tolerance": yaw.double_value,
+        "stateful": stateful.bool_value,
+    }
+    validate_benchmark_preset(preset)
+    return controller, preset
 
 
 def sha256_file(path: Path) -> str:
@@ -126,7 +169,8 @@ def asset_manifest(args: argparse.Namespace) -> dict[str, Any]:
     map_data = yaml.safe_load(args.map.read_text(encoding="utf-8"))
     image = args.map.parent / map_data["image"]
     params = yaml.safe_load(args.params.read_text(encoding="utf-8"))
-    controller = params["controller_server"]["ros__parameters"]["FollowPath"]
+    controller_parameters = params["controller_server"]["ros__parameters"]
+    controller = controller_parameters["FollowPath"]
     expected = {"plugin": controller["plugin"], "vx_max": controller["vx_max"]}
     if expected["plugin"] != "nav2_mppi_controller::MPPIController":
         raise ValueError("Gazebo acceptance requires the MPPI FollowPath controller")
@@ -137,6 +181,15 @@ def asset_manifest(args: argparse.Namespace) -> dict[str, Any]:
         or expected["vx_max"] <= 0
     ):
         raise ValueError("FollowPath.vx_max must be a finite positive number")
+    checker = controller_parameters.get("general_goal_checker", {})
+    preset = {
+        "visualize": controller.get("visualize", False),
+        "regenerate_noises": controller.get("regenerate_noises", False),
+        "xy_goal_tolerance": checker.get("xy_goal_tolerance", 0.25),
+        "yaw_goal_tolerance": checker.get("yaw_goal_tolerance", 0.25),
+        "stateful": checker.get("stateful", True),
+    }
+    validate_benchmark_preset(preset)
     packages = {}
     for share in (args.sim_share, args.description_share):
         package = ET.parse(share / "package.xml").getroot()
@@ -172,6 +225,7 @@ def asset_manifest(args: argparse.Namespace) -> dict[str, Any]:
         "assets": assets,
         "params_sha256": sha256_file(args.params),
         "controller_expected": expected,
+        "benchmark_preset_expected": preset,
         "command_velocity_type": command_types[0],
         "renderer": {"headless": True, "software": True, "engine": "ogre2"},
         "packages": packages,
@@ -209,7 +263,7 @@ def verify_controller_unchanged(args: argparse.Namespace, manifest: dict[str, An
         if not client.service_is_ready():
             raise TimeoutError("post-navigation controller parameter service unavailable")
         request = GetParameters.Request()
-        request.names = ["FollowPath.plugin", "FollowPath.vx_max"]
+        request.names = list(CONTROLLER_PARAMETER_NAMES)
         future = client.call_async(request)
         while not future.done() and time.monotonic() < deadline:
             rclpy.spin_once(node, timeout_sec=0.1)
@@ -217,16 +271,17 @@ def verify_controller_unchanged(args: argparse.Namespace, manifest: dict[str, An
             future.cancel()
             raise TimeoutError("post-navigation controller parameter read-back timed out")
         response = future.result()
-        if response is None or len(response.values) != 2:
+        if response is None:
             raise RuntimeError("post-navigation controller read-back is incomplete")
-        plugin, speed = response.values
-        observed = {"plugin": plugin.string_value, "vx_max": speed.double_value}
+        observed, preset = decode_controller_parameters(response.values)
         manifest["controller_after"] = observed
+        manifest["benchmark_preset_after"] = preset
         manifest["params_sha256_after"] = sha256_file(args.params)
-        if (plugin.type != 4 or speed.type != 3 or observed != manifest["controller"]
+        if (observed != manifest["controller"] or preset != manifest["benchmark_preset"]
                 or manifest["params_sha256_after"] != manifest["params_sha256"]):
             raise RuntimeError("controller configuration changed during navigation")
         manifest["checks"]["controller_stable"] = True
+        manifest["checks"]["benchmark_preset_stable"] = True
     finally:
         node.destroy_node()
         rclpy.shutdown()
@@ -407,16 +462,17 @@ def wait_until_ready(args: argparse.Namespace, manifest: dict[str, Any]) -> None
                 last_problem = f"Gazebo physical start differs from request: {physical_pose}"
                 continue
             request = GetParameters.Request()
-            request.names = ["FollowPath.plugin", "FollowPath.vx_max", "use_sim_time"]
+            request.names = [*CONTROLLER_PARAMETER_NAMES, "use_sim_time"]
             response = call(parameters, request)
-            if response is None or len(response.values) != 3:
+            if response is None or len(response.values) != len(CONTROLLER_PARAMETER_NAMES) + 1:
                 last_problem = "controller parameters could not be read back"
                 continue
-            plugin, speed, sim_time = response.values
-            controller = {"plugin": plugin.string_value, "vx_max": speed.double_value}
+            controller, preset = decode_controller_parameters(response.values[:-1])
+            sim_time = response.values[-1]
             if (
-                plugin.type != 4 or speed.type != 3 or sim_time.type != 1
+                sim_time.type != 1
                 or not sim_time.bool_value or controller != manifest["controller_expected"]
+                or preset != manifest["benchmark_preset_expected"]
             ):
                 raise RuntimeError(f"controller read-back does not match the SUT: {controller}")
             if sha256_file(args.params) != manifest["params_sha256"]:
@@ -449,8 +505,10 @@ def wait_until_ready(args: argparse.Namespace, manifest: dict[str, Any]) -> None
                            "physical_start_verified": True, "map_footprints_free": True,
                            "physical_spawn_verified": True, "tf_verified": True,
                            "cmd_vel_type_verified": True,
+                           "benchmark_preset_verified": True,
                            "required_tf": True, "nav2_active": True, "navigate_to_pose": True},
                 "controller": controller,
+                "benchmark_preset": preset,
                 "lifecycle": states,
                 "clock": {"first": clock_start, "last": clock_last},
                 "sensor_samples": counts,

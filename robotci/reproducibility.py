@@ -1516,7 +1516,7 @@ def _collect_docker_environment(
         "--no-deps",
         "--name",
         container_name,
-        "--no-tty",
+        "-T",
         "--interactive=false",
         "--quiet-pull",
     ]

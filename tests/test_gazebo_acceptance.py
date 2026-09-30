@@ -166,11 +166,15 @@ def provenance(subject: bytes) -> dict:
             "clock_progressing", "scan_received", "odom_received", "start_pose_verified",
             "physical_start_verified", "map_footprints_free", "required_tf",
             "nav2_active", "navigate_to_pose", "controller_stable", "cmd_vel_type_verified",
+            "benchmark_preset_verified", "benchmark_preset_stable",
         )},
         "controller": {"plugin": experiment.MPPI_PLUGIN, "vx_max": 0.5},
         "controller_after": {"plugin": experiment.MPPI_PLUGIN, "vx_max": 0.5},
         "params_sha256": experiment.digest(subject),
         "params_sha256_after": experiment.digest(subject),
+        "benchmark_preset": copy.deepcopy(experiment.BENCHMARK_PRESET),
+        "benchmark_preset_after": copy.deepcopy(experiment.BENCHMARK_PRESET),
+        "benchmark_preset_expected": copy.deepcopy(experiment.BENCHMARK_PRESET),
         "assets": {key: "sha256:" + "a" * 64 for key in (
             "map_yaml", "map_image", "world", "rendered_world", "launch",
             "tb4_sim_tree", "tb4_description_tree", "bridge_config",
@@ -198,6 +202,11 @@ def provenance(subject: bytes) -> dict:
     (lambda value: value["assets"].update(world="unknown"), "digest"),
     (lambda value: value.update(packages={}), "packages"),
     (lambda value: value["stamped_cmd_vel"].update(controller_server=True), "message type"),
+    (lambda value: value["benchmark_preset"].update(regenerate_noises=True), "preset differs"),
+    (lambda value: value["benchmark_preset"].update(stateful=0), "preset differs"),
+    (lambda value: value["benchmark_preset_after"].update(xy_goal_tolerance=0.25),
+     "preset differs"),
+    (lambda value: value["benchmark_preset_expected"].pop("visualize"), "complete fixed"),
 ])
 def test_unverified_target_cannot_be_accepted(
     provenance: dict, subject: bytes, mutation, message: str

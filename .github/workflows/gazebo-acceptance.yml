@@ -108,6 +108,16 @@ jobs:
           document = yaml.safe_load(params.read_text())
           for node in ("controller_server", "behavior_server", "velocity_smoother", "collision_monitor"):
               document[node]["ros__parameters"]["enable_stamped_cmd_vel"] = supported[cmd_type]
+          # The first measured upstream-default experiment rejected unchanged
+          # baselines. Freeze a new benchmark preset before all new measurements:
+          # reduce diagnostic/noise-thread jitter and require a precise final pose.
+          # Regression policy remains unchanged; candidate changes vx_max only.
+          controller = document["controller_server"]["ros__parameters"]
+          controller["FollowPath"]["visualize"] = False
+          controller["FollowPath"]["regenerate_noises"] = False
+          controller["general_goal_checker"]["stateful"] = False
+          controller["general_goal_checker"]["xy_goal_tolerance"] = 0.05
+          controller["general_goal_checker"]["yaw_goal_tolerance"] = 0.10
           params.write_text(yaml.safe_dump(document, sort_keys=False))
           shutil.copyfile(params, archive / "controller.original.yaml")
           packages = subprocess.run(
