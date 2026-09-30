@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import signal
+import sys
 import time
 from pathlib import Path
 
@@ -63,6 +64,8 @@ def _signal(owned: dict[int, tuple[str, str]], sig: int) -> None:
 def stop_owned_gazebo(partition: str) -> dict[str, object]:
     if not partition.startswith("robotci-robotci-gazebo."):
         raise ValueError("a per-attempt RobotCI Gazebo partition is required")
+    if sys.platform != "linux":
+        raise RuntimeError("Gazebo process cleanup requires Linux /proc ownership")
     seen: set[int] = set()
     for sig, grace in ((signal.SIGTERM, 5.0), (signal.SIGKILL, 2.0)):
         deadline = time.monotonic() + grace

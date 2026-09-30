@@ -186,6 +186,7 @@ def test_cleanup_does_not_signal_recycled_pid_or_zombie(monkeypatch) -> None:
     assert signaled == [(789, signal.SIGTERM)]
 
 
+@pytest.mark.skipif(sys.platform != "linux", reason="Gazebo ownership cleanup requires Linux")
 def test_cleanup_rescans_for_detached_descendants_and_verifies_exit(monkeypatch) -> None:
     snapshots = iter([
         {12: ("one", "S")},
