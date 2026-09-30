@@ -7,6 +7,7 @@ on:
       - ".github/workflows/gazebo-acceptance.yml"
       - "scripts/gazebo_acceptance.py"
       - "scripts/run_gazebo_attempt.sh"
+      - "scripts/configure_ci_apt.sh"
       - "robotci/ros/gazebo*.py"
       - "examples/nav2-gazebo/**"
       - "robotci/runner.py"

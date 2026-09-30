@@ -86,7 +86,7 @@ trap 'exit 143' TERM
 # SceneBroadcaster exposes model state for the independent physical-start check;
 # gz runs server-only, so this does not create a GUI.
 timeout --kill-after=2s 15s xacro -o "$RENDERED_WORLD" headless:=False "$WORLD_FILE"
-setsid gz sim -r -s --headless-rendering "$RENDERED_WORLD" >"$GAZEBO_LOG" 2>&1 &
+setsid gz sim -v3 -r -s --headless-rendering "$RENDERED_WORLD" >"$GAZEBO_LOG" 2>&1 &
 PROCESSES+=("$!")
 
 # The official launch still provides state publishing, bridges and Nav2. Its
@@ -94,7 +94,7 @@ PROCESSES+=("$!")
 # running and the physical robot is explicitly created below.
 setsid ros2 launch "$LAUNCH_FILE" \
   use_simulator:=False headless:=True use_rviz:=False \
-  use_sim_time:=true use_namespace:=false namespace:= \
+  use_sim_time:=true use_namespace:=false \
   autostart:=true use_respawn:=False \
   map:="$MAP_FILE" world:="$WORLD_FILE" params_file:="$PARAMS_FILE" \
   robot_name:=nav2_turtlebot4 \
