@@ -33,6 +33,10 @@ inputs:
     description: Maximum allowed path-length increase in percent for each scenario.
     required: false
     default: "10"
+  max-distance-to-goal-increase-m:
+    description: Maximum allowed increase in final distance to goal, in meters.
+    required: false
+    default: "0.1"
   max-stuck-events-increase:
     description: Maximum allowed additional stuck events per scenario.
     required: false
@@ -63,7 +67,7 @@ runs:
 
     - name: Install RobotCI
       shell: bash
-      run: python -m pip install "${{ github.action_path }}"
+      run: python -I -m pip install "${{ github.action_path }}"
 
     - name: Compare candidate suite with baseline
       id: gate
@@ -76,29 +80,8 @@ runs:
         ROBOTCI_JUNIT: ${{ inputs.junit }}
         ROBOTCI_MAX_DURATION: ${{ inputs.max-duration-increase-pct }}
         ROBOTCI_MAX_PATH: ${{ inputs.max-path-length-increase-pct }}
+        ROBOTCI_MAX_DISTANCE: ${{ inputs.max-distance-to-goal-increase-m }}
         ROBOTCI_MAX_STUCK: ${{ inputs.max-stuck-events-increase }}
         ROBOTCI_MAX_RECOVERIES: ${{ inputs.max-recoveries-increase }}
       run: |
-        echo "report=$ROBOTCI_REPORT" >> "$GITHUB_OUTPUT"
-        echo "summary=$ROBOTCI_SUMMARY" >> "$GITHUB_OUTPUT"
-        echo "junit=$ROBOTCI_JUNIT" >> "$GITHUB_OUTPUT"
-
-        set +e
-        robotci-suite-gate \
-          --baseline "$ROBOTCI_BASELINE" \
-          --candidate "$ROBOTCI_CANDIDATE" \
-          --output "$ROBOTCI_REPORT" \
-          --markdown-output "$ROBOTCI_SUMMARY" \
-          --junit-output "$ROBOTCI_JUNIT" \
-          --max-duration-increase-pct "$ROBOTCI_MAX_DURATION" \
-          --max-path-length-increase-pct "$ROBOTCI_MAX_PATH" \
-          --max-stuck-events-increase "$ROBOTCI_MAX_STUCK" \
-          --max-recoveries-increase "$ROBOTCI_MAX_RECOVERIES"
-        status=$?
-        set -e
-
-        if [ -f "$ROBOTCI_SUMMARY" ] && [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
-          cat "$ROBOTCI_SUMMARY" >> "$GITHUB_STEP_SUMMARY"
-        fi
-
-        exit "$status"
+        python -I -m robotci.action_gate

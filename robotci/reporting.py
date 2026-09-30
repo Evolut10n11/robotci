@@ -6,7 +6,7 @@ from pathlib import Path
 
 from robotci.regression import RegressionPolicy, RegressionReport
 
-REPORT_SCHEMA_VERSION = 1
+REPORT_SCHEMA_VERSION = 2
 
 
 def _json_number(value: float) -> float | None:
@@ -43,6 +43,9 @@ def regression_report_payload(
         "policy": {
             "max_duration_increase_pct": policy.max_duration_increase_pct,
             "max_path_length_increase_pct": policy.max_path_length_increase_pct,
+            "max_distance_to_goal_increase_m": (
+                policy.max_distance_to_goal_increase_m
+            ),
             "max_stuck_events_increase": policy.max_stuck_events_increase,
             "max_recoveries_increase": policy.max_recoveries_increase,
         },

@@ -103,19 +103,15 @@ If fewer than 3 teams complete the first suite, prioritize onboarding/runtime co
 
 If teams complete suites but do not care about regression history or gating, revisit the product wedge before building a hosted backend.
 
-If at least one team asks for persistent shared history, policies, or hosted/self-hosted reporting, the next implementation should be the smallest service needed to support that exact request.
+If at least one team asks for persistent shared history, policies, or hosted/self-hosted reporting and explicitly agrees to discuss a paid pilot after real use, consider the smallest implementation supported by that evidence. A feature request alone does not meet the commercial criterion or authorize a service build.
 
 ## Pilot tracker
 
-Keep one row per team. Do not store secrets or proprietary technical details here.
-
-| Team | ROS2/Nav2 fit | First suite | Baseline compare | CI gate | Replay used | Repeated use | Paid signal | Main blocker |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Team 1 | pending | pending | pending | pending | pending | pending | pending | pending |
-| Team 2 | pending | pending | pending | pending | pending | pending | pending | pending |
-| Team 3 | pending | pending | pending | pending | pending | pending | pending | pending |
-| Team 4 | pending | pending | pending | pending | pending | pending | pending | pending |
-| Team 5 | pending | pending | pending | pending | pending | pending | pending | pending |
+Use [validation/cohort.json](validation/cohort.json) as the single cohort register.
+The [M8 execution guide](validation/README.md) explains how to record dated
+observations and generate JSON/Markdown counts. Keep detailed interview findings
+in the scorecards and reference their approved, redacted evidence from the register.
+An internal test of a public repository is a preflight, not an enrolled team.
 
 ## Decision after the pilot
 

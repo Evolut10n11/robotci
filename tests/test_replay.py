@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from robotci.metrics import NavigationMetrics
+import pytest
+
+from robotci.metrics import NavigationMetrics, NavigationMetricsTracker
 from robotci.replay import ReplayRecorder, default_replay_path, write_replay
 from robotci.results import Pose2D
 from robotci.viewer import load_replay, validate_replay
@@ -36,7 +38,10 @@ def test_replay_recorder_builds_viewer_payload() -> None:
     assert validate_replay(payload) == payload
     assert payload["status"] == "PASS"
     assert payload["result_status"] == "PASS"
-    assert payload["samples"][0]["t"] == 0.0
+    assert payload["samples"][0]["t"] == 1.25
+    assert len(payload["samples"]) == 2
+    assert payload["world"]["start"] == {"x": 0.0, "y": 0.0, "z": 0.0}
+    assert payload["recording"] == {"pose_source": "observed", "max_interpolation_gap_sec": 1.0}
     assert payload["samples"][-1]["position"]["x"] == 1.5
     assert payload["events"][-1]["type"] == "GOAL"
 
@@ -58,7 +63,8 @@ def test_replay_normalizes_timeout_for_viewer() -> None:
 
     assert payload["status"] == "FAIL"
     assert payload["result_status"] == "TIMEOUT"
-    assert len(payload["samples"]) == 2
+    assert payload["samples"] == []
+    assert payload["world"]["start"] == {"x": 1.0, "y": 2.0, "z": 0.0}
     assert payload["duration_sec"] > 0
     assert validate_replay(payload) == payload
 
@@ -84,3 +90,105 @@ def test_replay_path_and_round_trip(tmp_path) -> None:
     written = write_replay(payload, replay_path)
     assert written == replay_path
     assert load_replay(replay_path) == payload
+
+
+@pytest.mark.parametrize("status", ["PASS", "FAIL", "TIMEOUT", "INFRA_ERROR"])
+def test_observed_events_survive_finalization_and_round_trip(tmp_path, status) -> None:
+    tracker = NavigationMetricsTracker(start_x=0, start_y=0, started_at=100)
+    recorder = ReplayRecorder(
+        scenario="route", start=Pose2D(0, 0), goal=Pose2D(1, 0), started_at=100,
+    )
+    tracker.update(x=0, y=0, now=101, recoveries=0)
+    recorder.record(x=0, y=0, yaw=0, now=101)
+    tracker.tick(105.125)
+    tracker.tick(106)
+    tracker.update(x=1, y=0, now=107.25, recoveries=3)
+    recorder.record(x=1, y=0, yaw=0, now=107.25)
+    metrics = tracker.snapshot(goal_x=1, goal_y=0)
+    payload = recorder.build(
+        status=status, duration_sec=8, metrics=metrics, navigation_result="test",
+        events=tracker.events,
+    )
+    path = write_replay(payload, tmp_path / "route.replay.json")
+    recorded = load_replay(path)
+    assert [(e["type"], e["t"], e.get("count")) for e in recorded["events"]] == [
+        ("START", 0, None), ("STUCK", 5.125, 1), ("RECOVERY", 7.25, 3),
+        ("GOAL" if status == "PASS" else "FAIL", 8, None),
+    ]
+    assert recorded["result_status"] == status
+    assert recorded["metrics"]["recoveries"] == 3
+    assert recorded["metrics"]["stuck_events"] == 1
+    # Finalization reads observations; it never consumes or duplicates them.
+    assert recorder.build(
+        status=status, duration_sec=8, metrics=metrics, navigation_result="test",
+        events=tracker.events,
+    ) == payload
+
+
+@pytest.mark.parametrize("count", [0, -1, True, 1.5, "2", None, 2**53])
+def test_replay_rejects_invalid_event_counter_delta(count) -> None:
+    from robotci.viewer import ViewerError, demo_replay
+
+    replay = demo_replay()
+    replay["events"][1]["count"] = count
+    with pytest.raises(ViewerError, match="count"):
+        validate_replay(replay)
+
+
+def test_legacy_replay_metrics_do_not_create_fabricated_events() -> None:
+    recorder = ReplayRecorder(
+        scenario="legacy", start=Pose2D(0, 0), goal=Pose2D(1, 0), started_at=0,
+    )
+    payload = recorder.build(
+        status="PASS", duration_sec=10, metrics=_metrics(), navigation_result="SUCCEEDED",
+    )
+    assert [e["type"] for e in payload["events"]] == ["START", "GOAL"]
+
+
+def test_single_delayed_pose_remains_one_observation_after_finalization(tmp_path) -> None:
+    recorder = ReplayRecorder(
+        scenario="delayed", start=Pose2D(0, 0), goal=Pose2D(2, 0), started_at=100,
+    )
+    recorder.record(x=1, y=0, yaw=0.2, now=105)
+    payload = recorder.build(
+        status="TIMEOUT", duration_sec=20, metrics=_metrics(), navigation_result="TIMEOUT",
+    )
+    replay = load_replay(write_replay(payload, tmp_path / "replay.json"))
+    assert replay["samples"] == [{
+        "t": 5.0, "position": {"x": 1.0, "y": 0.0, "z": 0.0},
+        "orientation": {"yaw": 0.2},
+    }]
+    assert replay["duration_sec"] == 20
+    assert replay["result_status"] == "TIMEOUT"
+    assert replay["metrics"]["path_length_m"] == _metrics().path_length_m
+
+
+@pytest.mark.parametrize("field,value", [
+    ("x", float("nan")), ("y", float("inf")), ("yaw", float("-inf")),
+    ("now", float("nan")), ("now", float("inf")), ("now", 99.9999), ("now", True),
+])
+def test_invalid_or_pre_start_pose_never_creates_an_observation(field, value) -> None:
+    recorder = ReplayRecorder(
+        scenario="invalid", start=Pose2D(0, 0), goal=Pose2D(1, 0), started_at=100,
+    )
+    kwargs = {"x": 1, "y": 0, "yaw": 0, "now": 101}
+    kwargs[field] = value
+    recorder.record(**kwargs)
+    payload = recorder.build(
+        status="INFRA_ERROR", duration_sec=5, metrics=_metrics(), navigation_result="INVALID",
+    )
+    assert validate_replay(payload)["samples"] == []
+
+
+def test_rounded_duplicate_and_backwards_receipts_are_ignored() -> None:
+    recorder = ReplayRecorder(
+        scenario="ordered", start=Pose2D(0, 0), goal=Pose2D(2, 0), started_at=100,
+    )
+    for x, now in [(1, 101.0001), (90, 101.0002), (91, 100.9), (2, 101.002)]:
+        recorder.record(x=x, y=0, yaw=0, now=now)
+    payload = recorder.build(
+        status="PASS", duration_sec=2, metrics=_metrics(), navigation_result="SUCCEEDED",
+    )
+    assert [(p["t"], p["position"]["x"]) for p in validate_replay(payload)["samples"]] == [
+        (1.0, 1.0), (1.002, 2.0),
+    ]

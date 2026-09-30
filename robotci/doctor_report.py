@@ -11,10 +11,6 @@ from robotci.doctor import CheckResult, run_doctor_checks
 SCHEMA_VERSION = 1
 
 
-def _adapter_override_enabled() -> bool:
-    return bool(os.environ.get("ROBOTCI_ATTEMPT_SCRIPT"))
-
-
 def build_report(checks: list[CheckResult]) -> dict[str, object]:
     blocking_failures = [check for check in checks if check.blocking and not check.ok]
     runtime = next((check for check in checks if check.name == "runtime"), None)
@@ -27,7 +23,7 @@ def build_report(checks: list[CheckResult]) -> dict[str, object]:
             "selected": runtime.value,
             "message": runtime.message,
             "adapter_override": (
-                runtime.value == "native" and _adapter_override_enabled()
+                runtime.value == "native" and bool(os.environ.get("ROBOTCI_ATTEMPT_SCRIPT"))
             ),
         }
         if runtime is not None
@@ -53,8 +49,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--require-ros",
         action="store_true",
         help=(
-            "Require a native ROS2 Jazzy/Nav2 runtime; Docker fallback does not satisfy "
-            "this mode."
+            "Require a native ROS2 Jazzy/Nav2 runtime; Docker fallback does not satisfy this mode."
         ),
     )
     mode.add_argument(

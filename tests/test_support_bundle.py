@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from robotci.config import ConfigError
 from robotci.doctor import CheckResult
 from robotci.support_bundle import build_support_bundle, main
@@ -32,23 +34,10 @@ def _passing_checks() -> list[CheckResult]:
     ]
 
 
-def _native_passing_checks() -> list[CheckResult]:
-    return [
-        CheckResult("platform", True, "platform ready"),
-        CheckResult(
-            "runtime",
-            True,
-            "auto runtime will use native ROS2 Jazzy/Nav2",
-            value="native",
-        ),
-    ]
-
-
 def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monkeypatch) -> None:
     config = tmp_path / "secret-project" / "robotci.yaml"
     config.parent.mkdir()
     _write_config(config)
-    monkeypatch.delenv("ROBOTCI_ATTEMPT_SCRIPT", raising=False)
     monkeypatch.setattr("robotci.support_bundle.run_doctor_checks", lambda **_: _passing_checks())
 
     bundle = build_support_bundle(config_path=config)
@@ -62,9 +51,9 @@ def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monk
         "error_code": None,
         "error": None,
     }
-    assert bundle["doctor"]["runtime"]["adapter_override"] is False
     assert "confidential_route" not in payload
     assert "secret-project" not in payload
+    assert bundle["doctor"]["runtime"]["adapter_override"] is False
     assert bundle["privacy"] == {
         "includes_project_paths": False,
         "includes_scenario_names": False,
@@ -73,22 +62,46 @@ def test_bundle_omits_paths_names_and_environment_variables(tmp_path: Path, monk
     }
 
 
-def test_bundle_reports_adapter_override_without_leaking_path(tmp_path: Path, monkeypatch) -> None:
+@pytest.mark.parametrize(
+    "selected,override,expected",
+    [
+        ("native", None, False),
+        ("native", "", False),
+        ("native", "/private/company/secret_adapter.sh", True),
+        ("docker", "/private/company/secret_adapter.sh", False),
+        ("none", "/private/company/secret_adapter.sh", False),
+    ],
+)
+def test_bundle_inherits_adapter_override_boolean_without_disclosing_value(
+    tmp_path: Path,
+    monkeypatch,
+    selected: str,
+    override: str | None,
+    expected: bool,
+) -> None:
     config = tmp_path / "robotci.yaml"
     _write_config(config)
-    adapter_path = "/private-company-repo/scripts/robotci_adapter.sh"
-    monkeypatch.setenv("ROBOTCI_ATTEMPT_SCRIPT", adapter_path)
+    if override is None:
+        monkeypatch.delenv("ROBOTCI_ATTEMPT_SCRIPT", raising=False)
+    else:
+        monkeypatch.setenv("ROBOTCI_ATTEMPT_SCRIPT", override)
     monkeypatch.setattr(
-        "robotci.support_bundle.run_doctor_checks", lambda **_: _native_passing_checks()
+        "robotci.support_bundle.run_doctor_checks",
+        lambda **_: [
+            CheckResult("runtime", selected != "none", "runtime readiness", value=selected),
+        ],
     )
 
     bundle = build_support_bundle(config_path=config)
     payload = json.dumps(bundle)
 
-    assert bundle["doctor"]["runtime"]["adapter_override"] is True
-    assert adapter_path not in payload
-    assert "private-company-repo" not in payload
-    assert "robotci_adapter.sh" not in payload
+    assert bundle["doctor"]["runtime"]["adapter_override"] is expected
+    assert bundle["status"] == ("FAIL" if selected == "none" else "PASS")
+    assert bundle["privacy"]["includes_environment_variables"] is False
+    assert bundle["privacy"]["includes_project_paths"] is False
+    assert "ROBOTCI_ATTEMPT_SCRIPT" not in payload
+    assert "/private/company" not in payload
+    assert "secret_adapter.sh" not in payload
 
 
 def test_bundle_redacts_ros_package_prefixes(tmp_path: Path, monkeypatch) -> None:

@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "pilots": [
+    {
+      "id": "pilot-01",
+      "team_id": null,
+      "state": "pending",
+      "setup_minutes": null,
+      "blocker": null,
+      "evidence": {
+        "own_repo_suite": null,
+        "baseline_saved": null,
+        "real_candidate_gate": null,
+        "reuse_intent": null,
+        "paid_discussion": null
+      }
+    },
+    {
+      "id": "pilot-02",
+      "team_id": null,
+      "state": "pending",
+      "setup_minutes": null,
+      "blocker": null,
+      "evidence": {
+        "own_repo_suite": null,
+        "baseline_saved": null,
+        "real_candidate_gate": null,
+        "reuse_intent": null,
+        "paid_discussion": null
+      }
+    },
+    {
+      "id": "pilot-03",
+      "team_id": null,
+      "state": "pending",
+      "setup_minutes": null,
+      "blocker": null,
+      "evidence": {
+        "own_repo_suite": null,
+        "baseline_saved": null,
+        "real_candidate_gate": null,
+        "reuse_intent": null,
+        "paid_discussion": null
+      }
+    },
+    {
+      "id": "pilot-04",
+      "team_id": null,
+      "state": "pending",
+      "setup_minutes": null,
+      "blocker": null,
+      "evidence": {
+        "own_repo_suite": null,
+        "baseline_saved": null,
+        "real_candidate_gate": null,
+        "reuse_intent": null,
+        "paid_discussion": null
+      }
+    },
+    {
+      "id": "pilot-05",
+      "team_id": null,
+      "state": "pending",
+      "setup_minutes": null,
+      "blocker": null,
+      "evidence": {
+        "own_repo_suite": null,
+        "baseline_saved": null,
+        "real_candidate_gate": null,
+        "reuse_intent": null,
+        "paid_discussion": null
+      }
+    }
+  ]
+}

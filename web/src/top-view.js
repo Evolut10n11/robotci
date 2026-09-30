@@ -1,0 +1,230 @@
+import { eventTitle, formatTime } from "./ru.js";
+import { poseAt, trajectorySegments } from "./playback.js";
+import { trajectoryBounds, formatNumber } from "./model.js";
+import { visualProfile, topRobotIllustration } from "./robot-profiles.js";
+const NS = "http://www.w3.org/2000/svg";
+const node = (tag, attrs = {}, label) => {
+  const element = document.createElementNS(NS, tag);
+  for (const [key, value] of Object.entries(attrs))
+    element.setAttribute(key, value);
+  if (label != null) element.textContent = label;
+  return element;
+};
+export const COLORS = { candidate: "#4d78ff", baseline: "#98a8bb" };
+
+export class TopView {
+  constructor(host, recordings, options = {}) {
+    this.host = host;
+    this.visualProfile = options.visualProfile;
+    this.recordings = Object.entries(recordings).filter(([, value]) => value)
+      .sort(([a], [b]) => Number(a === "candidate") - Number(b === "candidate"));
+    this.segments = new Map(this.recordings.map(([, replay]) => [replay, trajectorySegments(replay)]));
+    this.bounds = trajectoryBounds(this.recordings.map(([, replay]) => replay));
+    this.svg = node("svg", {
+      role: "img",
+      "aria-label":
+        "Записанные траектории в системе координат мира. Перетаскивание сдвигает вид, колесо меняет масштаб.",
+      class: "trajectory-svg",
+    });
+    host.append(this.svg);
+    this.time = 0;
+    this.zoom = 1;
+    this.pan = { x: 0, y: 0 };
+    this.drag = null;
+    this.svg.addEventListener("pointerdown", (event) => {
+      if (event.button !== 0) return;
+      this.drag = { x: event.clientX, y: event.clientY, pan: { ...this.pan } };
+      this.svg.setPointerCapture(event.pointerId);
+    });
+    this.svg.addEventListener("pointermove", (event) => {
+      if (!this.drag) return;
+      this.pan.x = this.drag.pan.x + event.clientX - this.drag.x;
+      this.pan.y = this.drag.pan.y + event.clientY - this.drag.y;
+      this.draw();
+    });
+    this.svg.addEventListener("pointerup", () => {
+      this.drag = null;
+    });
+    this.svg.addEventListener("pointercancel", () => {
+      this.drag = null;
+    });
+    this.svg.addEventListener(
+      "wheel",
+      (event) => {
+        event.preventDefault();
+        const factor = Math.exp(-event.deltaY * 0.0015);
+        this.zoom = Math.max(0.2, Math.min(20, this.zoom * factor));
+        this.draw();
+      },
+      { passive: false },
+    );
+    this.observer = new ResizeObserver(() => this.draw());
+    this.observer.observe(host);
+    this.draw();
+  }
+  fit() {
+    this.zoom = 1;
+    this.pan = { x: 0, y: 0 };
+    this.draw();
+  }
+  focusRobot() {
+    const replay = this.recordings.find(([source]) => source === "candidate")?.[1] ?? this.recordings[0]?.[1];
+    if (!replay) return;
+    const { pose } = poseAt(replay, this.time);
+    if (!pose) return;
+    this.zoom = 4;
+    this.pan = { x: 0, y: 0 };
+    this.draw();
+    const [x, y] = this.xy(pose.position);
+    this.pan = { x: this.host.clientWidth / 2 - x, y: this.host.clientHeight / 2 - y };
+    this.draw();
+  }
+  draw() {
+    const width = Math.max(100, this.host.clientWidth),
+      height = Math.max(100, this.host.clientHeight);
+    this.svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    const b = this.bounds;
+    const scale =
+      Math.min(
+        (width - 60) / (b.maxX - b.minX),
+        (height - 45) / (b.maxY - b.minY),
+      ) * this.zoom;
+    const cx = (b.minX + b.maxX) / 2,
+      cy = (b.minY + b.maxY) / 2;
+    this.xy = (p) => [
+      width / 2 + (p.x - cx) * scale + this.pan.x,
+      height / 2 - (p.y - cy) * scale + this.pan.y,
+    ];
+    this.svg.replaceChildren();
+    const grid = node("g", { class: "plot-grid" });
+    const rawStep = 60 / scale;
+    const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+    const step =
+      [1, 2, 5, 10].find((factor) => factor * magnitude >= rawStep) * magnitude;
+    const xMin = cx - (width / 2 + this.pan.x) / scale,
+      xMax = xMin + width / scale;
+    const yMax = cy + (height / 2 + this.pan.y) / scale,
+      yMin = yMax - height / scale;
+    for (let x = Math.ceil(xMin / step) * step; x < xMax; x += step) {
+      const [px] = this.xy({ x, y: 0 });
+      grid.append(node("line", { x1: px, x2: px, y1: 0, y2: height }));
+      grid.append(
+        node(
+          "text",
+          { x: px + 5, y: height - 12 },
+          formatNumber(Math.abs(x) < step * 1e-9 ? 0 : x),
+        ),
+      );
+    }
+    for (let y = Math.ceil(yMin / step) * step; y < yMax; y += step) {
+      const [, py] = this.xy({ x: 0, y });
+      grid.append(node("line", { x1: 0, x2: width, y1: py, y2: py }));
+      if (py < height - 28)
+        grid.append(
+          node(
+            "text",
+            { x: 12, y: py - 5 },
+            formatNumber(Math.abs(y) < step * 1e-9 ? 0 : y),
+          ),
+        );
+    }
+    this.svg.append(grid);
+    this.robots = [];
+    for (const [source, replay] of this.recordings) {
+      const color = COLORS[source];
+      // Separate SVG subpaths preserve missing observations even after decimation.
+      const path = this.segments.get(replay).map((segment) => segment.map(
+        ({ position }, index) => `${index ? "L" : "M"}${this.xy(position).join(",")}`,
+      ).join(" ")).join(" ");
+      this.svg.append(
+        node("path", {
+          d: path,
+          "data-trajectory": source,
+          fill: "none",
+          stroke: color,
+          "stroke-width": source === "candidate" ? 3 : 2.5,
+          "stroke-dasharray": source === "baseline" ? "7 5" : "none",
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round",
+          opacity: 0.83,
+        }),
+      );
+      if (source === "candidate") {
+        const [sx, sy] = this.xy(replay.recording ? replay.world.start : replay.samples[0].position),
+          [gx, gy] = this.xy(replay.world.goal);
+        this.svg.append(
+          node("circle", {
+            cx: sx,
+            cy: sy,
+            r: 5,
+            fill: "#fff",
+            stroke: "#4c5554",
+            "stroke-width": 2,
+          }),
+        );
+        this.svg.append(
+          node("text", { x: sx - 9, y: sy + 24, class: "plot-label" }, replay.recording ? "Заданный старт" : "Старт"),
+        );
+        this.svg.append(
+          node("circle", {
+            cx: gx,
+            cy: gy,
+            r: 13,
+            fill: "none",
+            stroke: "#567a55",
+            "stroke-width": 1.5,
+            "stroke-dasharray": "3 3",
+          }),
+        );
+        this.svg.append(
+          node("circle", { cx: gx, cy: gy, r: 5, fill: "#567a55" }),
+        );
+        this.svg.append(
+          node("text", { x: gx + 20, y: gy + 4, class: "plot-label" }, "Цель"),
+        );
+        for (const event of replay.events.filter(
+          (e) => !["START", "GOAL"].includes(e.type),
+        )) {
+          const { pose } = poseAt(replay, event.t);
+          if (!pose) continue;
+          const [ex, ey] = this.xy(pose.position);
+          const mark = node("circle", {
+            cx: ex,
+            cy: ey,
+            r: 5,
+            fill: "#fff9ed",
+            stroke: color,
+            "stroke-width": 2,
+          });
+          mark.append(node("title", {}, `${eventTitle(event)} · ${formatTime(event.t)} с`));
+          this.svg.append(mark);
+        }
+      }
+      const profile = visualProfile(replay, this.visualProfile);
+      const marker = node("g", { "data-robot-profile": profile, opacity: source === "baseline" ? 0.5 : 1 });
+      const shape = node("g", { transform: `scale(${Math.max(.7, Math.min(3, scale / 50))})` });
+      shape.innerHTML = topRobotIllustration(profile, color);
+      marker.append(shape);
+      this.svg.append(marker);
+      this.robots.push({ replay, marker });
+    }
+    this.setTime(this.time);
+  }
+  setTime(time) {
+    this.time = time;
+    for (const { replay, marker } of this.robots ?? []) {
+      const { pose } = poseAt(replay, time);
+      marker.setAttribute("visibility", pose ? "visible" : "hidden");
+      if (!pose) continue;
+      const [x, y] = this.xy(pose.position);
+      marker.setAttribute(
+        "transform",
+        `translate(${x} ${y}) rotate(${(-pose.orientation.yaw * 180) / Math.PI})`,
+      );
+    }
+  }
+  dispose() {
+    this.observer.disconnect();
+    this.svg.remove();
+  }
+}

@@ -1,32 +1,60 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
 import os
 import platform as stdlib_platform
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
+from dataclasses import asdict
 from pathlib import Path
 from typing import Literal, cast
 
 from robotci.config import (
     ConfigError,
+    RobotVisualProfile,
     RuntimeName,
     ScenarioConfig,
     get_scenario,
     load_config,
 )
+from robotci.evidence import NavigationEvidencePolicy
+from robotci.native_runtime import probe_native_ros
+from robotci.project import DEFAULT_CONFIG_PATH, resolve_project_context
 from robotci.replay import default_replay_path
+from robotci.reproducibility import (
+    ReproducibilityError,
+    capture_suite_execution,
+    docker_compose_command_prefix,
+    inherited_runtime_environment,
+    runtime_python_dependency_roots,
+)
+from robotci.result_schema import (
+    ResultSchemaError,
+    ValidatedScenarioResult,
+    load_result,
+)
 from robotci.results import (
+    RESULT_SCHEMA_VERSION,
+    Pose2D,
     ScenarioStatus,
     SuiteResult,
     SuiteScenarioResult,
+    build_scenario_task,
     write_suite_result,
 )
+from robotci.runtime_process import (
+    RuntimeProcessCancelled,
+    docker_container_name,
+    run_runtime_process,
+)
+from robotci.viewer import ViewerError, load_replay
+from robotci.viewer_session import replay_matches_result
 
-DEFAULT_CONFIG_PATH = Path("robotci.yaml")
 DEFAULT_RESULT_PATH = Path(".robotci") / "result.json"
 DEFAULT_SUITE_RESULT_PATH = Path(".robotci") / "suite-result.json"
 
@@ -38,9 +66,58 @@ _EXIT_BY_STATUS = {
 }
 _STATUS_BY_EXIT = {code: status for status, code in _EXIT_BY_STATUS.items()}
 
+_NATIVE_PATH = "/usr/sbin:/usr/bin:/sbin:/bin"
+_LOGGER = logging.getLogger(__name__)
+
+# The shell wrapper permits one retry of a recognized Loopback startup race.
+# Allow 180 s startup per possible attempt in the bounded total budget, instead
+# of the much longer sum of shell probe retries. Cleanup needs < 20 s (Nav2 TERM/KILL
+# plus ROS daemon stop); 30 s allows Python result finalization too.
+RUNTIME_SETUP_ALLOWANCE_SEC = 180.0
+RUNTIME_CLEANUP_ALLOWANCE_SEC = 30.0
+RUNTIME_ATTEMPTS = 2
+RUNTIME_RETRY_ALLOWANCE_SEC = 1.0
+DOCKER_BUILD_ALLOWANCE_SEC = 300.0
+DOCKER_FINALIZE_ALLOWANCE_SEC = 30.0
+DOCKER_REMOVE_TIMEOUT_SEC = 15.0
+
 
 class RuntimeUnavailableError(RuntimeError):
     """Raised when RobotCI cannot find a usable scenario runtime."""
+
+
+class RuntimeWatchdogError(RuntimeUnavailableError):
+    """A hung runtime exhausted its outer deadline, rather than navigation time."""
+
+
+def _runtime_budget(
+    timeout_sec: float, *, docker: bool = False, build_image: bool = False,
+) -> float:
+    """Budget both possible attempts, then bound Docker build/finalization.
+
+    Native: 2 * (180 s setup + navigation timeout + 30 s cleanup) + 1 s retry.
+    Docker: native budget + 30 s finalization + optional 300 s image build.
+    Forced process cleanup adds <= 7 s; Docker removal adds <= 15 s. Environment
+    fingerprint preflight has its own existing 300 s build / 60 s query limits.
+    """
+    if isinstance(timeout_sec, bool) or not isinstance(timeout_sec, (int, float)):
+        raise ConfigError("timeout must be a finite number greater than zero")
+    try:
+        navigation_timeout = float(timeout_sec)
+    except OverflowError as exc:
+        raise ConfigError("timeout must be finite and greater than zero") from exc
+    if not math.isfinite(navigation_timeout) or navigation_timeout <= 0:
+        raise ConfigError("timeout must be finite and greater than zero")
+    budget = RUNTIME_ATTEMPTS * (
+        RUNTIME_SETUP_ALLOWANCE_SEC + navigation_timeout + RUNTIME_CLEANUP_ALLOWANCE_SEC
+    ) + RUNTIME_RETRY_ALLOWANCE_SEC
+    if docker:
+        budget += DOCKER_FINALIZE_ALLOWANCE_SEC
+        if build_image:
+            budget += DOCKER_BUILD_ALLOWANCE_SEC
+    if not math.isfinite(budget):
+        raise ConfigError("timeout is too large for a finite runtime budget")
+    return budget
 
 
 def _command_exists(command: str) -> bool:
@@ -69,7 +146,7 @@ def _native_ros_available() -> bool:
     if stdlib_platform.system() != "Linux":
         return False
 
-    return _command_exists("ros2") or Path("/opt/ros/jazzy/setup.bash").is_file()
+    return probe_native_ros()
 
 
 def select_runtime(requested: RuntimeName = "auto") -> Literal["native", "docker"]:
@@ -101,7 +178,9 @@ def select_runtime(requested: RuntimeName = "auto") -> Literal["native", "docker
     )
 
 
-def _find_project_root(start: Path | None = None) -> Path:
+def _find_runtime_root(start: Path | None = None) -> Path:
+    """Find RobotCI-owned scripts and Compose files independently of user data."""
+
     candidates: list[Path] = []
 
     current = (start or Path.cwd()).resolve()
@@ -118,51 +197,72 @@ def _find_project_root(start: Path | None = None) -> Path:
             return candidate
 
     raise RuntimeUnavailableError(
-        "RobotCI project files were not found; run the command from a RobotCI checkout"
+        "RobotCI runtime assets were not found; install a complete RobotCI package "
+        "or run from a RobotCI checkout"
     )
 
 
-def _resolve_config_path(project_root: Path, config_path: str | Path) -> Path:
-    path = Path(config_path)
-    if not path.is_absolute():
-        path = project_root / path
-    return path.resolve()
+def _native_python_dependency_paths() -> tuple[str, ...]:
+    try:
+        return tuple(str(root) for root in runtime_python_dependency_roots())
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(str(exc)) from exc
 
 
 def _run_native(
-    project_root: Path,
+    runtime_root: Path,
     scenario: ScenarioConfig,
     output: Path,
     timeout_sec: float,
 ) -> int:
-    script = project_root / "scripts" / "run_navigation_scenario.sh"
-    environment = os.environ.copy()
+    runtime_budget = _runtime_budget(timeout_sec)
+    script = runtime_root / "scripts" / "run_navigation_scenario.sh"
+    try:
+        environment = inherited_runtime_environment()
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(str(exc)) from exc
     half_yaw = scenario.start.yaw / 2.0
-
-    environment.update(
-        {
-            "ROBOTCI_SCENARIO": scenario.name,
-            "ROBOTCI_START_X": str(scenario.start.x),
-            "ROBOTCI_START_Y": str(scenario.start.y),
-            "ROBOTCI_START_YAW": str(scenario.start.yaw),
-            "ROBOTCI_START_QZ": str(math.sin(half_yaw)),
-            "ROBOTCI_START_QW": str(math.cos(half_yaw)),
-            "ROBOTCI_GOAL_X": str(scenario.goal.x),
-            "ROBOTCI_GOAL_Y": str(scenario.goal.y),
-            "ROBOTCI_GOAL_YAW": str(scenario.goal.yaw),
-            "ROBOTCI_RESULT_FILE": str(output.resolve()),
-            "ROBOTCI_TIMEOUT_SEC": str(timeout_sec),
-            "ROBOTCI_PYTHON": sys.executable,
-        }
-    )
+    dependency_path = os.pathsep.join(_native_python_dependency_paths())
 
     try:
-        completed = subprocess.run(
-            ["bash", str(script)],
-            cwd=project_root,
-            env=environment,
-            check=False,
-        )
+        with tempfile.TemporaryDirectory(prefix="robotci-pycache-") as pycache:
+            environment.update(
+                {
+                    "PYTHONHASHSEED": "0",
+                    "PYTHONNOUSERSITE": "1",
+                    "PYTHONPATH": dependency_path,
+                    "ROBOTCI_PYTHONPATH": dependency_path,
+                    "PYTHONPYCACHEPREFIX": pycache,
+                    "PYTHONDONTWRITEBYTECODE": "1",
+                    "PYTHONUTF8": "1",
+                    "PATH": _NATIVE_PATH,
+                    "ROBOTCI_SCENARIO": scenario.name,
+                    "ROBOTCI_START_X": str(scenario.start.x),
+                    "ROBOTCI_START_Y": str(scenario.start.y),
+                    "ROBOTCI_START_YAW": str(scenario.start.yaw),
+                    "ROBOTCI_START_QZ": str(math.sin(half_yaw)),
+                    "ROBOTCI_START_QW": str(math.cos(half_yaw)),
+                    "ROBOTCI_GOAL_X": str(scenario.goal.x),
+                    "ROBOTCI_GOAL_Y": str(scenario.goal.y),
+                    "ROBOTCI_GOAL_YAW": str(scenario.goal.yaw),
+                    "ROBOTCI_MAP_ID": scenario.map_id or "unspecified",
+                    "ROBOTCI_RESULT_FILE": str(output.resolve()),
+                    "ROBOTCI_TIMEOUT_SEC": str(timeout_sec),
+                    "ROBOTCI_GOAL_TOLERANCE_M": str(scenario.goal_tolerance_m),
+                    "ROBOTCI_MIN_FEEDBACK_SAMPLES": str(scenario.min_feedback_samples),
+                    "ROBOTCI_PYTHON": sys.executable,
+                }
+            )
+            completed = run_runtime_process(
+                ["bash", str(script)],
+                cwd=runtime_root,
+                env=environment,
+                timeout=runtime_budget,
+            )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeWatchdogError(
+            f"native runtime exceeded its {runtime_budget:g} s watchdog budget"
+        ) from exc
     except OSError as exc:
         raise RuntimeUnavailableError(f"failed to start native runtime: {exc}") from exc
 
@@ -170,46 +270,85 @@ def _run_native(
 
 
 def _run_docker(
-    project_root: Path,
+    runtime_root: Path,
     scenario: ScenarioConfig,
     output: Path,
     timeout_sec: float,
     config_path: Path,
+    *,
+    build_image: bool = True,
 ) -> int:
+    runtime_budget = _runtime_budget(timeout_sec, docker=True, build_image=build_image)
+    container_name = docker_container_name("run")
     container_result = f"/workspace/artifacts/{scenario.name}/result.json"
-    host_result = project_root / "artifacts" / scenario.name / "result.json"
+    host_result = runtime_root / "artifacts" / scenario.name / "result.json"
     host_replay = default_replay_path(host_result)
-    host_result.parent.mkdir(parents=True, exist_ok=True)
+    _clear_result_artifacts(host_result)
+    _clear_result_artifacts(output)
     config_mount = f"{config_path.resolve()}:/workspace/robotci.yaml:ro"
 
     command = [
-        "docker",
-        "compose",
+        *docker_compose_command_prefix(runtime_root),
         "run",
         "--rm",
-        "--build",
-        "--volume",
-        config_mount,
-        "robotci",
-        "robotci",
-        "run",
-        "--runtime",
-        "native",
-        "--config",
-        "/workspace/robotci.yaml",
-        "--scenario",
-        scenario.name,
-        "--output",
-        container_result,
-        "--timeout-sec",
-        str(timeout_sec),
     ]
+    if build_image:
+        command.append("--build")
+    command.extend(
+        [
+            "--name",
+            container_name,
+            "--volume",
+            config_mount,
+            "robotci",
+            "robotci",
+            "run",
+            "--runtime",
+            "native",
+            "--config",
+            "/workspace/robotci.yaml",
+            "--scenario",
+            scenario.name,
+            "--output",
+            container_result,
+            "--timeout-sec",
+            str(timeout_sec),
+        ]
+    )
 
     try:
-        completed = subprocess.run(command, cwd=project_root, check=False)
-    except OSError as exc:
-        raise RuntimeUnavailableError(f"failed to start Docker runtime: {exc}") from exc
-
+        completed = run_runtime_process(command, cwd=runtime_root, timeout=runtime_budget)
+    except (
+        subprocess.TimeoutExpired, RuntimeProcessCancelled, KeyboardInterrupt, SystemExit, OSError,
+    ) as exc:
+        # Killing Compose's client does not stop a container in the daemon.
+        # A per-run name scopes force-removal to this one runtime, on Windows too.
+        cleanup_error = ""
+        try:
+            cleanup = subprocess.run(
+                ["docker", "rm", "--force", container_name],
+                cwd=runtime_root,
+                capture_output=True,
+                timeout=DOCKER_REMOVE_TIMEOUT_SEC,
+                check=False,
+            )
+            if cleanup.returncode != 0:
+                cleanup_error = f"; Docker container removal returned exit {cleanup.returncode}"
+        except (OSError, subprocess.TimeoutExpired) as cleanup_exc:
+            cleanup_error = f"; Docker container removal failed: {cleanup_exc}"
+        if cleanup_error:
+            _LOGGER.warning(
+                "Cannot confirm removal of Docker runtime %s%s", container_name, cleanup_error,
+            )
+        _clear_result_artifacts(host_result)
+        _clear_result_artifacts(output)
+        if isinstance(exc, (KeyboardInterrupt, SystemExit, RuntimeProcessCancelled)):
+            raise
+        if isinstance(exc, OSError):
+            raise RuntimeUnavailableError(f"failed to start Docker runtime: {exc}") from exc
+        raise RuntimeWatchdogError(
+            f"Docker runtime exceeded its {runtime_budget:g} s watchdog budget{cleanup_error}"
+        ) from exc
     resolved_output = output.resolve()
     resolved_output.parent.mkdir(parents=True, exist_ok=True)
     if host_result.is_file() and host_result.resolve() != resolved_output:
@@ -231,7 +370,7 @@ def read_result_payload(path: str | Path) -> dict[str, object] | None:
 
     try:
         payload = json.loads(result_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, UnicodeError, json.JSONDecodeError):
         return None
 
     return payload if isinstance(payload, dict) else None
@@ -246,6 +385,134 @@ def read_result_status(path: str | Path) -> str | None:
     return status if isinstance(status, str) else None
 
 
+def _clear_result_artifacts(path: Path) -> None:
+    """Invalidate this attempt's result and replay before the runtime starts."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.unlink(missing_ok=True)
+        default_replay_path(path).unlink(missing_ok=True)
+    except OSError as exc:
+        raise RuntimeUnavailableError(f"cannot prepare fresh result artifacts: {exc}") from exc
+
+
+def _result_matches_task(
+    result: ValidatedScenarioResult,
+    scenario: ScenarioConfig,
+) -> bool:
+    start = Pose2D(scenario.start.x, scenario.start.y, scenario.start.yaw)
+    goal = Pose2D(scenario.goal.x, scenario.goal.y, scenario.goal.yaw)
+    expected_task = build_scenario_task(
+        scenario=scenario.name,
+        start=start,
+        goal=goal,
+        map_id=scenario.map_id or "unspecified",
+    )
+    return (
+        result.source_schema_version == RESULT_SCHEMA_VERSION
+        and result.scenario == scenario.name
+        and result.start == start
+        and result.goal == goal
+        and result.task == expected_task
+        and result.evidence_policy
+        == NavigationEvidencePolicy(
+            goal_tolerance_m=scenario.goal_tolerance_m,
+            min_feedback_samples=scenario.min_feedback_samples,
+        )
+    )
+
+
+def _finalize_result(
+    path: Path, scenario: ScenarioConfig, exit_code: int,
+    *, runtime_error: RuntimeWatchdogError | None = None,
+) -> tuple[int, ScenarioStatus, float]:
+    """Keep process, scenario artifact and suite verdicts consistent, failing closed."""
+    try:
+        result = load_result(path)
+    except ResultSchemaError:
+        result = None
+    if (
+        runtime_error is None
+        and result is not None
+        and _EXIT_BY_STATUS[result.status] == exit_code
+        and _result_matches_task(result, scenario)
+    ):
+        return exit_code, result.status, result.duration_sec
+
+    # Do not preserve a misleading PASS on disk when the process failed, or a
+    # malformed/foreign result when an adapter violated its result contract.
+    start = Pose2D(scenario.start.x, scenario.start.y, scenario.start.yaw)
+    goal = Pose2D(scenario.goal.x, scenario.goal.y, scenario.goal.yaw)
+    error_payload = {
+        "schema_version": RESULT_SCHEMA_VERSION,
+        "scenario": scenario.name,
+        "status": "INFRA_ERROR",
+        "duration_sec": 0.0,
+        "start": asdict(start),
+        "goal": asdict(goal),
+        "navigation_result": (
+            "RUNTIME_WATCHDOG_TIMEOUT" if runtime_error else "RUNTIME_RESULT_INVALID"
+        ),
+        "metrics": None,
+        "telemetry_quality": None,
+        "evidence_policy": asdict(
+            NavigationEvidencePolicy(
+                goal_tolerance_m=scenario.goal_tolerance_m,
+                min_feedback_samples=scenario.min_feedback_samples,
+            )
+        ),
+        "task": asdict(
+            build_scenario_task(
+                scenario=scenario.name,
+                start=start,
+                goal=goal,
+                map_id=scenario.map_id or "unspecified",
+            )
+        ),
+        "reason_code": "runtime_watchdog_timeout" if runtime_error else "runtime_result_invalid",
+        "runtime_exit_code": exit_code,
+        "error": (
+            str(runtime_error)
+            if runtime_error else "missing, invalid or inconsistent runtime result"
+        ),
+    }
+    try:
+        default_replay_path(path).unlink(missing_ok=True)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            json.dumps(error_payload, allow_nan=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    except OSError as exc:
+        raise RuntimeUnavailableError(f"cannot write runtime failure result: {exc}") from exc
+    return 3, "INFRA_ERROR", 0.0
+
+
+def _annotate_replay_visual_profile(result_path: Path, profile: RobotVisualProfile) -> None:
+    """Attach display metadata without changing or inventing navigation evidence."""
+    replay_path = default_replay_path(result_path)
+    try:
+        if not replay_path.is_file():
+            return
+        replay = load_replay(replay_path)
+        replay_matches_result(replay, load_result(result_path))
+        if replay["robot"].get("visual_profile") == profile:
+            return
+        replay["robot"] = {**replay["robot"], "visual_profile": profile}
+        # Keep a valid original intact if annotation or replacement fails.
+        with tempfile.TemporaryDirectory(prefix=".robotci-replay-", dir=replay_path.parent) as temp:
+            staged = Path(temp) / replay_path.name
+            staged.write_text(
+                json.dumps(replay, allow_nan=False, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            os.replace(staged, replay_path)
+    except (ViewerError, ResultSchemaError, OSError, UnicodeError) as exc:
+        _LOGGER.warning(
+            "Cannot save replay visual profile for %s: %s. Navigation result is unchanged.",
+            replay_path, exc,
+        )
+
+
 def run_scenario(
     *,
     scenario: str,
@@ -255,33 +522,42 @@ def run_scenario(
     config_path: str | Path = DEFAULT_CONFIG_PATH,
     project_root: Path | None = None,
 ) -> tuple[int, Literal["native", "docker"], Path]:
-    root = _find_project_root(project_root)
-    resolved_config = _resolve_config_path(root, config_path)
-    config = load_config(resolved_config)
+    context = resolve_project_context(config_path, project_root=project_root)
+    runtime_root = _find_runtime_root(context.project_root)
+    config = load_config(context.config_path)
     definition = get_scenario(config, scenario)
 
+    effective_timeout = definition.timeout_sec if timeout_sec is None else timeout_sec
+    _runtime_budget(effective_timeout, docker=True, build_image=True)
     requested_runtime = runtime or config.runtime
     selected = select_runtime(requested_runtime)
-    effective_timeout = definition.timeout_sec if timeout_sec is None else timeout_sec
-    if effective_timeout <= 0:
-        raise ConfigError("timeout must be greater than zero")
 
     result_path = Path(output)
     if not result_path.is_absolute():
-        result_path = root / result_path
+        result_path = context.project_root / result_path
     result_path = result_path.resolve()
+    _clear_result_artifacts(result_path)
 
-    if selected == "native":
-        exit_code = _run_native(root, definition, result_path, effective_timeout)
-    else:
-        exit_code = _run_docker(
-            root,
-            definition,
-            result_path,
-            effective_timeout,
-            resolved_config,
-        )
+    runtime_error = None
+    try:
+        if selected == "native":
+            exit_code = _run_native(runtime_root, definition, result_path, effective_timeout)
+        else:
+            exit_code = _run_docker(
+                runtime_root,
+                definition,
+                result_path,
+                effective_timeout,
+                context.config_path,
+            )
+    except RuntimeWatchdogError as exc:
+        runtime_error = exc
+        exit_code = 3
 
+    exit_code, _, _ = _finalize_result(
+        result_path, definition, exit_code, runtime_error=runtime_error,
+    )
+    _annotate_replay_visual_profile(result_path, config.robot.visual_profile)
     return exit_code, selected, result_path
 
 
@@ -293,52 +569,75 @@ def run_suite(
     config_path: str | Path = DEFAULT_CONFIG_PATH,
     project_root: Path | None = None,
 ) -> tuple[int, Literal["native", "docker"], Path]:
-    root = _find_project_root(project_root)
-    resolved_config = _resolve_config_path(root, config_path)
-    config = load_config(resolved_config)
+    context = resolve_project_context(config_path, project_root=project_root)
+    runtime_root = _find_runtime_root(context.project_root)
+    config = load_config(context.config_path)
 
+    for definition in config.scenarios:
+        _runtime_budget(
+            definition.timeout_sec if timeout_sec is None else timeout_sec,
+            docker=True,
+            build_image=True,
+        )
     requested_runtime = runtime or config.runtime
     selected = select_runtime(requested_runtime)
 
-    if timeout_sec is not None and timeout_sec <= 0:
-        raise ConfigError("timeout must be greater than zero")
-
     suite_path = Path(output)
     if not suite_path.is_absolute():
-        suite_path = root / suite_path
+        suite_path = context.project_root / suite_path
     suite_path = suite_path.resolve()
+    try:
+        suite_path.unlink(missing_ok=True)
+    except OSError as exc:
+        raise RuntimeUnavailableError(f"cannot prepare fresh suite result: {exc}") from exc
 
     scenario_dir = suite_path.parent / "results"
     started_at = time.monotonic()
+    try:
+        execution = capture_suite_execution(
+            config=config,
+            timeout_sec=timeout_sec,
+            runtime=selected,
+            runtime_root=runtime_root,
+            build_docker_image=selected == "docker",
+        )
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(
+            f"cannot capture reproducible runtime environment: {exc}"
+        ) from exc
+
     scenario_results: list[SuiteScenarioResult] = []
     final_exit_code = 0
 
     for definition in config.scenarios:
         result_path = scenario_dir / f"{definition.name}.json"
         effective_timeout = definition.timeout_sec if timeout_sec is None else timeout_sec
+        _clear_result_artifacts(result_path)
 
-        if selected == "native":
-            exit_code = _run_native(root, definition, result_path, effective_timeout)
-        else:
-            exit_code = _run_docker(
-                root,
-                definition,
-                result_path,
-                effective_timeout,
-                resolved_config,
-            )
+        runtime_error = None
+        try:
+            if selected == "native":
+                exit_code = _run_native(
+                    runtime_root, definition, result_path, effective_timeout,
+                )
+            else:
+                exit_code = _run_docker(
+                    runtime_root,
+                    definition,
+                    result_path,
+                    effective_timeout,
+                    context.config_path,
+                    build_image=False,
+                )
+        except RuntimeWatchdogError as exc:
+            runtime_error = exc
+            exit_code = 3
 
-        payload = read_result_payload(result_path)
-        status = payload.get("status") if payload is not None else None
-        duration = payload.get("duration_sec") if payload is not None else None
-
-        if status not in _EXIT_BY_STATUS:
-            status = "INFRA_ERROR"
-        if isinstance(duration, bool) or not isinstance(duration, int | float):
-            duration = 0.0
-
-        normalized_exit = exit_code if exit_code in _STATUS_BY_EXIT else 3
-        final_exit_code = max(final_exit_code, _EXIT_BY_STATUS[status], normalized_exit)
+        normalized_exit, status, duration = _finalize_result(
+            result_path, definition, exit_code, runtime_error=runtime_error,
+        )
+        _annotate_replay_visual_profile(result_path, config.robot.visual_profile)
+        final_exit_code = max(final_exit_code, normalized_exit)
         scenario_results.append(
             SuiteScenarioResult(
                 scenario=definition.name,
@@ -348,12 +647,29 @@ def run_suite(
             )
         )
 
+    try:
+        verified_execution = capture_suite_execution(
+            config=config,
+            timeout_sec=timeout_sec,
+            runtime=selected,
+            runtime_root=runtime_root,
+        )
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(
+            f"cannot verify reproducible runtime environment: {exc}"
+        ) from exc
+    if verified_execution.fingerprint != execution.fingerprint:
+        raise RuntimeUnavailableError(
+            "runtime environment changed during suite execution"
+        )
+
     suite_status = cast(ScenarioStatus, _STATUS_BY_EXIT[final_exit_code])
     suite = SuiteResult(
         status=suite_status,
-        runtime=selected,
+        runtime=execution.runtime,
         duration_sec=round(time.monotonic() - started_at, 3),
         scenarios=tuple(scenario_results),
+        execution=execution,
     )
     suite_path = write_suite_result(suite, suite_path)
     return final_exit_code, selected, suite_path

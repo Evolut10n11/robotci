@@ -1,97 +1,69 @@
 from __future__ import annotations
 
-import json
-import math
-from dataclasses import dataclass
 from pathlib import Path
 
-from robotci.metrics import NavigationMetrics
 from robotci.regression import RegressionPolicy, RegressionReport, compare_navigation_metrics
+from robotci.result_schema import (
+    ResultSchemaError,
+    ValidatedScenarioResult,
+    load_result,
+    validate_result_payload,
+)
+from robotci.results import RESULT_SCHEMA_VERSION
 
 
 class ComparisonInputError(ValueError):
     """Raised when a persisted result cannot be used for regression comparison."""
 
 
-@dataclass(frozen=True)
-class ScenarioSnapshot:
-    scenario: str
-    duration_sec: float
-    metrics: NavigationMetrics
+ScenarioSnapshot = ValidatedScenarioResult
 
 
-def _as_mapping(value: object, name: str) -> dict[str, object]:
-    if not isinstance(value, dict):
-        raise ComparisonInputError(f"{name} must be an object")
-    return value
-
-
-def _as_string(value: object, name: str) -> str:
-    if not isinstance(value, str) or not value:
-        raise ComparisonInputError(f"{name} must be a non-empty string")
-    return value
-
-
-def _as_non_negative_float(value: object, name: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        raise ComparisonInputError(f"{name} must be a number")
-    number = float(value)
-    if not math.isfinite(number) or number < 0:
-        raise ComparisonInputError(f"{name} must be finite and non-negative")
-    return number
-
-
-def _as_non_negative_int(value: object, name: str) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-        raise ComparisonInputError(f"{name} must be a non-negative integer")
-    return value
+def require_comparable_result(result: ValidatedScenarioResult) -> ScenarioSnapshot:
+    """Require current PASS evidence from an already validated result snapshot."""
+    if result.source_schema_version == 0:
+        raise ComparisonInputError(
+            "legacy result schema v0 has incomplete task provenance; "
+            "rerun the scenario to create a current result before comparison"
+        )
+    if (
+        result.source_schema_version != RESULT_SCHEMA_VERSION
+        or not result.evidence_complete
+    ):
+        raise ComparisonInputError(
+            f"result schema v{result.source_schema_version} lacks required "
+            "telemetry-quality evidence; rerun the scenario before comparison"
+        )
+    if result.status != "PASS":
+        raise ComparisonInputError(
+            f"scenario '{result.scenario}' must have PASS status before metrics "
+            "can be compared"
+        )
+    if result.task is None or not result.provenance_complete:
+        raise ComparisonInputError(
+            "task.map_id must identify the map before regression comparison"
+        )
+    if result.metrics is None:
+        raise ComparisonInputError("PASS result must include navigation metrics")
+    return result
 
 
 def parse_scenario_result(payload: object) -> ScenarioSnapshot:
-    """Parse the stable subset of a RobotCI scenario result needed by M4."""
-    result = _as_mapping(payload, "result")
-    scenario = _as_string(result.get("scenario"), "scenario")
-    status = _as_string(result.get("status"), "status")
-    if status != "PASS":
-        raise ComparisonInputError(
-            f"scenario '{scenario}' must have PASS status before metrics can be compared"
-        )
+    """Validate a result and require complete provenance for comparison."""
 
-    duration_sec = _as_non_negative_float(result.get("duration_sec"), "duration_sec")
-    metrics_payload = _as_mapping(result.get("metrics"), "metrics")
-    metrics = NavigationMetrics(
-        path_length_m=_as_non_negative_float(
-            metrics_payload.get("path_length_m"), "metrics.path_length_m"
-        ),
-        distance_to_goal_m=_as_non_negative_float(
-            metrics_payload.get("distance_to_goal_m"), "metrics.distance_to_goal_m"
-        ),
-        stuck_events=_as_non_negative_int(
-            metrics_payload.get("stuck_events"), "metrics.stuck_events"
-        ),
-        feedback_samples=_as_non_negative_int(
-            metrics_payload.get("feedback_samples"), "metrics.feedback_samples"
-        ),
-        recoveries=_as_non_negative_int(
-            metrics_payload.get("recoveries"), "metrics.recoveries"
-        ),
-    )
-    return ScenarioSnapshot(
-        scenario=scenario,
-        duration_sec=duration_sec,
-        metrics=metrics,
-    )
+    try:
+        result = validate_result_payload(payload)
+    except ResultSchemaError as exc:
+        raise ComparisonInputError(str(exc)) from exc
+    return require_comparable_result(result)
 
 
 def load_scenario_result(path: str | Path) -> ScenarioSnapshot:
-    result_path = Path(path)
     try:
-        payload = json.loads(result_path.read_text(encoding="utf-8"))
-    except OSError as exc:
-        raise ComparisonInputError(f"cannot read result file '{result_path}': {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise ComparisonInputError(f"invalid JSON in result file '{result_path}': {exc}") from exc
-    return parse_scenario_result(payload)
+        result = load_result(path)
+    except ResultSchemaError as exc:
+        raise ComparisonInputError(str(exc)) from exc
+    return require_comparable_result(result)
 
 
 def compare_scenario_results(
@@ -105,6 +77,23 @@ def compare_scenario_results(
             "baseline and candidate must describe the same scenario "
             f"('{baseline.scenario}' != '{candidate.scenario}')"
         )
+
+    if (
+        baseline.task is None
+        or candidate.task is None
+        or baseline.task.fingerprint != candidate.task.fingerprint
+    ):
+        raise ComparisonInputError(
+            "baseline and candidate describe different tasks; "
+            "scenario start, goal, frame and map must match"
+        )
+    if baseline.evidence_policy != candidate.evidence_policy:
+        raise ComparisonInputError(
+            "baseline and candidate use different evidence policies; "
+            "goal tolerance and minimum feedback must match"
+        )
+    if baseline.metrics is None or candidate.metrics is None:
+        raise ComparisonInputError("both results must include navigation metrics")
 
     return compare_navigation_metrics(
         baseline_duration_sec=baseline.duration_sec,

@@ -19,11 +19,35 @@ The adapter receives the same scenario contract as the built-in Nav2 Loopback at
 - `ROBOTCI_START_X`, `ROBOTCI_START_Y`, `ROBOTCI_START_YAW`
 - `ROBOTCI_START_QZ`, `ROBOTCI_START_QW`
 - `ROBOTCI_GOAL_X`, `ROBOTCI_GOAL_Y`, `ROBOTCI_GOAL_YAW`
+- `ROBOTCI_MAP_ID`
 - `ROBOTCI_RESULT_FILE`
 - `ROBOTCI_TIMEOUT_SEC`
+- `ROBOTCI_GOAL_TOLERANCE_M`
+- `ROBOTCI_MIN_FEEDBACK_SAMPLES`
 - `ROBOTCI_PYTHON`
 
+For a namespaced target, set `ROBOTCI_ROS_NAMESPACE` before the native run. The
+probe normalizes `robot1` to `/robot1` and accepts an explicit `--namespace`
+override. The effective native namespace is included in execution identity.
+The navigation action readiness wait is bounded; a missing action is
+`INFRA_ERROR`, not robot-behavior failure. TF frame names and target-specific
+topic remapping still belong to the adapter.
+
+The checked-in [Gazebo example](../examples/nav2-gazebo/README.md) supplies a
+fresh-world adapter and an automated controller experiment. Its four optional
+native path controls select absolute regular files: `ROBOTCI_GAZEBO_PARAMS_FILE`,
+`ROBOTCI_GAZEBO_MAP_FILE`, `ROBOTCI_GAZEBO_WORLD_FILE`, and
+`ROBOTCI_GAZEBO_LAUNCH_FILE`. Keep selected paths stable throughout a comparison;
+the experiment separately records controller read-back and asset digests.
+
 The adapter is responsible for starting or connecting to the target simulator/Nav2 stack, placing or localizing the simulated robot at the configured start pose, executing the scenario, writing the normal RobotCI scenario result JSON to `ROBOTCI_RESULT_FILE`, and cleaning up processes that it starts.
+
+The outer [runtime watchdog](runtime-integrity.md#runtime-watchdog) bounds setup,
+navigation and cleanup together. Its expiry is `INFRA_ERROR`, separate from the
+probe's navigation `TIMEOUT`. Preserve the inherited `ROBOTCI_PROCESS_OWNER`
+marker when starting detached processes so Linux watchdog cleanup can identify
+them; do not use its random value as part of navigation or comparison inputs.
+Normal process cleanup still belongs to the adapter.
 
 Return codes keep the existing RobotCI contract:
 
@@ -74,17 +98,40 @@ timeout 20s ros2 topic pub --once \
   --goal-x "$ROBOTCI_GOAL_X" \
   --goal-y "$ROBOTCI_GOAL_Y" \
   --goal-yaw "$ROBOTCI_GOAL_YAW" \
+  --map-id "$ROBOTCI_MAP_ID" \
   --output "$ROBOTCI_RESULT_FILE" \
-  --timeout-sec "$ROBOTCI_TIMEOUT_SEC"
+  --timeout-sec "$ROBOTCI_TIMEOUT_SEC" \
+  --goal-tolerance-m "$ROBOTCI_GOAL_TOLERANCE_M" \
+  --min-feedback-samples "$ROBOTCI_MIN_FEEDBACK_SAMPLES"
 ```
 
 A real adapter should wait for the target stack's readiness signals before applying the start pose and invoking the scenario probe. Do not treat the `--start-*` arguments passed to `navigation_scenario` as a simulator reset: they seed RobotCI's metric/result contract, while the adapter itself must make the target robot state match them. The adapter should not require proprietary maps, credentials, production access, or a physical robot for pilot validation.
+
+Pass both evidence-policy values through to the probe. Its defaults can differ
+from the selected YAML; such a mismatch is an infrastructure/input error.
+
+Set each scenario's `map_id` to a stable map name or content digest. The value is
+part of RobotCI's task fingerprint together with the scenario, start, goal, and
+coordinate frame. A controller or planner change remains comparable because its
+implementation identity is deliberately outside the task fingerprint.
 
 ## External pilot use
 
 For the first external pilot targets, prefer one small adapter script in the target checkout over adding target-specific behavior to RobotCI core. If two or more independent repositories require the same setup pattern, that repeated evidence is the signal to promote it into a first-class runtime adapter API.
 
-For Clearpath's public Nav2 demos, the first pilot adapter should launch the Jazzy `a200` warehouse simulation/navigation stack, wait for `/navigate_to_pose`, explicitly reset/localize the robot at RobotCI's configured start pose, then invoke the normalized scenario probe. Keep the adapter in the pilot workspace until the compatibility pattern is proven reusable.
+For Clearpath's public Nav2 demos, first launch a separate Clearpath simulator;
+the demo package only adds navigation and localization to an already running robot.
+Select the Jazzy `a200` platform through the simulator's `robot.yaml`, then start
+warehouse localization and navigation with simulation time. Wait for the actual
+namespaced Nav2 action, explicitly reset/localize the robot at RobotCI's configured
+start pose, and invoke the normalized scenario probe in the same ROS namespace
+and TF/topic context. Do not assume a global `/navigate_to_pose` endpoint. Keep the
+adapter in the pilot workspace until the compatibility pattern is proven reusable.
+The [Clearpath preflight](validation/clearpath-preflight.md) records the verified
+source revision, current runtime blocker, and the remaining acceptance checks.
+The [Nav2/Gazebo acceptance runbook](validation/runtime-acceptance.md) specifies
+repeated baselines, unchanged controls, a real controller-parameter intervention,
+and the evidence needed before claiming a validated integration.
 
 ## Limitations
 

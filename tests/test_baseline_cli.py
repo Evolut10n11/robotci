@@ -196,6 +196,8 @@ def test_gate_saved_baseline_honors_threshold_overrides(tmp_path: Path) -> None:
             "100",
             "--max-path-length-increase-pct",
             "100",
+            "--max-distance-to-goal-increase-m",
+            "1",
             "--max-stuck-events-increase",
             "100",
             "--max-recoveries-increase",

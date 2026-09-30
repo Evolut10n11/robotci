@@ -36,23 +36,26 @@ jobs:
           junit: artifacts/suite-regression-junit.xml
           max-duration-increase-pct: "10"
           max-path-length-increase-pct: "10"
+          max-distance-to-goal-increase-m: "0.1"
           max-stuck-events-increase: "0"
           max-recoveries-increase: "0"
 
       - name: Upload regression artifacts
-        if: always()
+        if: ${{ always() && steps.robotci.outputs.report != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: robotci-suite-regression-report
           path: |
-            artifacts/suite-regression-report.json
-            artifacts/suite-regression-summary.md
-            artifacts/suite-regression-junit.xml
+            ${{ steps.robotci.outputs.report }}
+            ${{ steps.robotci.outputs.summary }}
+            ${{ steps.robotci.outputs.junit }}
 ```
 
-The action installs RobotCI from the referenced action revision and runs `robotci-suite-gate`. Baseline and candidate suites must both be successful, contain the same scenario names, and keep the individual scenario result files referenced by their suite artifact. The gate aggregates the deterministic per-scenario comparisons into one `PASS` or `REGRESSION` verdict.
+The action installs RobotCI from the referenced action revision and runs `robotci-suite-gate`. Installation and comparison use Python's isolated mode so a local package in the caller's checkout cannot replace the pinned action code. Baseline and candidate suites must both be successful, contain the same scenario names, and keep the individual scenario result files referenced by their suite artifact. The gate aggregates the deterministic per-scenario comparisons into one `PASS` or `REGRESSION` verdict.
 
 A regression returns RobotCI exit code `4`, which fails the action step. Invalid or incomplete comparison artifacts return exit code `3`. JSON, Markdown, and JUnit outputs are written before the regression exit, so all remain available when a pull request is blocked. The Markdown file is also appended to `GITHUB_STEP_SUMMARY` automatically.
+
+Only a completed comparison (`0` or `4`) publishes report outputs and a job summary. Each invocation first validates the three distinct report destinations, then removes old reports at those paths and generates the current reports in an isolated temporary directory. Invalid inputs therefore cannot reuse an earlier PASS report. Report destinations must not overlap either input suite, its declared scenario results and companion replays, or its `results/` evidence tree, including filesystem aliases. An unsafe destination fails before changing any files; use the named outputs and upload condition above to select current evidence.
 
 The JUnit report emits one testcase per RobotCI scenario. Deterministic `REGRESSION` verdicts become JUnit failures with the metric findings in the failure body; passing scenarios remain normal successful testcases. This lets CI systems display RobotCI behavior regressions alongside ordinary automated test results without parsing RobotCI-specific JSON.
 
@@ -69,12 +72,13 @@ For reproducible production use, pin the action to a release tag or commit SHA r
 | `junit` | `artifacts/suite-regression-junit.xml` | Generated JUnit XML report path |
 | `max-duration-increase-pct` | `10` | Allowed duration increase per scenario (%) |
 | `max-path-length-increase-pct` | `10` | Allowed path-length increase per scenario (%) |
+| `max-distance-to-goal-increase-m` | `0.1` | Allowed final distance-to-goal increase per scenario (m) |
 | `max-stuck-events-increase` | `0` | Allowed additional stuck events per scenario |
 | `max-recoveries-increase` | `0` | Allowed additional recoveries per scenario |
 
 ## Outputs
 
-- `report` is the generated JSON report path. Schema version `1` uses `kind: "suite_regression"` and contains one entry per scenario with its verdict and findings.
+- `report` is the generated JSON report path. Schema version `2` uses `kind: "suite_regression"`, records all five regression thresholds, and contains one entry per scenario with its verdict and findings.
 - `summary` is the generated Markdown summary path. It contains the overall verdict, scenario table, regression details and active thresholds.
 - `junit` is the generated JUnit XML path. It contains one testcase per scenario and maps RobotCI regressions to test failures.
 

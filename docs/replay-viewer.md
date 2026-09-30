@@ -1,6 +1,12 @@
-# 3D Replay Viewer
+# Replay workbench
 
-RobotCI includes a local browser-based 3D viewer for deterministic navigation replays.
+[Руководство на русском](replay-viewer.ru.md)
+
+Inspect recorded robot behavior, compare baseline and candidate trajectories, and
+read the deterministic suite gate in one local workspace. All assets are bundled;
+no cloud service, account, or Node.js installation is required to use the viewer.
+The interface is in Russian. JSON contracts, scenario identifiers, and exported
+evidence retain their original values; presentation does not change gate decisions.
 
 ## Quick start
 
@@ -17,10 +23,176 @@ robotci view --replay path/to/replay.json
 ```
 
 By default the viewer binds to `127.0.0.1:8765` and opens the browser automatically. Use `--no-open` for headless/manual use, or override `--host` and `--port` when needed.
+If another project uses that port, use `--port 8766` or `--port 0` to request a
+free port. The CLI prints the actual bound URL after the server starts.
+
+## Compare recordings or suites
+
+For a visual comparison of two Replay v1 files:
+
+```bash
+robotci view --replay candidate.replay.json --baseline baseline.replay.json
+```
+
+You can also choose **Импорт JSON** in the browser to open the **Открыть записи**
+dialog. Files stay in the browser and are not uploaded. Imports are limited to
+32 MiB and 250,000 pose samples per
+file. Invalid numbers, duplicate JSON keys, unsupported statuses, and unordered
+or out-of-range timestamps are rejected before the workspace changes.
+
+For the official regression gate, open validated suite results:
+
+```bash
+robotci view --suite .robotci/suite-result.json --baseline-name main-nav
+```
+
+The named baseline is read from `.robotci/baselines`; `--baseline-store` selects
+another store. Alternatively, pass the baseline suite file directly:
+
+```bash
+robotci view --suite .robotci/suite-result.json --baseline-suite .robotci/baselines/main-nav/suite-result.json
+```
+
+`--baseline-name` and `--baseline-suite` are mutually exclusive. Both require
+`--suite`; `--baseline-store` requires `--baseline-name`. These options only read
+the saved evidence and never replace or create a baseline.
+
+Use `--scenario simple_route` to select a scenario initially. The viewer delegates
+the gate to the same comparison engine as `robotci-suite-gate`, including task,
+execution, and telemetry compatibility checks. Its default policy allows +10%
+duration, +10% path length, +0.1 m final goal distance, and no additional stuck or
+recovery events. Pass the corresponding `--max-*-increase*` flags from
+`robotci view --help` to match your CI policy. Opening a viewer never blocks CI;
+use the gate commands for blocking exit codes.
+
+| Evidence | What the viewer reports |
+| --- | --- |
+| Compatible suite pair | Official PASS/REGRESSION, findings, policy limits, and JSON export |
+| Replay pair | Visual comparison and metric differences; no gate verdict |
+| Incompatible suite pair | Available recordings/metrics and why the gate cannot be evaluated |
+| Old result without a replay | Metrics and gate remain available; trajectory is explicitly unavailable |
+| Synthetic demo | Clearly marked sample data; no gate verdict |
+
+New baseline captures preserve valid replay sidecars. When opening a suite, a
+sidecar must agree with its result's scenario, status, duration, start, goal,
+frame (when available), and metrics. A stale or malformed sidecar is withheld;
+it cannot replace the suite evidence used by the gate. These consistency checks
+are not a cryptographic binding between a trajectory and a result.
+
+## Controls and interpretation
+
+- **Просмотр / Сравнение:** inspect the candidate or overlay an aligned baseline.
+- **2D / 3D / Вписать:** pan, zoom, orbit, and reset the camera. 3D requires
+  WebGL; the top view remains usable without it.
+- **К роботу:** move the camera closer to the robot; **Вписать** restores the
+  full route.
+- **Playback:** play/pause, seek, 0.25×–4× speed, loop, and previous/next event.
+- **Events:** select a marker or log entry to jump to its recorded timestamp.
+- **Inspector:** candidate pose when observation coverage permits it, or an
+  unknown-position indication with the last observation time; final run metrics
+  remain available.
+- **Robot model:** preview a rover, quadruped, or humanoid; return to the profile
+  stored in the recording with **Из записи**.
+- **Export:** download the official gate JSON, or the candidate Replay v1 file
+  when no gate is available.
+
+The timeline uses elapsed seconds, not normalized progress. New Nav2 recordings
+contain observed poses only. The configured start is stored separately and is
+not inserted as a pose; the recorder does not append an artificial terminal pose.
+
+For recordings with `recording.pose_source: "observed"`, exact sample timestamps
+have a known pose. The viewer interpolates only between adjacent observations
+separated by at most `recording.max_interpolation_gap_sec` (1 second by default).
+Before the first observation, after the last, or inside a longer gap, the position
+is unknown: the robot model is hidden, both 2D and 3D routes are split, and the
+timeline marks the interval with stripes. The inspector shows the last observation
+time when one exists. A recording with no samples has no known positions; a
+single sample provides a position only at its timestamp.
+
+Candidate and baseline coverage are evaluated independently using each file's
+recorded threshold. An event inside a gap remains visible in the journal and can
+be sought by time, but it receives no invented location on the route. The threshold
+is a display policy, not a robot fault threshold. Gaps do not change recorded
+metrics, statuses, or the deterministic gate.
+
+Legacy Replay v1 files without `recording` retain interpolation and endpoint
+holding. The viewer explicitly notes that their observation completeness is
+unknown; absence of gap metadata does not establish continuous telemetry.
+
+Long trajectories are reduced for drawing only; the original samples remain
+available for pose lookup and export. The event list displays the first 1,000
+events of a large recording; previous/next navigation still considers every
+recorded event.
+
+Different scenarios, coordinate frames, start positions, or goal positions disable
+the overlay and metric deltas. Spatial alignment alone does not establish the
+provenance required for an official regression verdict.
+
+Press **?** for shortcuts. **Space** plays/pauses, **← / →** seek one second,
+**[ / ]** select events, **Home / End** select the bounds, **F** fits the camera,
+and **O** opens files. Russian-layout equivalents **Х / Ъ**, **А**, and **Щ**
+also work. Shortcuts do not intercept form controls. Playback pauses
+when the tab is hidden and when the scenario or source changes.
+
+The Nav2 recorder emits start/terminal events and the same stuck/recovery
+observations that update the metric counters. **К событиям** in a metric row or
+regression finding seeks to the first recorded event of that type in the candidate.
+Previous/next event controls and the journal navigate subsequent observations.
+The button is absent if that recording contains no matching timestamped events.
+
+STUCK is timestamped when the detector first observes that motion has not crossed
+its displacement threshold within the configured window (defaults: 0.02 m and
+5 seconds). It is counted once until motion resumes. Polling cached or missing
+feedback still advances that detector; STUCK therefore means no observed motion,
+not proof that the physical robot stopped. Missing/invalid feedback remains
+subject to the existing evidence checks.
+
+RECOVERY is timestamped when fresh Nav2 feedback reports an increase in its
+cumulative recovery counter. If it jumps by several, one event retains the full
+increase in `count`; no intermediate times or completion claims are invented.
+Repeated/decreasing counters add nothing. Recovery observations survive an invalid
+pose in the same feedback. Times use the navigation monotonic clock relative to
+goal dispatch, rounded to milliseconds; they are observation times, not precise
+start/end times of the individual recovery actions.
+
+Old recordings remain supported: counts alone cannot supply missing timestamps.
+No historical events are backfilled. A displayed event position can come from
+interpolation between nearby feedback samples; it is not an independently
+measured event position. Events in an observed-pose gap have no map marker.
+This is a trajectory viewer, not a simulator, map renderer, live robot controller,
+or video recording.
+
+## Robot models
+
+The workspace keeps the trajectory and playback together, with the robot model,
+pose, and regression evidence available alongside them. Both 2D and 3D use the
+selected visual profile; 3D models are bundled locally and work without asset
+downloads.
+
+To choose the profile for new recordings, add this block to `robotci.yaml`:
+
+```yaml
+robot:
+  visual_profile: quadruped
+```
+
+Use `rover`, `quadruped`, or `humanoid`. The default is `rover`. The runner stores
+this choice in the optional `robot.visual_profile` field of a valid replay;
+baseline capture preserves it. Existing files without that field display the
+default rover. Unsupported explicit values fail validation.
+
+The model selector is a local preview override. It does not rewrite the loaded
+JSON, exported evidence, baseline, configuration, or gate verdict. **Из записи**
+restores the recorded profile. Shapes are illustrative: position and yaw follow
+the recording, while limb poses are static. Selecting a quadruped or humanoid
+does not enable a new runtime, change navigation physics, or reconstruct gait.
 
 ## Record a real Nav2 run
 
-A single-scenario `robotci run` now records fresh Nav2 feedback poses automatically. The replay is written beside the normal result using the `.replay.json` suffix.
+A single-scenario `robotci run` records valid poses from fresh Nav2 feedback
+automatically. Missing, cached, or invalid pose feedback does not add a pose.
+The replay is written beside the normal result using the `.replay.json` suffix,
+including recordings with zero or one observed pose.
 
 ```bash
 robotci run --scenario simple_route
@@ -43,20 +215,38 @@ robotci view --replay .robotci/results/simple_route.replay.json
 
 ## Replay v1
 
-The viewer reads the replay from `GET /api/replay`. A Replay v1 document contains:
+The viewer consumes a session from `GET /api/session`. The original
+`GET /api/replay` endpoint remains available for the initially selected candidate
+recording. A Replay v1 document contains:
 
 - `schema_version`: must be `1`.
 - `scenario`: human-readable scenario identifier.
-- `status`: viewer verdict, `PASS` or `FAIL`.
+- `status`: recorded execution outcome, `PASS` or `FAIL` (not a regression verdict).
 - `result_status`: original RobotCI verdict (`PASS`, `FAIL`, `TIMEOUT`, or `INFRA_ERROR`) when emitted by the runtime recorder.
 - `runtime`: runtime/backend label.
 - `duration_sec`: total replay duration.
-- `robot.type`: robot visualization type. Unknown types fall back to the generic mobile base.
+- `robot.type`: existing robot-type metadata; preserved independently of visual selection.
+- `robot.visual_profile`: optional `rover`, `quadruped`, or `humanoid` display
+  profile. Missing fields default to `rover`; no schema-version change is needed.
 - `world.frame`: coordinate frame label.
+- `world.start`: configured start position with finite `{x, y, z}` coordinates
+  in meters, required when `recording` is present. This is alignment metadata,
+  not an observed pose.
 - `world.goal`: `{x, y, z}` goal position in meters.
-- `samples`: ordered timestamped poses with `{x, y, z}` and yaw.
+- `recording`: optional observation metadata with `pose_source: "observed"` and
+  `max_interpolation_gap_sec`, the maximum adjacent observation interval that
+  permits interpolation. New Nav2 recordings store `1.0` seconds. This extension
+  keeps schema version `1` and does not alter the gate policy.
+- `samples`: timestamped poses with finite `{x, y, z}` and yaw. With `recording`,
+  timestamps must be strictly increasing and zero or one sample is valid. Without
+  it, the legacy contract requires at least two samples in timestamp order.
 - `metrics`: duration, path length, distance to goal, stuck-event count, and recovery count.
 - `events`: timestamped `START`, `REPLAN`, `STUCK`, `RECOVERY`, `GOAL`, or `FAIL` events.
+- `events[].count`: optional positive integer up to `2^53 - 1`, only for `STUCK`
+  and `RECOVERY`. It is the observed counter increase, defaulting to 1 for older
+  event records. For newly recorded Nav2 runs, the sum of each type's `count`
+  equals the corresponding final metric. `REPLAN` remains a supported import
+  type, but the current recorder does not capture it.
 
 Minimal shape:
 
@@ -69,25 +259,35 @@ Minimal shape:
   "runtime": "ros2_nav2",
   "duration_sec": 2.0,
   "robot": {"type": "generic_mobile_base"},
+  "recording": {
+    "pose_source": "observed",
+    "max_interpolation_gap_sec": 1.0
+  },
   "world": {
     "frame": "map",
+    "start": {"x": 0.0, "y": 0.0, "z": 0.0},
     "goal": {"x": 1.0, "y": 0.0, "z": 0.0}
   },
   "samples": [
     {
-      "t": 0.0,
-      "position": {"x": 0.0, "y": 0.0, "z": 0.0},
+      "t": 0.25,
+      "position": {"x": 0.1, "y": 0.0, "z": 0.0},
       "orientation": {"yaw": 0.0}
     },
     {
-      "t": 2.0,
+      "t": 1.0,
+      "position": {"x": 0.55, "y": 0.0, "z": 0.0},
+      "orientation": {"yaw": 0.0}
+    },
+    {
+      "t": 1.75,
       "position": {"x": 1.0, "y": 0.0, "z": 0.0},
       "orientation": {"yaw": 0.0}
     }
   ],
   "metrics": {
     "duration_sec": 2.0,
-    "path_length_m": 1.0,
+    "path_length_m": 0.9,
     "distance_to_goal_m": 0.0,
     "stuck_events": 0,
     "recoveries": 0
@@ -99,12 +299,19 @@ Minimal shape:
 }
 ```
 
+In this example, the configured start is not a pose sample. Position is unknown
+before `0.25` seconds and after `1.75` seconds, including at the terminal event at
+`2.0` seconds. The two short intervals between observations permit interpolation.
+
 RobotCI validates the file before starting the local server so malformed or unsupported replay data fails fast in the CLI rather than inside the browser.
 
 ## Local endpoints
 
 - `GET /` serves the bundled viewer.
-- `GET /api/replay` serves the selected replay JSON.
+- `GET /api/session` serves the read-only workspace, scenarios, optional replays,
+  and optional suite gate report.
+- `GET /api/replay` serves the initially selected candidate replay, or 404 when
+  that result has no trajectory.
 - `GET /healthz` returns a small health response for smoke tests.
 
 The default bind address is loopback-only. No external service or cloud backend is required.

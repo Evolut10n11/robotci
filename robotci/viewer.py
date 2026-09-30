@@ -1,16 +1,23 @@
 from __future__ import annotations
 
+import errno
 import json
 import math
+import socket
 import webbrowser
+from collections.abc import Callable
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
+from robotci.visual_profiles import ROBOT_VISUAL_PROFILES
+
 VIEWER_ASSETS_DIR = Path(__file__).with_name("viewer_assets")
 DEFAULT_VIEWER_HOST = "127.0.0.1"
 DEFAULT_VIEWER_PORT = 8765
+MAX_REPLAY_BYTES = 32 * 1024 * 1024
+MAX_REPLAY_SAMPLES = 250_000
 
 
 class ViewerError(ValueError):
@@ -67,7 +74,10 @@ def _require_mapping(value: object, name: str) -> dict[str, Any]:
 def _require_number(value: object, name: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ViewerError(f"{name} must be a number")
-    number = float(value)
+    try:
+        number = float(value)
+    except OverflowError as exc:
+        raise ViewerError(f"{name} must be finite") from exc
     if not math.isfinite(number):
         raise ViewerError(f"{name} must be finite")
     return number
@@ -83,7 +93,7 @@ def validate_replay(payload: object) -> dict[str, Any]:
     """Validate the subset of Replay v1 required by the bundled viewer."""
     replay = dict(_require_mapping(payload, "replay"))
 
-    if replay.get("schema_version") != 1:
+    if type(replay.get("schema_version")) is not int or replay["schema_version"] != 1:
         raise ViewerError("replay.schema_version must be 1")
 
     scenario = replay.get("scenario")
@@ -91,8 +101,18 @@ def validate_replay(payload: object) -> dict[str, Any]:
         raise ViewerError("replay.scenario must be a non-empty string")
 
     status = replay.get("status")
-    if status not in {"PASS", "FAIL"}:
+    if not isinstance(status, str) or status not in {"PASS", "FAIL"}:
         raise ViewerError("replay.status must be PASS or FAIL")
+    result_status = replay.get("result_status", status)
+    if not isinstance(result_status, str) or result_status not in {
+        "PASS",
+        "FAIL",
+        "TIMEOUT",
+        "INFRA_ERROR",
+    }:
+        raise ViewerError("replay.result_status is unsupported")
+    if status != ("PASS" if result_status == "PASS" else "FAIL"):
+        raise ViewerError("replay.status contradicts replay.result_status")
 
     runtime = replay.get("runtime")
     if not isinstance(runtime, str) or not runtime.strip():
@@ -106,6 +126,11 @@ def validate_replay(payload: object) -> dict[str, Any]:
     robot_type = robot.get("type")
     if not isinstance(robot_type, str) or not robot_type.strip():
         raise ViewerError("replay.robot.type must be a non-empty string")
+    profile = robot.get("visual_profile", "rover")
+    if not isinstance(profile, str) or profile not in ROBOT_VISUAL_PROFILES:
+        raise ViewerError(
+            "replay.robot.visual_profile must be one of: rover, quadruped, humanoid"
+        )
 
     world = _require_mapping(replay.get("world"), "replay.world")
     frame = world.get("frame")
@@ -113,15 +138,36 @@ def validate_replay(payload: object) -> dict[str, Any]:
         raise ViewerError("replay.world.frame must be a non-empty string")
     _validate_position(world.get("goal"), "replay.world.goal")
 
+    observed_recording = "recording" in replay
+    if observed_recording:
+        recording = _require_mapping(replay["recording"], "replay.recording")
+        if recording.get("pose_source") != "observed":
+            raise ViewerError("replay.recording.pose_source must be observed")
+        max_gap = _require_number(
+            recording.get("max_interpolation_gap_sec"),
+            "replay.recording.max_interpolation_gap_sec",
+        )
+        if max_gap <= 0:
+            raise ViewerError(
+                "replay.recording.max_interpolation_gap_sec must be greater than zero"
+            )
+        _validate_position(world.get("start"), "replay.world.start")
+
     samples = replay.get("samples")
-    if not isinstance(samples, list) or len(samples) < 2:
+    if not isinstance(samples, list):
+        raise ViewerError("replay.samples must be an array")
+    if not observed_recording and len(samples) < 2:
         raise ViewerError("replay.samples must contain at least two samples")
+    if len(samples) > MAX_REPLAY_SAMPLES:
+        raise ViewerError(f"replay.samples exceeds {MAX_REPLAY_SAMPLES} samples")
     previous_t = -math.inf
     for index, raw_sample in enumerate(samples):
         sample = _require_mapping(raw_sample, f"replay.samples[{index}]")
         sample_t = _require_number(sample.get("t"), f"replay.samples[{index}].t")
         if sample_t < 0 or sample_t < previous_t:
             raise ViewerError("replay sample timestamps must be non-negative and ordered")
+        if observed_recording and sample_t == previous_t:
+            raise ViewerError("observed replay sample timestamps must be strictly increasing")
         if sample_t > duration:
             raise ViewerError("replay sample timestamp exceeds replay.duration_sec")
         previous_t = sample_t
@@ -143,7 +189,13 @@ def validate_replay(payload: object) -> dict[str, Any]:
         "stuck_events",
         "recoveries",
     ):
-        _require_number(metrics.get(key), f"replay.metrics.{key}")
+        number = _require_number(metrics.get(key), f"replay.metrics.{key}")
+        if number < 0:
+            raise ViewerError(f"replay.metrics.{key} must be non-negative")
+        if key in {"stuck_events", "recoveries"} and type(metrics[key]) is not int:
+            raise ViewerError(f"replay.metrics.{key} must be an integer")
+    if not math.isclose(metrics["duration_sec"], duration, rel_tol=1e-6, abs_tol=0.002):
+        raise ViewerError("replay.metrics.duration_sec contradicts replay.duration_sec")
 
     events = replay.get("events")
     if not isinstance(events, list):
@@ -155,11 +207,22 @@ def validate_replay(payload: object) -> dict[str, Any]:
         if event_t < 0 or event_t > duration:
             raise ViewerError(f"replay.events[{index}].t is outside the replay duration")
         event_type = event.get("type")
-        if event_type not in allowed_events:
+        if not isinstance(event_type, str) or event_type not in allowed_events:
             raise ViewerError(f"replay.events[{index}].type is unsupported")
         message = event.get("message")
         if message is not None and not isinstance(message, str):
             raise ViewerError(f"replay.events[{index}].message must be a string")
+        if "count" in event:
+            count = event["count"]
+            if (
+                event_type not in {"STUCK", "RECOVERY"}
+                or type(count) is not int
+                or not 1 <= count <= 2**53 - 1
+            ):
+                raise ViewerError(
+                    f"replay.events[{index}].count must be a positive safe integer "
+                    "on a STUCK or RECOVERY event"
+                )
 
     return replay
 
@@ -167,18 +230,41 @@ def validate_replay(payload: object) -> dict[str, Any]:
 def load_replay(path: Path) -> dict[str, Any]:
     """Load and validate a Replay v1 JSON artifact."""
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        if path.stat().st_size > MAX_REPLAY_BYTES:
+            raise ViewerError("replay file exceeds the 32 MiB size limit")
+        payload = json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=_strict_object,
+            parse_constant=_reject_constant,
+            parse_float=lambda value: _require_number(float(value), "replay JSON number"),
+        )
     except FileNotFoundError as exc:
         raise ViewerError(f"replay file does not exist: {path}") from exc
-    except OSError as exc:
+    except (OSError, UnicodeError) as exc:
         raise ViewerError(f"cannot read replay file: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise ViewerError(f"replay file is not valid JSON: {exc.msg}") from exc
     return validate_replay(payload)
 
 
-def _handler_for(replay: dict[str, Any]) -> type[SimpleHTTPRequestHandler]:
-    encoded_replay = json.dumps(replay, separators=(",", ":")).encode("utf-8")
+def _strict_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ViewerError(f"duplicate replay JSON key: {key}")
+        result[key] = value
+    return result
+
+
+def _reject_constant(value: str) -> None:
+    raise ViewerError(f"invalid replay JSON number: {value}")
+
+
+def _handler_for(
+    replay: dict[str, Any] | None, session: dict[str, Any]
+) -> type[SimpleHTTPRequestHandler]:
+    encoded_replay = json.dumps(replay, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    encoded_session = json.dumps(session, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
     class ReplayHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -195,12 +281,18 @@ def _handler_for(replay: dict[str, Any]) -> type[SimpleHTTPRequestHandler]:
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             path = urlsplit(self.path).path
             if path == "/api/replay":
-                self._send_json(encoded_replay)
+                self._send_json(encoded_replay, status=200 if replay is not None else 404)
+                return
+            if path == "/api/session":
+                self._send_json(encoded_session)
                 return
             if path == "/healthz":
                 self._send_json(b'{"status":"ok"}')
                 return
             super().do_GET()
+
+        def list_directory(self, path: str) -> None:
+            self.send_error(404, "Not found")
 
         def log_message(self, format: str, *args: Any) -> None:
             return
@@ -208,39 +300,69 @@ def _handler_for(replay: dict[str, Any]) -> type[SimpleHTTPRequestHandler]:
     return ReplayHandler
 
 
+class _ViewerHTTPServer(ThreadingHTTPServer):
+    # Windows SO_REUSEADDR permits a second listener on an occupied port.
+    allow_reuse_address = not hasattr(socket, "SO_EXCLUSIVEADDRUSE")
+
+    def server_bind(self) -> None:
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
 def create_viewer_server(
-    replay: dict[str, Any],
+    replay: dict[str, Any] | None,
     *,
     host: str = DEFAULT_VIEWER_HOST,
     port: int = DEFAULT_VIEWER_PORT,
+    session: dict[str, Any] | None = None,
 ) -> ThreadingHTTPServer:
     """Create a local HTTP server for the bundled viewer."""
     if not VIEWER_ASSETS_DIR.joinpath("index.html").is_file():
         raise ViewerError(f"viewer assets are missing from {VIEWER_ASSETS_DIR}")
     if not 0 <= port <= 65535:
         raise ViewerError("viewer port must be between 0 and 65535")
-    return ThreadingHTTPServer((host, port), _handler_for(replay))
+    if session is None:
+        from robotci.viewer_session import replay_session
+
+        session = replay_session(validate_replay(replay))
+    try:
+        return _ViewerHTTPServer((host, port), _handler_for(replay, session))
+    except OSError as exc:
+        if exc.errno in {errno.EADDRINUSE, 10048} or getattr(exc, "winerror", None) == 10048:
+            reason = "already in use"
+        elif exc.errno == 10013 or getattr(exc, "winerror", None) == 10013:
+            reason = "unavailable (in use or access denied)"
+        else:
+            raise
+        raise ViewerError(
+            f"port {port} is {reason}; pass --port 0 to choose a free port "
+            "or select another port with --port"
+        ) from exc
 
 
 def serve_viewer(
-    replay: dict[str, Any],
+    replay: dict[str, Any] | None,
     *,
     host: str = DEFAULT_VIEWER_HOST,
     port: int = DEFAULT_VIEWER_PORT,
     open_browser: bool = True,
+    session: dict[str, Any] | None = None,
+    on_ready: Callable[[str], None] | None = None,
 ) -> str:
     """Serve the viewer until interrupted and return its URL after shutdown."""
-    server = create_viewer_server(replay, host=host, port=port)
+    server = create_viewer_server(replay, host=host, port=port, session=session)
     effective_host = host
     if effective_host in {"0.0.0.0", "::"}:
         effective_host = "127.0.0.1"
     effective_port = int(server.server_address[1])
     url = f"http://{effective_host}:{effective_port}/"
 
-    if open_browser:
-        webbrowser.open(url)
-
     try:
+        if on_ready is not None:
+            on_ready(url)
+        if open_browser:
+            webbrowser.open(url)
         server.serve_forever(poll_interval=0.2)
     except KeyboardInterrupt:
         pass

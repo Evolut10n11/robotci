@@ -1,12 +1,40 @@
 {
   "duration_sec": 12.5,
+  "goal": {
+    "x": 1.0,
+    "y": 0.0,
+    "yaw": 0.0
+  },
   "metrics": {
-    "distance_to_goal_m": 0.1,
+    "distance_to_goal_m": 0.21,
     "feedback_samples": 20,
     "path_length_m": 6.2,
     "recoveries": 1,
     "stuck_events": 1
   },
+  "telemetry_quality": {
+    "final_pose_valid": true,
+    "invalid_pose_samples": 0,
+    "received_feedback_samples": 20,
+    "valid_pose_samples": 20
+  },
+  "evidence_policy": {
+    "goal_tolerance_m": 0.25,
+    "min_feedback_samples": 1
+  },
+  "navigation_result": "SUCCEEDED",
   "scenario": "route",
-  "status": "PASS"
+  "schema_version": 2,
+  "start": {
+    "x": 0.0,
+    "y": 0.0,
+    "yaw": 0.0
+  },
+  "status": "PASS",
+  "task": {
+    "fingerprint": "sha256:4e2c9ed79a316f0e1c971ea54c3a3ac8da764bb4c39f5c2c613ca092aaa96806",
+    "frame_id": "map",
+    "map_id": "nav2-loopback",
+    "schema_version": 1
+  }
 }

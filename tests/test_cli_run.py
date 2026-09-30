@@ -136,6 +136,35 @@ scenarios:
     assert "10s" in result.stdout
 
 
+def test_validate_command_finds_external_config_from_nested_directory(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = tmp_path / "pilot"
+    nested = project / "src" / "navigation"
+    nested.mkdir(parents=True)
+    config_path = project / "robotci.yaml"
+    config_path.write_text(
+        """
+version: 1
+runtime: auto
+scenarios:
+  - name: external_smoke
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
+    timeout_sec: 10
+""".strip(),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(nested)
+
+    result = runner.invoke(cli.app, ["validate"])
+
+    assert result.exit_code == 0
+    assert str(config_path.resolve()) in result.stdout.replace("\n", "")
+    assert "external_smoke" in result.stdout
+
+
 def test_validate_command_reports_invalid_config(tmp_path: Path) -> None:
     config_path = tmp_path / "robotci.yaml"
     config_path.write_text("version: 2\nscenarios: []\n", encoding="utf-8")
@@ -144,3 +173,25 @@ def test_validate_command_reports_invalid_config(tmp_path: Path) -> None:
 
     assert result.exit_code == 3
     assert "RobotCI config error" in result.stdout
+
+
+def test_validate_command_reports_invalid_runtime_type_without_traceback(
+    tmp_path: Path,
+) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        """
+version: 1
+runtime: []
+scenarios:
+  - name: smoke
+    start: {x: 0, y: 0}
+    goal: {x: 1, y: 1}
+""".strip(),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(cli.app, ["validate", "--config", str(config_path)])
+
+    assert result.exit_code == 3
+    assert "config.runtime must be one of" in result.stdout

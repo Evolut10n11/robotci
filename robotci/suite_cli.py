@@ -69,6 +69,10 @@ def compare_suite_command(
         float,
         typer.Option("--max-path-length-increase-pct", min=0.0),
     ] = 10.0,
+    max_distance_to_goal_increase_m: Annotated[
+        float,
+        typer.Option("--max-distance-to-goal-increase-m", min=0.0),
+    ] = 0.1,
     max_stuck_events_increase: Annotated[
         int,
         typer.Option("--max-stuck-events-increase", min=0),
@@ -83,6 +87,7 @@ def compare_suite_command(
         policy = RegressionPolicy(
             max_duration_increase_pct=max_duration_increase_pct,
             max_path_length_increase_pct=max_path_length_increase_pct,
+            max_distance_to_goal_increase_m=max_distance_to_goal_increase_m,
             max_stuck_events_increase=max_stuck_events_increase,
             max_recoveries_increase=max_recoveries_increase,
         )

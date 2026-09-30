@@ -22,6 +22,9 @@ RobotCI writes the suite summary and referenced scenario results under `.robotci
 ```
 
 Review the result before promoting it. A baseline can only be captured from a `PASS` suite whose referenced scenario results also exist and are `PASS`.
+Each referenced result must also contain a valid task fingerprint. Baseline and
+candidate fingerprints must match, which prevents a changed start, goal, frame,
+or map from being reported as a controller regression result.
 
 ## 2. Capture the baseline
 
@@ -85,13 +88,14 @@ robotci-baseline gate main-nav \
 
 The gate resolves `.robotci/baselines/main-nav/suite-result.json` automatically. It uses the same deterministic comparison engine and policy as `robotci-suite-gate`.
 
-The default policy allows up to 10% duration and path-length increase and no additional stuck events or recoveries. Override those thresholds explicitly when a repository needs another policy:
+The default policy allows up to 10% duration and path-length increase, up to 0.1 m additional final distance to goal, and no additional stuck events or recoveries. Override those thresholds explicitly when a repository needs another policy:
 
 ```bash
 robotci-baseline gate main-nav \
   --candidate .robotci/suite-result.json \
   --max-duration-increase-pct 15 \
   --max-path-length-increase-pct 12 \
+  --max-distance-to-goal-increase-m 0.15 \
   --max-stuck-events-increase 0 \
   --max-recoveries-increase 1
 ```
@@ -128,10 +132,34 @@ Baseline capture rejects:
 
 - failed, timed-out, or infrastructure-error suites;
 - non-PASS referenced scenario results;
+- results without the current, complete PASS evidence contract;
 - missing or corrupt result files;
+- summary entries whose scenario, status, or duration disagrees with the referenced result;
+- an aggregate suite status that disagrees with its scenario statuses;
 - duplicate scenario identities inside the suite;
 - unsafe result paths that escape the suite directory;
 - unsafe baseline names;
 - accidental overwrite without `--replace`.
 
-The candidate run is never mutated while a baseline is captured or compared.
+Suite comparison applies the same path-containment rule to baseline and candidate artifacts. The candidate run is never mutated while a baseline is captured or compared.
+
+The shared suite reader checks each referenced result before capture or
+comparison. Entry durations allow at most `0.002` seconds of absolute difference;
+the suite's total wall-clock duration is separate from navigation durations.
+See the [suite evidence contract](contracts.md#suite-evidence-consistency).
+If artifacts disagree, rerun the suite and keep its summary and results together.
+Do not capture or compare while another process is writing to that output
+directory; concurrent suite output is unsupported.
+
+## Inspect saved trajectories
+
+New captures include valid `.replay.json` sidecars beside their scenario results.
+A malformed or mismatched sidecar rejects the capture before replacing an existing
+baseline. Baselines without recordings still work for metric gates.
+
+```bash
+robotci view --suite .robotci/suite-result.json --baseline-suite .robotci/baselines/main-nav/suite-result.json
+```
+
+The viewer shows the same regression policy as the CLI; pass the same threshold
+flags when you use a custom policy. See the [replay guide](replay-viewer.md).

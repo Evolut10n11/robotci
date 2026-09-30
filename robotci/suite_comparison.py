@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -8,9 +7,15 @@ from typing import Literal
 from robotci.comparison import (
     ComparisonInputError,
     compare_scenario_results,
-    load_scenario_result,
+    require_comparable_result,
 )
 from robotci.regression import RegressionPolicy, RegressionReport
+from robotci.reproducibility import SuiteExecutionIdentity
+from robotci.suite_schema import (
+    SuiteResultError,
+    ValidatedSuiteResult,
+    load_suite_result,
+)
 
 
 @dataclass(frozen=True)
@@ -27,65 +32,35 @@ class SuiteRegressionReport:
     scenarios: tuple[SuiteScenarioComparison, ...]
 
 
-@dataclass(frozen=True)
-class _SuiteEntry:
-    scenario: str
-    result_path: Path
-
-
-def _load_json_object(path: Path, name: str) -> dict[str, object]:
+def _load_suite(path: str | Path, name: str) -> ValidatedSuiteResult:
     try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except OSError as exc:
-        raise ComparisonInputError(f"cannot read {name} '{path}': {exc}") from exc
-    except json.JSONDecodeError as exc:
-        raise ComparisonInputError(f"invalid JSON in {name} '{path}': {exc}") from exc
-    if not isinstance(payload, dict):
-        raise ComparisonInputError(f"{name} must contain a JSON object")
-    return payload
-
-
-def _load_suite_entries(path: str | Path, name: str) -> tuple[_SuiteEntry, ...]:
-    suite_path = Path(path)
-    payload = _load_json_object(suite_path, name)
-    if payload.get("status") != "PASS":
+        suite = load_suite_result(path)
+    except SuiteResultError as exc:
+        raise ComparisonInputError(f"{name}: {exc}") from exc
+    if suite.status != "PASS":
         raise ComparisonInputError(f"{name} must have PASS status before regression comparison")
-
-    raw_scenarios = payload.get("scenarios")
-    if not isinstance(raw_scenarios, list) or not raw_scenarios:
-        raise ComparisonInputError(f"{name}.scenarios must be a non-empty array")
-
-    entries: list[_SuiteEntry] = []
-    seen: set[str] = set()
-    for index, raw_entry in enumerate(raw_scenarios):
-        if not isinstance(raw_entry, dict):
-            raise ComparisonInputError(f"{name}.scenarios[{index}] must be an object")
-        scenario = raw_entry.get("scenario")
-        result_file = raw_entry.get("result_file")
-        status = raw_entry.get("status")
-        if not isinstance(scenario, str) or not scenario:
+    for entry in suite.scenarios:
+        if entry.status != "PASS":
             raise ComparisonInputError(
-                f"{name}.scenarios[{index}].scenario must be a non-empty string"
+                f"{name} scenario '{entry.scenario}' must have PASS status before comparison"
             )
-        if scenario in seen:
-            raise ComparisonInputError(f"{name} contains duplicate scenario '{scenario}'")
-        if status != "PASS":
-            raise ComparisonInputError(
-                f"{name} scenario '{scenario}' must have PASS status before comparison"
-            )
-        if not isinstance(result_file, str) or not result_file:
-            raise ComparisonInputError(
-                f"{name}.scenarios[{index}].result_file must be a non-empty string"
-            )
-        seen.add(scenario)
-        entries.append(
-            _SuiteEntry(
-                scenario=scenario,
-                result_path=(suite_path.parent / result_file).resolve(),
-            )
-        )
+    return suite
 
-    return tuple(entries)
+
+def _execution_mismatch(
+    baseline: SuiteExecutionIdentity,
+    candidate: SuiteExecutionIdentity,
+) -> str:
+    details: list[str] = []
+    if baseline.runtime != candidate.runtime:
+        details.append(f"runtime differs: {baseline.runtime} != {candidate.runtime}")
+    if baseline.runtime_contract != candidate.runtime_contract:
+        details.append("runtime contract differs")
+    if baseline.plan_fingerprint != candidate.plan_fingerprint:
+        details.append("effective suite plan differs")
+    if baseline.environment.fingerprint != candidate.environment.fingerprint:
+        details.append("runtime environment differs")
+    return "; ".join(details) or "execution fingerprint differs"
 
 
 def compare_suite_result_files(
@@ -96,8 +71,18 @@ def compare_suite_result_files(
 ) -> SuiteRegressionReport:
     """Compare every matching scenario in two successful suite result files."""
     selected_policy = policy or RegressionPolicy()
-    baseline_entries = _load_suite_entries(baseline_path, "baseline suite")
-    candidate_entries = _load_suite_entries(candidate_path, "candidate suite")
+    baseline_suite = _load_suite(baseline_path, "baseline suite")
+    candidate_suite = _load_suite(candidate_path, "candidate suite")
+    baseline_entries = baseline_suite.scenarios
+    candidate_entries = candidate_suite.scenarios
+    baseline_execution = baseline_suite.execution
+    candidate_execution = candidate_suite.execution
+    if baseline_execution.fingerprint != candidate_execution.fingerprint:
+        raise ComparisonInputError(
+            "suite execution fingerprints must match ("
+            + _execution_mismatch(baseline_execution, candidate_execution)
+            + ")"
+        )
     candidate_by_name = {entry.scenario: entry for entry in candidate_entries}
 
     baseline_names = {entry.scenario for entry in baseline_entries}
@@ -115,18 +100,8 @@ def compare_suite_result_files(
     comparisons: list[SuiteScenarioComparison] = []
     for baseline_entry in baseline_entries:
         candidate_entry = candidate_by_name[baseline_entry.scenario]
-        baseline_snapshot = load_scenario_result(baseline_entry.result_path)
-        candidate_snapshot = load_scenario_result(candidate_entry.result_path)
-        if baseline_snapshot.scenario != baseline_entry.scenario:
-            raise ComparisonInputError(
-                f"baseline suite scenario '{baseline_entry.scenario}' points to result "
-                f"for '{baseline_snapshot.scenario}'"
-            )
-        if candidate_snapshot.scenario != candidate_entry.scenario:
-            raise ComparisonInputError(
-                f"candidate suite scenario '{candidate_entry.scenario}' points to result "
-                f"for '{candidate_snapshot.scenario}'"
-            )
+        baseline_snapshot = require_comparable_result(baseline_entry.result)
+        candidate_snapshot = require_comparable_result(candidate_entry.result)
 
         scenario_report = compare_scenario_results(
             baseline=baseline_snapshot,

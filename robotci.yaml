@@ -4,6 +4,7 @@ runtime: auto
 
 scenarios:
   - name: short_route
+    map_id: nav2-loopback
     start:
       x: 0.0
       y: 0.0
@@ -13,8 +14,11 @@ scenarios:
       y: -0.17
       yaw: 0.0
     timeout_sec: 60
+    goal_tolerance_m: 0.75
+    min_feedback_samples: 1
 
   - name: medium_route
+    map_id: nav2-loopback
     start:
       x: 0.0
       y: 0.0
@@ -24,8 +28,11 @@ scenarios:
       y: -0.39
       yaw: 0.0
     timeout_sec: 150
+    goal_tolerance_m: 0.75
+    min_feedback_samples: 1
 
   - name: simple_route
+    map_id: nav2-loopback
     start:
       x: 0.0
       y: 0.0
@@ -35,3 +42,5 @@ scenarios:
       y: -0.77
       yaw: 0.0
     timeout_sec: 180
+    goal_tolerance_m: 0.75
+    min_feedback_samples: 1

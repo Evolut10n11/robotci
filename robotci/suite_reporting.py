@@ -8,7 +8,7 @@ from pathlib import Path
 from robotci.regression import RegressionFinding, RegressionPolicy, RegressionReport
 from robotci.suite_comparison import SuiteRegressionReport
 
-SUITE_REPORT_SCHEMA_VERSION = 1
+SUITE_REPORT_SCHEMA_VERSION = 2
 
 
 def _findings_payload(report: RegressionReport) -> list[dict[str, object]]:
@@ -42,6 +42,9 @@ def suite_regression_report_payload(
         "policy": {
             "max_duration_increase_pct": policy.max_duration_increase_pct,
             "max_path_length_increase_pct": policy.max_path_length_increase_pct,
+            "max_distance_to_goal_increase_m": (
+                policy.max_distance_to_goal_increase_m
+            ),
             "max_stuck_events_increase": policy.max_stuck_events_increase,
             "max_recoveries_increase": policy.max_recoveries_increase,
         },
@@ -130,6 +133,7 @@ def suite_regression_report_markdown(
             "",
             f"- duration: +{policy.max_duration_increase_pct:g}% max",
             f"- path length: +{policy.max_path_length_increase_pct:g}% max",
+            f"- distance to goal: +{policy.max_distance_to_goal_increase_m:g} m max",
             f"- stuck events: +{policy.max_stuck_events_increase} max",
             f"- recoveries: +{policy.max_recoveries_increase} max",
         ]

@@ -43,6 +43,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Configure bounded Ubuntu package downloads
+        timeout-minutes: 1
+        run: bash scripts/configure_ci_apt.sh
+
       - name: Set up ROS2 Jazzy
         uses: ros-tooling/setup-ros@v0.7
         with:
@@ -61,15 +65,15 @@ jobs:
 
       - name: Install RobotCI CLI into ROS Python
         run: |
-          python3 -m pip install --break-system-packages -e .
-          python3 -m robotci.cli --help
+          python3 -m pip install --break-system-packages -e '.[mcp]'
+          robotci --help
 
       - name: Validate robotci.yaml
-        run: python3 -m robotci.cli validate --config robotci.yaml
+        run: robotci validate --config robotci.yaml
 
       - name: Run RobotCI YAML suite through CLI
         run: |
-          python3 -m robotci.cli run \
+          robotci run \
             --runtime native \
             --config robotci.yaml \
             --output artifacts/suite-result.json
@@ -80,8 +84,44 @@ jobs:
           import json
           from pathlib import Path
 
+          from robotci.suite_schema import load_suite_result
+          from robotci.viewer import load_replay
+
+          validated = load_suite_result("artifacts/suite-result.json")
+          print("Native suite evidence consistent:", [s.scenario for s in validated.scenarios])
+
           suite = json.loads(Path("artifacts/suite-result.json").read_text(encoding="utf-8"))
           names = [item["scenario"] for item in suite["scenarios"]]
+          execution = suite["execution"]
+          environment = execution["environment"]
+
+          if suite["schema_version"] != 1:
+              raise SystemExit(f"Unexpected suite schema: {suite}")
+          if suite["runtime"] != "native" or execution["runtime"] != "native":
+              raise SystemExit(f"Native runtime provenance is incorrect: {execution}")
+          if environment["containerized"]:
+              raise SystemExit(f"Native suite was unexpectedly containerized: {environment}")
+          if not execution["fingerprint"].startswith("sha256:"):
+              raise SystemExit(f"Missing execution fingerprint: {execution}")
+          if not environment["fingerprint"].startswith("sha256:"):
+              raise SystemExit(f"Missing environment fingerprint: {environment}")
+          if not environment["robotci_build"].startswith("sha256:"):
+              raise SystemExit(f"Missing RobotCI build fingerprint: {environment}")
+          package_names = {item["name"] for item in environment["packages"]}
+          required_packages = {
+              "robotci",
+              "PyYAML",
+              "rich",
+              "typer",
+              "ros-jazzy-navigation2",
+              "ros-jazzy-nav2-bringup",
+              "ros-jazzy-nav2-loopback-sim",
+              "ros-jazzy-nav2-simple-commander",
+          }
+          if not required_packages <= package_names:
+              raise SystemExit(
+                  f"Runtime provenance is missing packages: {required_packages - package_names}"
+              )
 
           if suite["status"] != "PASS":
               raise SystemExit(f"Navigation suite did not PASS: {suite}")
@@ -101,22 +141,71 @@ jobs:
               if actual != goal:
                   raise SystemExit(f"{name} did not use YAML goal {goal}: {actual}")
 
+              if result.get("schema_version") != 2:
+                  raise SystemExit(f"{name} did not produce result schema v2: {result}")
               metrics = result.get("metrics")
+              quality = result.get("telemetry_quality")
+              policy = result.get("evidence_policy")
               if not isinstance(metrics, dict):
                   raise SystemExit(f"{name} did not produce metrics: {result}")
+              if not isinstance(quality, dict) or not isinstance(policy, dict):
+                  raise SystemExit(f"{name} did not produce evidence metadata: {result}")
+              duration_sec = result.get("duration_sec")
+              if type(duration_sec) not in {int, float} or duration_sec <= 0:
+                  raise SystemExit(f"{name} did not record duration: {duration_sec}")
+              required_metrics = {
+                  "path_length_m",
+                  "distance_to_goal_m",
+                  "stuck_events",
+                  "feedback_samples",
+                  "recoveries",
+              }
+              missing_metrics = required_metrics.difference(metrics)
+              if missing_metrics:
+                  raise SystemExit(
+                      f"{name} is missing metrics: {sorted(missing_metrics)}"
+                  )
               if metrics.get("path_length_m", 0) <= 0:
                   raise SystemExit(f"{name} path length was not recorded: {metrics}")
-              if metrics.get("feedback_samples", 0) <= 0:
-                  raise SystemExit(f"{name} feedback samples were not recorded: {metrics}")
-              if metrics.get("distance_to_goal_m", 999) > 0.75:
+              minimum = policy.get("min_feedback_samples", 1)
+              feedback = metrics.get("feedback_samples", 0)
+              if feedback < minimum:
+                  raise SystemExit(f"{name} feedback samples were insufficient: {metrics}")
+              if quality.get("received_feedback_samples") != feedback:
+                  raise SystemExit(f"{name} feedback counts disagree: {quality}")
+              if quality.get("valid_pose_samples", 0) < minimum:
+                  raise SystemExit(f"{name} valid pose samples were insufficient: {quality}")
+              if quality.get("invalid_pose_samples") != 0:
+                  raise SystemExit(f"{name} contains invalid pose samples: {quality}")
+              if quality.get("final_pose_valid") is not True:
+                  raise SystemExit(f"{name} final pose was invalid: {quality}")
+              if metrics.get("distance_to_goal_m", 999) > policy.get("goal_tolerance_m", 0):
                   raise SystemExit(f"{name} finished too far from goal: {metrics}")
               if metrics.get("stuck_events", -1) < 0:
                   raise SystemExit(f"{name} has invalid stuck telemetry: {metrics}")
               if metrics.get("recoveries", -1) < 0:
                   raise SystemExit(f"{name} has invalid recovery telemetry: {metrics}")
 
+              replay = load_replay(Path(f"artifacts/results/{name}.replay.json"))
+              for event_type, metric in (("STUCK", "stuck_events"), ("RECOVERY", "recoveries")):
+                  observed = sum(
+                      event.get("count", 1) for event in replay["events"]
+                      if event["type"] == event_type
+                  )
+                  if observed != metrics[metric] or observed != replay["metrics"][metric]:
+                      raise SystemExit(f"{name} replay events disagree with {metric}: {replay}")
+              times = [event["t"] for event in replay["events"]]
+              if times != sorted(times):
+                  raise SystemExit(f"{name} event timestamps are unordered: {times}")
+              print(f"{name} replay event counters match runtime metrics")
+
           print(f"Navigation YAML suite + metrics PASS: {names}")
           PY
+
+      - name: Verify opted-in MCP managed native navigation
+        run: |
+          python3 scripts/managed_runtime_smoke.py \
+            --runtime native --output artifacts/managed-native
 
       - name: Upload suite results
         if: always()
@@ -126,6 +215,8 @@ jobs:
           path: |
             artifacts/suite-result.json
             artifacts/results/*.json
+            artifacts/managed-native/project/.robotci/runs/
+          include-hidden-files: true
           if-no-files-found: warn
 
       - name: Upload Nav2 logs on failure

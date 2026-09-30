@@ -8,9 +8,9 @@ from rich.console import Console
 from rich.table import Table
 
 from robotci import __version__
+from robotci.application import RobotCIApplication
 from robotci.comparison import ComparisonInputError, compare_scenario_result_files
-from robotci.config import ConfigError, load_config
-from robotci.doctor import run_doctor_checks
+from robotci.config import ConfigError
 from robotci.plan import build_execution_plan
 from robotci.regression import RegressionPolicy
 from robotci.reporting import regression_report_payload, write_regression_report
@@ -42,20 +42,18 @@ def version() -> None:
 @app.command()
 def doctor() -> None:
     """Check whether the local machine is ready to run RobotCI."""
-    checks = run_doctor_checks()
+    report = RobotCIApplication().get_diagnostics()
 
     table = Table(title="RobotCI environment")
     table.add_column("Check")
     table.add_column("Status")
     table.add_column("Details")
 
-    failed = False
-    for check in checks:
+    for check in report.checks:
         if check.ok:
             status = "[green]PASS[/green]"
         elif check.blocking:
             status = "[red]FAIL[/red]"
-            failed = True
         else:
             status = "[yellow]WARN[/yellow]"
 
@@ -63,7 +61,7 @@ def doctor() -> None:
 
     console.print(table)
 
-    if failed:
+    if report.status == "FAIL":
         raise typer.Exit(code=1)
 
 
@@ -80,13 +78,15 @@ def validate_command(
 ) -> None:
     """Validate RobotCI YAML configuration without starting ROS."""
     try:
-        loaded = load_config(config)
+        project = RobotCIApplication(config_path=config).get_project_info()
     except ConfigError as exc:
         console.print(f"[red]RobotCI config error:[/red] {exc}")
         raise typer.Exit(code=3) from exc
 
+    loaded = project.config
+
     table = Table(title="RobotCI configuration")
-    table.add_column("Scenario")
+    table.add_column("Scenario", no_wrap=True)
     table.add_column("Start")
     table.add_column("Goal")
     table.add_column("Timeout")
@@ -94,11 +94,22 @@ def validate_command(
     for scenario in loaded.scenarios:
         start = f"({scenario.start.x}, {scenario.start.y}, {scenario.start.yaw})"
         goal = f"({scenario.goal.x}, {scenario.goal.y}, {scenario.goal.yaw})"
-        table.add_row(scenario.name, start, goal, f"{scenario.timeout_sec:g}s")
+        table.add_row(
+            scenario.name,
+            start,
+            goal,
+            f"{scenario.timeout_sec:g}s",
+        )
 
-    console.print(f"Config: {Path(config)}", soft_wrap=True)
+    console.print(f"Config: {project.config_path}", soft_wrap=True)
     console.print(f"Runtime: [cyan]{loaded.runtime}[/cyan]")
     console.print(table)
+    for scenario in loaded.scenarios:
+        console.print(
+            f"PASS evidence {scenario.name}: goal <= "
+            f"{scenario.goal_tolerance_m:g}m; feedback >= "
+            f"{scenario.min_feedback_samples}"
+        )
     console.print("[green]Configuration valid[/green]")
 
 
@@ -165,7 +176,8 @@ def plan_command(
         return
 
     table = Table(title="RobotCI execution plan")
-    table.add_column("Scenario")
+    table.add_column("Scenario", no_wrap=True)
+    table.add_column("Map")
     table.add_column("Start")
     table.add_column("Goal")
     table.add_column("Timeout")
@@ -173,11 +185,23 @@ def plan_command(
     for planned in plan.scenarios:
         start = f"({planned.start.x}, {planned.start.y}, {planned.start.yaw})"
         goal = f"({planned.goal.x}, {planned.goal.y}, {planned.goal.yaw})"
-        table.add_row(planned.name, start, goal, f"{planned.timeout_sec:g}s")
+        table.add_row(
+            planned.name,
+            planned.map_id or "unspecified",
+            start,
+            goal,
+            f"{planned.timeout_sec:g}s",
+        )
 
-    console.print(f"Config: {Path(config)}", soft_wrap=True)
+    console.print(f"Config: {plan.config_path}", soft_wrap=True)
     console.print(f"Runtime request: [cyan]{plan.runtime}[/cyan]")
     console.print(table)
+    for planned in plan.scenarios:
+        console.print(
+            f"PASS evidence {planned.name}: goal <= "
+            f"{planned.goal_tolerance_m:g}m; feedback >= "
+            f"{planned.min_feedback_samples}"
+        )
     console.print("[green]Plan resolved; no runtime started[/green]")
 
 
@@ -228,6 +252,14 @@ def compare_command(
             help="Maximum allowed path-length increase in percent.",
         ),
     ] = 10.0,
+    max_distance_to_goal_increase_m: Annotated[
+        float,
+        typer.Option(
+            "--max-distance-to-goal-increase-m",
+            min=0.0,
+            help="Maximum allowed increase in final distance to goal, in meters.",
+        ),
+    ] = 0.1,
     max_stuck_events_increase: Annotated[
         int,
         typer.Option(
@@ -250,6 +282,7 @@ def compare_command(
         policy = RegressionPolicy(
             max_duration_increase_pct=max_duration_increase_pct,
             max_path_length_increase_pct=max_path_length_increase_pct,
+            max_distance_to_goal_increase_m=max_distance_to_goal_increase_m,
             max_stuck_events_increase=max_stuck_events_increase,
             max_recoveries_increase=max_recoveries_increase,
         )
@@ -297,7 +330,7 @@ def compare_command(
             table.add_column("Allowed", justify="right")
 
             for finding in report.findings:
-                suffix = "%" if finding.unit == "percent" else ""
+                suffix = {"percent": "%", "m": "m", "count": ""}[finding.unit]
                 table.add_row(
                     finding.metric,
                     f"{finding.baseline:g}",

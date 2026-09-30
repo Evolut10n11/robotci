@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -Eeo pipefail
 
-if [ -f /opt/ros/jazzy/setup.bash ]; then
-  # shellcheck disable=SC1091
-  source /opt/ros/jazzy/setup.bash
+if [ ! -f /opt/ros/jazzy/setup.bash ]; then
+  echo "RobotCI runtime error: /opt/ros/jazzy/setup.bash was not found."
+  exit 3
 fi
+# shellcheck disable=SC1091
+source /opt/ros/jazzy/setup.bash
 
 if ! command -v ros2 >/dev/null 2>&1; then
   echo "RobotCI runtime error: ros2 was not found."
@@ -26,12 +28,21 @@ START_QW="${ROBOTCI_START_QW:-1.0}"
 GOAL_X="${ROBOTCI_GOAL_X:-17.86}"
 GOAL_Y="${ROBOTCI_GOAL_Y:--0.77}"
 GOAL_YAW="${ROBOTCI_GOAL_YAW:-0.0}"
+MAP_ID="${ROBOTCI_MAP_ID:-unspecified}"
 LOG_FILE="${ROBOTCI_LOG_FILE:-/tmp/nav2-${SCENARIO}.log}"
 RESULT_FILE="${ROBOTCI_RESULT_FILE:-artifacts/${SCENARIO}/result.json}"
 TIMEOUT_SEC="${ROBOTCI_TIMEOUT_SEC:-120}"
+GOAL_TOLERANCE_M="${ROBOTCI_GOAL_TOLERANCE_M:-0.25}"
+MIN_FEEDBACK_SAMPLES="${ROBOTCI_MIN_FEEDBACK_SAMPLES:-1}"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=nav2_lifecycle_startup.sh
+source "$SCRIPT_DIR/nav2_lifecycle_startup.sh"
+# shellcheck source=nav2_process_cleanup.sh
+source "$SCRIPT_DIR/nav2_process_cleanup.sh"
 
 PYTHON_BIN="${ROBOTCI_PYTHON:-python3}"
-if [ -x ".venv/bin/python" ]; then
+if [ -z "${ROBOTCI_PYTHON:-}" ] && [ -x ".venv/bin/python" ]; then
   PYTHON_BIN=".venv/bin/python"
 fi
 
@@ -62,19 +73,7 @@ cleanup() {
   trap - EXIT
 
   echo "Stopping Nav2 process group for $SCENARIO..."
-  kill -TERM -- "-$NAV2_PID" 2>/dev/null || true
-
-  for _ in $(seq 1 20); do
-    if ! kill -0 "$NAV2_PID" 2>/dev/null; then
-      break
-    fi
-    sleep 0.25
-  done
-
-  if kill -0 "$NAV2_PID" 2>/dev/null; then
-    echo "Nav2 did not stop after SIGTERM; sending SIGKILL..."
-    kill -KILL -- "-$NAV2_PID" 2>/dev/null || true
-  fi
+  stop_nav2_process_group "$NAV2_PID"
 
   wait "$NAV2_PID" 2>/dev/null || true
 
@@ -182,13 +181,7 @@ fail_with_log() {
 }
 
 wait_for_node /loopback_simulator || fail_with_log "Loopback simulator did not appear"
-wait_for_service /lifecycle_manager_map_server/manage_nodes \
-  || fail_with_log "Map lifecycle manager service did not appear"
-wait_for_service /lifecycle_manager_navigation/manage_nodes \
-  || fail_with_log "Navigation lifecycle manager service did not appear"
-
-echo "Starting map server lifecycle..."
-call_startup /lifecycle_manager_map_server/manage_nodes \
+start_lifecycle_with_retry /lifecycle_manager_map_server/manage_nodes "Map server" \
   || fail_with_log "Map server lifecycle startup failed"
 
 for attempt in $(seq 1 30); do
@@ -211,8 +204,7 @@ publish_initial_pose \
 
 sleep 2
 
-echo "Starting navigation lifecycle..."
-call_startup /lifecycle_manager_navigation/manage_nodes \
+start_lifecycle_with_retry /lifecycle_manager_navigation/manage_nodes "Navigation" \
   || fail_with_log "Navigation lifecycle startup failed"
 
 READY=0
@@ -235,7 +227,7 @@ fi
 
 echo "Running RobotCI scenario: $SCENARIO"
 set +e
-"$PYTHON_BIN" -m robotci.ros.navigation_scenario \
+"$PYTHON_BIN" -S -B -P -m robotci.ros.navigation_scenario \
   --scenario "$SCENARIO" \
   --start-x "$START_X" \
   --start-y "$START_Y" \
@@ -243,8 +235,11 @@ set +e
   --goal-x "$GOAL_X" \
   --goal-y "$GOAL_Y" \
   --goal-yaw "$GOAL_YAW" \
+  --map-id "$MAP_ID" \
   --output "$RESULT_FILE" \
-  --timeout-sec "$TIMEOUT_SEC"
+  --timeout-sec "$TIMEOUT_SEC" \
+  --goal-tolerance-m "$GOAL_TOLERANCE_M" \
+  --min-feedback-samples "$MIN_FEEDBACK_SAMPLES"
 SCENARIO_EXIT=$?
 set -e
 

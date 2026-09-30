@@ -1,0 +1,81 @@
+# RobotCI roadmap
+
+[Project overview](../README.md) · [Product direction](product.md)
+
+The current release is public alpha `0.1.0a1`. Status describes shipped
+capabilities and remaining scope; milestone numbers do not imply every later
+capability is absent until earlier product validation finishes.
+
+| Milestone | Status | Scope |
+| --- | --- | --- |
+| M0 · Vertical slice | Complete | Headless A-to-B navigation and a result artifact |
+| Runtime portability | Complete for the current stack | Windows core, Ubuntu native, Docker, and GitHub Actions |
+| M1 · Scenario suites | Complete | Multiple configured scenarios and suite summaries |
+| M2 · Configuration | Complete | Strict YAML validation and consistent project resolution |
+| M3 · Metrics | Complete | Duration, path length, goal distance, stuck events, recoveries, and telemetry quality |
+| M4 · Regression | Complete | Baseline/candidate comparison and deterministic REGRESSION verdicts |
+| M5 · Reproducibility | Complete for the current contract | Versioned execution identity and compatible runtime provenance |
+| M6 · CI integration | Complete | Action, blocking gate, JSON/Markdown/JUnit, summaries and artifacts |
+| M7 · Public alpha | Complete | `0.1.0a1`, quickstart, example, wheel smoke, and feedback forms |
+| M8 · Validation | In progress | Five external teams, observed outcomes, and a reviewed product decision |
+| M9 · Visual replay | Local workbench implemented | Configurable robot visual profiles, observed-pose gaps, playback, 2D/3D, synchronized replay comparison, and existing suite gate evidence |
+| M10 · Robot adapters | Planned | First non-Nav2 backend; evaluate Unitree Go2 + MuJoCo |
+| M11 · MCP / agent API | Local orchestration implemented | Six inspection tools, four opt-in owned simulation tools, and a reference MCP workflow |
+| M12 · Team product validation | Planned, evidence-gated | Shared baselines/history and narrowly scoped paid experiments |
+
+## Current focus
+
+1. Collect real M8 evidence against the criteria introduced in
+   [issue #48](https://github.com/Evolut10n11/robotci/issues/48).
+   Use the [register](validation/README.md); internal demo runs and repository
+   inspections do not count as external participation.
+2. Extend the measured [Nav2/Gazebo experiment](../examples/nav2-gazebo/README.md)
+   to other routes and environments. Two internal map-frame experiments each
+   passed their own 20 unchanged comparisons and both controls, and detected
+   the real speed intervention. Runner dependency changes gave them separate
+   fingerprints; cross-cohort gates correctly refuse compatibility. Preserve
+   every successful and failed setup in the
+   [acceptance record](validation/runtime-acceptance.md) and keep new claims
+   scoped to observed measurements.
+   Canonical ROS namespaces and bounded action-server readiness are implemented.
+   The [Clearpath preflight](validation/clearpath-preflight.md) still requires an
+   actual Clearpath simulation before compatibility can be claimed.
+3. Validate the replay workbench on real baseline/candidate recordings. Use
+   observed debugging needs to prioritize map context, event recording, and
+   deeper agent integration.
+   The Russian interface supports opening saved baselines by name and automatic
+   free-port selection. Nav2 replay records observed stuck/recovery counter
+   changes with links from metrics and regression findings. Rover, quadruped,
+   and humanoid models can be selected for display through config or previewed
+   in the viewer. They do not add simulator support or recorded joint motion;
+   M8 remains open and additional runtime adapters remain M10 work.
+   New recordings preserve observation gaps: the viewer hides unknown poses,
+   splits trajectories, and marks missing coverage independently for each run.
+   The recorded interpolation threshold affects display only, not metrics or
+   gate verdicts. Legacy recording completeness remains explicitly unknown.
+4. Keep suite summaries consistent with their referenced results across baseline
+   capture, gates, replay, and MCP inspection. The shared reader validates
+   scenario identity, status, duration, and the aggregate verdict before these
+   consumers use the evidence. See the
+   [suite evidence contract](contracts.md#suite-evidence-consistency).
+
+## Completion evidence
+
+| Milestone | Implementation record |
+| --- | --- |
+| M3 | [PR #75](https://github.com/Evolut10n11/robotci/pull/75) |
+| M4 | [PR #76](https://github.com/Evolut10n11/robotci/pull/76) |
+| M5 | [PR #77](https://github.com/Evolut10n11/robotci/pull/77) |
+| Application API and CLI | [PR #78](https://github.com/Evolut10n11/robotci/pull/78), [PR #79](https://github.com/Evolut10n11/robotci/pull/79) |
+| Read-only MCP | [PR #80](https://github.com/Evolut10n11/robotci/pull/80) |
+| M6 | [PR #81](https://github.com/Evolut10n11/robotci/pull/81) |
+| M7 | [PR #82](https://github.com/Evolut10n11/robotci/pull/82) |
+| M8 preparation | [PR #83](https://github.com/Evolut10n11/robotci/pull/83); milestone remains open |
+| M9 local replay workbench | [PR #86](https://github.com/Evolut10n11/robotci/pull/86) |
+| Nav2 telemetry and runtime cleanup | [PR #92](https://github.com/Evolut10n11/robotci/pull/92) |
+| Experimental Gazebo and ROS namespaces | [PR #93](https://github.com/Evolut10n11/robotci/pull/93); acceptance status is recorded separately |
+| Managed MCP execution and installed-wheel checks | [PR #94](https://github.com/Evolut10n11/robotci/pull/94) |
+| Baseline publication, Action report freshness and portable scenario names | [PR #95](https://github.com/Evolut10n11/robotci/pull/95) |
+
+New adapters, hosted infrastructure, and paid services depend on an observed use
+case. Agents may explain evidence; regression decisions remain deterministic.

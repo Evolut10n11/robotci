@@ -9,6 +9,12 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from robotci.comparison import ComparisonInputError, require_comparable_result
+from robotci.replay import default_replay_path
+from robotci.suite_schema import SuiteResultError, ValidatedSuiteResult, load_suite_result
+from robotci.viewer import ViewerError, load_replay
+from robotci.viewer_session import replay_matches_result
+
 BASELINE_SCHEMA_VERSION = 1
 DEFAULT_BASELINE_ROOT = Path(".robotci") / "baselines"
 _NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
@@ -46,62 +52,64 @@ def _validate_name(name: str) -> None:
         )
 
 
-def _safe_result_path(suite_dir: Path, result_file: str) -> Path:
-    relative = Path(result_file)
-    if relative.is_absolute() or ".." in relative.parts:
-        raise BaselineError(f"unsafe result_file path: {result_file}")
-
-    suite_root = suite_dir.resolve()
-    resolved = (suite_dir / relative).resolve()
+def _validated_suite(suite_path: Path) -> ValidatedSuiteResult:
     try:
-        resolved.relative_to(suite_root)
-    except ValueError as exc:
-        raise BaselineError(f"result_file escapes suite directory: {result_file}") from exc
-    return resolved
-
-
-def _validated_suite(suite_path: Path) -> tuple[dict[str, Any], list[tuple[str, Path]]]:
-    suite = _load_json_object(suite_path, label="suite result")
-    if suite.get("status") != "PASS":
+        suite = load_suite_result(suite_path)
+    except SuiteResultError as exc:
+        raise BaselineError(str(exc)) from exc
+    if suite.status != "PASS":
         raise BaselineError("only PASS suites can be captured as known-good baselines")
-
-    scenarios = suite.get("scenarios")
-    if not isinstance(scenarios, list) or not scenarios:
-        raise BaselineError("suite result must contain a non-empty scenarios list")
-
-    suite_dir = suite_path.parent
-    seen: set[str] = set()
-    validated: list[tuple[str, Path]] = []
-
-    for item in scenarios:
-        if not isinstance(item, dict):
-            raise BaselineError("each suite scenario entry must be an object")
-        scenario = item.get("scenario")
-        result_file = item.get("result_file")
-        status = item.get("status")
-        if not isinstance(scenario, str) or not scenario:
-            raise BaselineError("each suite scenario entry must have a scenario name")
-        if scenario in seen:
-            raise BaselineError(f"duplicate scenario in suite result: {scenario}")
-        seen.add(scenario)
-        if status != "PASS":
-            raise BaselineError(f"scenario {scenario!r} is not PASS")
-        if not isinstance(result_file, str) or not result_file:
-            raise BaselineError(f"scenario {scenario!r} has no result_file")
-
-        result_path = _safe_result_path(suite_dir, result_file)
-        result = _load_json_object(result_path, label=f"result for scenario {scenario!r}")
-        if result.get("scenario") != scenario:
-            result_scenario = result.get("scenario")
+    for item in suite.scenarios:
+        if item.status != "PASS":
+            raise BaselineError(f"scenario {item.scenario!r} is not PASS")
+        try:
+            require_comparable_result(item.result)
+        except ComparisonInputError as exc:
             raise BaselineError(
-                f"scenario identity mismatch: suite has {scenario!r}, "
-                f"result has {result_scenario!r}"
-            )
-        if result.get("status") != "PASS":
-            raise BaselineError(f"result for scenario {scenario!r} is not PASS")
-        validated.append((result_file, result_path))
+                f"result for scenario {item.scenario!r} is not baseline-compatible: {exc}"
+            ) from exc
+    return suite
 
-    return suite, validated
+
+def _publish_baseline(staged: Path, destination: Path, *, replace: bool) -> None:
+    """Publish a verified bundle without copying over or deleting the current one."""
+    backup_parent: Path | None = None
+    backup: Path | None = None
+    published = False
+    try:
+        if destination.exists():
+            if not replace:
+                raise BaselineError(f"baseline already exists: {destination.name}")
+            backup_parent = Path(
+                tempfile.mkdtemp(prefix=f".{destination.name}-backup-", dir=destination.parent)
+            )
+            backup = backup_parent / "previous"
+            destination.rename(backup)
+        try:
+            # Both paths belong to the same store/filesystem. A failed rename
+            # cannot leave a partially copied bundle at the public path.
+            staged.rename(destination)
+            published = True
+        except BaseException as exc:
+            if backup is not None:
+                try:
+                    backup.rename(destination)
+                except BaseException as rollback_exc:
+                    # Never let cleanup erase the only remaining known-good copy.
+                    raise BaselineError(
+                        f"cannot publish baseline {destination.name!r}: {exc}; "
+                        f"previous baseline preserved at {backup.resolve()}; "
+                        f"cannot restore it: {rollback_exc}"
+                    ) from exc
+            if not isinstance(exc, OSError):
+                raise
+            raise BaselineError(f"cannot publish baseline {destination.name!r}: {exc}") from exc
+    finally:
+        if backup_parent is not None and (published or backup is None or not backup.exists()):
+            # Publication or rollback has completed. Cleanup is best effort so
+            # a Windows file lock cannot turn a successful save into an error.
+            # An interruption before either completes must keep the old bundle.
+            shutil.rmtree(backup_parent, ignore_errors=True)
 
 
 def capture_baseline(
@@ -115,7 +123,7 @@ def capture_baseline(
 
     _validate_name(name)
     source_suite = Path(suite_path).resolve()
-    suite, result_files = _validated_suite(source_suite)
+    suite = _validated_suite(source_suite)
 
     root = Path(store_root)
     root.mkdir(parents=True, exist_ok=True)
@@ -130,23 +138,47 @@ def capture_baseline(
         "captured_at": captured_at,
         "source_suite": str(source_suite),
         "suite_file": "suite-result.json",
-        "scenarios": [item["scenario"] for item in suite["scenarios"]],
+        "scenarios": [item.scenario for item in suite.scenarios],
     }
 
-    with tempfile.TemporaryDirectory(prefix=f".{name}-", dir=root) as temp_dir:
+    with tempfile.TemporaryDirectory(
+        prefix=f".{name}-", dir=root, ignore_cleanup_errors=True,
+    ) as temp_dir:
         temp = Path(temp_dir)
         shutil.copy2(source_suite, temp / "suite-result.json")
-        for relative_name, source in result_files:
-            target = temp / relative_name
+        for item in suite.scenarios:
+            source = item.result_path
+            target = temp / item.result_file
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
+            source_replay = default_replay_path(source)
+            if source_replay.is_file():
+                try:
+                    if not source_replay.resolve().is_relative_to(source_suite.parent):
+                        raise ViewerError("replay sidecar is outside the suite directory")
+                    replay = load_replay(source_replay)
+                    replay_matches_result(replay, item.result)
+                except ViewerError as exc:
+                    raise BaselineError(
+                        f"cannot capture replay for {item.result_file}: {exc}"
+                    ) from exc
+                shutil.copy2(source_replay, default_replay_path(target))
+        # Validate the complete copied bundle before touching the old baseline.
+        captured_suite = _validated_suite(temp / "suite-result.json")
+        for item in captured_suite.scenarios:
+            replay_path = default_replay_path(item.result_path)
+            if replay_path.is_file():
+                try:
+                    replay_matches_result(load_replay(replay_path), item.result)
+                except ViewerError as exc:
+                    raise BaselineError(
+                        f"cannot capture replay for {item.result_file}: {exc}"
+                    ) from exc
         (temp / "manifest.json").write_text(
             json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
 
-        if destination.exists():
-            shutil.rmtree(destination)
-        shutil.copytree(temp, destination)
+        _publish_baseline(temp, destination, replace=replace)
 
     return BaselineInfo(
         name=name,

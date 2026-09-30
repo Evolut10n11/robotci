@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import math
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from robotci.metrics import NavigationMetrics
+from robotci.metrics import NavigationEvent, NavigationMetrics
 from robotci.results import Pose2D, ScenarioStatus
+from robotci.visual_profiles import ROBOT_VISUAL_PROFILES, RobotVisualProfile
 
 
 class ReplayRecorder:
@@ -21,19 +23,23 @@ class ReplayRecorder:
         started_at: float,
         runtime: str = "ros2_nav2",
         robot_type: str = "generic_mobile_base",
+        visual_profile: RobotVisualProfile = "rover",
     ) -> None:
+        if not isinstance(visual_profile, str) or visual_profile not in ROBOT_VISUAL_PROFILES:
+            raise ValueError("visual_profile must be one of: rover, quadruped, humanoid")
         self.scenario = scenario
         self.start = start
         self.goal = goal
         self.started_at = started_at
         self.runtime = runtime
         self.robot_type = robot_type
-        self._samples: list[dict[str, Any]] = [self._sample(0.0, start.x, start.y, start.yaw)]
+        self.visual_profile = visual_profile
+        self._samples: list[dict[str, Any]] = []
 
     @staticmethod
     def _sample(t: float, x: float, y: float, yaw: float) -> dict[str, Any]:
         return {
-            "t": round(max(0.0, t), 3),
+            "t": round(t, 3),
             "position": {"x": float(x), "y": float(y), "z": 0.0},
             "orientation": {"yaw": float(yaw)},
         }
@@ -41,11 +47,22 @@ class ReplayRecorder:
     def record(self, *, x: float, y: float, yaw: float, now: float) -> None:
         """Append one fresh navigation feedback pose."""
         values = (x, y, yaw, now)
-        if not all(math.isfinite(value) for value in values):
+        if not all(
+            isinstance(value, (int, float)) and not isinstance(value, bool)
+            and math.isfinite(value)
+            for value in values
+        ):
             return
 
-        elapsed = max(0.0, now - self.started_at)
-        self._samples.append(self._sample(elapsed, x, y, yaw))
+        elapsed = now - self.started_at
+        if not math.isfinite(elapsed) or elapsed < 0:
+            return
+        sample = self._sample(elapsed, x, y, yaw)
+        # Millisecond timestamps are the stored contract. Distinct receipt times
+        # can round to the same timestamp; never invent additional observations.
+        if self._samples and sample["t"] <= self._samples[-1]["t"]:
+            return
+        self._samples.append(sample)
 
     def build(
         self,
@@ -54,21 +71,26 @@ class ReplayRecorder:
         duration_sec: float,
         metrics: NavigationMetrics,
         navigation_result: str,
+        events: Sequence[NavigationEvent] = (),
     ) -> dict[str, Any]:
         """Build a self-contained Replay v1 payload."""
-        last_t = float(self._samples[-1]["t"])
-        duration = round(max(0.001, float(duration_sec), last_t), 3)
-
-        samples = list(self._samples)
-        if len(samples) == 1:
-            samples.append(
-                self._sample(
-                    duration,
-                    self.start.x,
-                    self.start.y,
-                    self.start.yaw,
-                )
-            )
+        last_t = float(self._samples[-1]["t"]) if self._samples else 0.0
+        observations = [
+            {
+                "t": round(max(0.0, event.observed_at - self.started_at), 3),
+                "type": event.type,
+                "count": event.count,
+                "message": (
+                    "No movement observed within the stuck window"
+                    if event.type == "STUCK"
+                    else "Nav2 recovery counter increased"
+                ),
+            }
+            for event in events
+        ]
+        observations.sort(key=lambda event: event["t"])
+        last_event_t = observations[-1]["t"] if observations else 0.0
+        duration = round(max(0.001, float(duration_sec), last_t, last_event_t), 3)
 
         viewer_status = "PASS" if status == "PASS" else "FAIL"
         final_event = "GOAL" if status == "PASS" else "FAIL"
@@ -79,12 +101,14 @@ class ReplayRecorder:
             "result_status": status,
             "runtime": self.runtime,
             "duration_sec": duration,
-            "robot": {"type": self.robot_type},
+            "robot": {"type": self.robot_type, "visual_profile": self.visual_profile},
+            "recording": {"pose_source": "observed", "max_interpolation_gap_sec": 1.0},
             "world": {
                 "frame": "map",
+                "start": {"x": self.start.x, "y": self.start.y, "z": 0.0},
                 "goal": {"x": self.goal.x, "y": self.goal.y, "z": 0.0},
             },
-            "samples": samples,
+            "samples": list(self._samples),
             "metrics": {
                 "duration_sec": duration,
                 "path_length_m": metrics.path_length_m,
@@ -94,6 +118,7 @@ class ReplayRecorder:
             },
             "events": [
                 {"t": 0.0, "type": "START", "message": "Navigation started"},
+                *observations,
                 {
                     "t": duration,
                     "type": final_event,

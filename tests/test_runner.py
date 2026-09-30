@@ -2,18 +2,63 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import asdict
 from pathlib import Path
 
 import pytest
 
 from robotci import runner
 from robotci.config import PoseConfig, ScenarioConfig
+from robotci.replay import default_replay_path
+from robotci.reproducibility import (
+    RuntimePackage,
+    build_runtime_environment,
+    build_suite_execution_identity,
+)
+from robotci.result_schema import load_result
+from robotci.results import Pose2D, build_scenario_task
+
+_TEST_EXECUTION = build_suite_execution_identity(
+    runtime="native",
+    plan_fingerprint="sha256:" + "1" * 64,
+    environment=build_runtime_environment(
+        os_id="ubuntu",
+        os_version="24.04",
+        architecture="x86_64",
+        python_version="3.12.3",
+        ros_distro="jazzy",
+        robotci_build="sha256:" + "2" * 64,
+        containerized=False,
+        packages=(RuntimePackage(manager="python", name="robotci", version="0.0.1"),),
+    ),
+)
+
+
+@pytest.fixture(autouse=True)
+def _stable_suite_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        runner,
+        "capture_suite_execution",
+        lambda **kwargs: _TEST_EXECUTION,
+    )
 
 
 def _make_project_root(path: Path) -> None:
     scripts = path / "scripts"
     scripts.mkdir(parents=True, exist_ok=True)
     (path / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    (path / "compose.yaml").write_text(
+        """services:
+  robotci:
+    build:
+      context: .
+    image: robotci:dev
+    init: true
+    volumes:
+      - ./artifacts:/workspace/artifacts
+""",
+        encoding="utf-8",
+    )
     (scripts / "run_navigation_scenario.sh").write_text(
         "#!/usr/bin/env bash\n",
         encoding="utf-8",
@@ -28,6 +73,7 @@ version: 1
 runtime: {runtime}
 scenarios:
   - name: short_route
+    map_id: warehouse-v1
     start:
       x: 1.0
       y: 2.0
@@ -38,6 +84,7 @@ scenarios:
       yaw: 0.25
     timeout_sec: 11
   - name: medium_route
+    map_id: warehouse-v1
     start:
       x: 0.0
       y: 0.0
@@ -46,6 +93,7 @@ scenarios:
       y: -0.39
     timeout_sec: 22
   - name: simple_route
+    map_id: warehouse-v1
     start:
       x: 0.0
       y: 0.0
@@ -59,9 +107,56 @@ scenarios:
     return config_path
 
 
+def _runtime_result_payload(
+    scenario: ScenarioConfig,
+    *,
+    status: str = "PASS",
+    duration_sec: float = 1.0,
+    map_id: str | None = None,
+) -> dict[str, object]:
+    start = Pose2D(scenario.start.x, scenario.start.y, scenario.start.yaw)
+    goal = Pose2D(scenario.goal.x, scenario.goal.y, scenario.goal.yaw)
+    task_map_id = map_id or scenario.map_id or "unspecified"
+    return {
+        "schema_version": 2,
+        "scenario": scenario.name,
+        "status": status,
+        "duration_sec": duration_sec,
+        "navigation_result": "SUCCEEDED" if status == "PASS" else status,
+        "start": asdict(start),
+        "goal": asdict(goal),
+        "metrics": {
+            "path_length_m": 1.0,
+            "distance_to_goal_m": 0.0,
+            "stuck_events": 0,
+            "feedback_samples": 1,
+            "recoveries": 0,
+        },
+        "telemetry_quality": {
+            "received_feedback_samples": 1,
+            "valid_pose_samples": 1,
+            "invalid_pose_samples": 0,
+            "final_pose_valid": True,
+        },
+        "evidence_policy": {
+            "goal_tolerance_m": scenario.goal_tolerance_m,
+            "min_feedback_samples": scenario.min_feedback_samples,
+        },
+        **({"reason_code": status.lower()} if status != "PASS" else {}),
+        "task": asdict(
+            build_scenario_task(
+                scenario=scenario.name,
+                start=start,
+                goal=goal,
+                map_id=task_map_id,
+            )
+        ),
+    }
+
+
 def test_auto_runtime_prefers_native_ros_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(runner.stdlib_platform, "system", lambda: "Linux")
-    monkeypatch.setattr(runner, "_command_exists", lambda command: command == "ros2")
+    monkeypatch.setattr(runner, "probe_native_ros", lambda: True)
     monkeypatch.setattr(runner, "_docker_available", lambda: True)
 
     assert runner.select_runtime("auto") == "native"
@@ -89,13 +184,13 @@ def test_native_runtime_is_rejected_on_windows(monkeypatch: pytest.MonkeyPatch) 
         runner.select_runtime("native")
 
 
-def test_find_project_root_walks_up_from_nested_directory(tmp_path: Path) -> None:
+def test_find_runtime_root_walks_up_from_nested_directory(tmp_path: Path) -> None:
     root = tmp_path / "robotci"
     nested = root / "some" / "nested" / "directory"
     nested.mkdir(parents=True)
     _make_project_root(root)
 
-    assert runner._find_project_root(nested) == root
+    assert runner._find_runtime_root(nested) == root
 
 
 def test_run_native_passes_yaml_pose_and_timeout_to_script(
@@ -111,21 +206,54 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
         start=PoseConfig(x=1.0, y=2.0, yaw=0.5),
         goal=PoseConfig(x=4.0, y=-0.17, yaw=0.25),
         timeout_sec=42.5,
+        map_id="warehouse-v1",
     )
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         captured["command"] = command
         captured["cwd"] = kwargs["cwd"]
         captured["env"] = kwargs["env"]
+        captured["runtime_budget"] = kwargs["timeout"]
+        environment = kwargs["env"]
+        assert isinstance(environment, dict)
+        captured["pycache_exists_during_run"] = Path(
+            environment["PYTHONPYCACHEPREFIX"]
+        ).is_dir()
         return subprocess.CompletedProcess(command, 0)
 
-    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setenv("BASH_ENV", str(tmp_path / "startup.sh"))
+    monkeypatch.setenv("ENV", str(tmp_path / "posix-startup.sh"))
+    monkeypatch.setenv("PYTHONHOME", str(tmp_path / "python-home"))
+    monkeypatch.setenv("PYTHONPATH", str(tmp_path / "untrusted-python"))
+    monkeypatch.setenv("ROBOTCI_PYTHONPATH", str(tmp_path / "untrusted-robotci-python"))
+    monkeypatch.setenv("PYTHONSAFEPATH", "1")
+    monkeypatch.setenv("PYTHONWARNINGS", "error")
+    monkeypatch.setenv("PATH", str(tmp_path / "untrusted-bin"))
+    monkeypatch.setenv("LD_LIBRARY_PATH", str(tmp_path / "untrusted-lib"))
+    monkeypatch.setenv("AMENT_PREFIX_PATH", str(tmp_path / "untrusted-overlay"))
+    monkeypatch.setenv("CMAKE_PREFIX_PATH", str(tmp_path / "untrusted-cmake"))
+    monkeypatch.setenv("COLCON_PREFIX_PATH", str(tmp_path / "untrusted-colcon"))
+    monkeypatch.setenv("ROS_PACKAGE_PATH", str(tmp_path / "untrusted-ros-packages"))
+    monkeypatch.setenv("ROS_DISTRO", "humble")
+    monkeypatch.setenv("ROS_ETC_DIR", "/opt/ros/humble/etc/ros")
+    monkeypatch.setenv("ROS_PYTHON_VERSION", "2")
+    monkeypatch.setenv("ROS_VERSION", "2")
+    monkeypatch.setenv("RCL_ASSERT_RMW_ID_MATCHES", "rmw_fastrtps_cpp")
+    monkeypatch.setenv("UNTRACKED_ROS_CONTROL", "unsafe")
+    monkeypatch.setenv("BASH_FUNC_injected%%", "() { return 0; }")
+    monkeypatch.setattr(
+        runner,
+        "_native_python_dependency_paths",
+        lambda: ("/trusted/python-packages",),
+    )
+    monkeypatch.setattr(runner, "run_runtime_process", fake_run)
 
     exit_code = runner._run_native(tmp_path, scenario, output, 42.5)
 
     assert exit_code == 0
     assert captured["command"] == ["bash", str(script)]
     assert captured["cwd"] == tmp_path
+    assert captured["runtime_budget"] == runner._runtime_budget(42.5)
     environment = captured["env"]
     assert isinstance(environment, dict)
     assert environment["ROBOTCI_SCENARIO"] == "custom_route"
@@ -135,8 +263,38 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
     assert environment["ROBOTCI_GOAL_X"] == "4.0"
     assert environment["ROBOTCI_GOAL_Y"] == "-0.17"
     assert environment["ROBOTCI_GOAL_YAW"] == "0.25"
+    assert environment["ROBOTCI_MAP_ID"] == "warehouse-v1"
     assert environment["ROBOTCI_RESULT_FILE"] == str(output.resolve())
     assert environment["ROBOTCI_TIMEOUT_SEC"] == "42.5"
+    assert environment["ROBOTCI_GOAL_TOLERANCE_M"] == "0.25"
+    assert environment["ROBOTCI_MIN_FEEDBACK_SAMPLES"] == "1"
+    assert "BASH_ENV" not in environment
+    assert "ENV" not in environment
+    assert "PYTHONHOME" not in environment
+    assert environment["PYTHONPATH"] == "/trusted/python-packages"
+    assert environment["ROBOTCI_PYTHONPATH"] == "/trusted/python-packages"
+    assert "untrusted-python" not in environment["PYTHONPATH"]
+    assert "PYTHONSAFEPATH" not in environment
+    assert "PYTHONWARNINGS" not in environment
+    assert environment["PYTHONHASHSEED"] == "0"
+    assert environment["PYTHONNOUSERSITE"] == "1"
+    assert environment["PYTHONDONTWRITEBYTECODE"] == "1"
+    assert environment["PYTHONUTF8"] == "1"
+    assert captured["pycache_exists_during_run"] is True
+    assert not Path(environment["PYTHONPYCACHEPREFIX"]).exists()
+    assert environment["PATH"] == runner._NATIVE_PATH
+    assert "LD_LIBRARY_PATH" not in environment
+    assert "AMENT_PREFIX_PATH" not in environment
+    assert "CMAKE_PREFIX_PATH" not in environment
+    assert "COLCON_PREFIX_PATH" not in environment
+    assert "ROS_PACKAGE_PATH" not in environment
+    assert "ROS_DISTRO" not in environment
+    assert "ROS_ETC_DIR" not in environment
+    assert "ROS_PYTHON_VERSION" not in environment
+    assert "ROS_VERSION" not in environment
+    assert environment["RCL_ASSERT_RMW_ID_MATCHES"] == "rmw_fastrtps_cpp"
+    assert "UNTRACKED_ROS_CONTROL" not in environment
+    assert "BASH_FUNC_injected%%" not in environment
 
 
 def test_run_docker_mounts_config_and_copies_result(
@@ -157,19 +315,33 @@ def test_run_docker_mounts_config_and_copies_result(
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         captured["command"] = command
+        captured["runtime_budget"] = kwargs["timeout"]
         source.parent.mkdir(parents=True, exist_ok=True)
         source.write_text('{"status": "PASS"}\n', encoding="utf-8")
         return subprocess.CompletedProcess(command, 0)
 
-    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(runner, "run_runtime_process", fake_run)
 
     exit_code = runner._run_docker(tmp_path, scenario, destination, 30.0, config_path)
 
     assert exit_code == 0
+    assert captured["runtime_budget"] == runner._runtime_budget(
+        30.0, docker=True, build_image=True,
+    )
     assert destination.read_text(encoding="utf-8") == '{"status": "PASS"}\n'
     command = captured["command"]
     assert isinstance(command, list)
-    assert command[:5] == ["docker", "compose", "run", "--rm", "--build"]
+    assert command[:9] == [
+        "docker",
+        "compose",
+        "--file",
+        str(tmp_path / "compose.yaml"),
+        "--project-name",
+        "robotci",
+        "run",
+        "--rm",
+        "--build",
+    ]
     assert "--volume" in command
     assert f"{config_path.resolve()}:/workspace/robotci.yaml:ro" in command
     assert "short_route" in command
@@ -203,6 +375,11 @@ def test_run_scenario_uses_yaml_runtime_pose_and_timeout(
     ) -> int:
         captured["scenario"] = scenario
         captured["timeout"] = timeout_sec
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(_runtime_result_payload(scenario)),
+            encoding="utf-8",
+        )
         return 0
 
     monkeypatch.setattr(runner, "select_runtime", fake_select_runtime)
@@ -221,6 +398,42 @@ def test_run_scenario_uses_yaml_runtime_pose_and_timeout(
     assert scenario.start == PoseConfig(x=1.0, y=2.0, yaw=0.5)
     assert scenario.goal == PoseConfig(x=4.0, y=-0.17, yaw=0.25)
     assert captured["timeout"] == 11.0
+
+
+def test_run_scenario_rejects_adapter_pass_for_different_task(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path, runtime="native")
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+
+    def fake_run_native(
+        project_root: Path,
+        scenario: ScenarioConfig,
+        output: Path,
+        timeout_sec: float,
+    ) -> int:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(
+                _runtime_result_payload(scenario, map_id="different-warehouse")
+            ),
+            encoding="utf-8",
+        )
+        return 0
+
+    monkeypatch.setattr(runner, "_run_native", fake_run_native)
+
+    exit_code, _, result_path = runner.run_scenario(
+        scenario="short_route",
+        project_root=tmp_path,
+    )
+
+    payload = json.loads(result_path.read_text(encoding="utf-8"))
+    assert exit_code == 3
+    assert payload["status"] == "INFRA_ERROR"
+    assert payload["error"] == "missing, invalid or inconsistent runtime result"
 
 
 def test_run_suite_uses_configured_scenarios_and_timeouts(
@@ -242,13 +455,7 @@ def test_run_suite_uses_configured_scenarios_and_timeouts(
         executed.append((scenario.name, timeout_sec))
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
-            json.dumps(
-                {
-                    "scenario": scenario.name,
-                    "status": "PASS",
-                    "duration_sec": 1.5,
-                }
-            ),
+            json.dumps(_runtime_result_payload(scenario, duration_sec=1.5)),
             encoding="utf-8",
         )
         return 0
@@ -263,7 +470,9 @@ def test_run_suite_uses_configured_scenarios_and_timeouts(
     payload = json.loads(result_path.read_text(encoding="utf-8"))
     assert exit_code == 0
     assert selected == "native"
+    assert payload["schema_version"] == 1
     assert payload["status"] == "PASS"
+    assert payload["execution"]["fingerprint"] == _TEST_EXECUTION.fingerprint
     assert [item["scenario"] for item in payload["scenarios"]] == [
         "short_route",
         "medium_route",
@@ -274,6 +483,105 @@ def test_run_suite_uses_configured_scenarios_and_timeouts(
         ("medium_route", 22.0),
         ("simple_route", 33.0),
     ]
+
+
+def test_run_suite_rejects_runtime_environment_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path)
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+    drifted_execution = build_suite_execution_identity(
+        runtime="native",
+        plan_fingerprint=_TEST_EXECUTION.plan_fingerprint,
+        environment=build_runtime_environment(
+            os_id="ubuntu",
+            os_version="24.04",
+            architecture="x86_64",
+            python_version="3.12.4",
+            ros_distro="jazzy",
+            robotci_build="sha256:" + "3" * 64,
+            containerized=False,
+            packages=(
+                RuntimePackage(manager="python", name="robotci", version="0.0.1"),
+            ),
+        ),
+    )
+    captures = iter((_TEST_EXECUTION, drifted_execution))
+    monkeypatch.setattr(
+        runner,
+        "capture_suite_execution",
+        lambda **kwargs: next(captures),
+    )
+
+    def fake_run_native(
+        project_root: Path,
+        scenario: ScenarioConfig,
+        output: Path,
+        timeout_sec: float,
+    ) -> int:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(_runtime_result_payload(scenario)),
+            encoding="utf-8",
+        )
+        return 0
+
+    monkeypatch.setattr(runner, "_run_native", fake_run_native)
+    suite_path = tmp_path / "suite-result.json"
+
+    with pytest.raises(
+        runner.RuntimeUnavailableError,
+        match="runtime environment changed during suite execution",
+    ):
+        runner.run_suite(
+            output=suite_path,
+            project_root=tmp_path,
+        )
+
+    assert not suite_path.exists()
+
+
+def test_run_suite_keeps_outputs_in_external_project(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    external_project = tmp_path / "pilot"
+    external_project.mkdir()
+    _write_config(external_project, runtime="native")
+    monkeypatch.chdir(external_project)
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+    runtime_root = Path(runner.__file__).resolve().parent.parent
+    observed_runtime_roots: list[Path] = []
+
+    def fake_run_native(
+        project_root: Path,
+        scenario: ScenarioConfig,
+        output: Path,
+        timeout_sec: float,
+    ) -> int:
+        observed_runtime_roots.append(project_root)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(
+            json.dumps(
+                _runtime_result_payload(
+                    scenario,
+                    duration_sec=timeout_sec / 10,
+                )
+            ),
+            encoding="utf-8",
+        )
+        return 0
+
+    monkeypatch.setattr(runner, "_run_native", fake_run_native)
+
+    exit_code, selected, result_path = runner.run_suite()
+
+    assert exit_code == 0
+    assert selected == "native"
+    assert result_path == (external_project / ".robotci" / "suite-result.json").resolve()
+    assert observed_runtime_roots == [runtime_root, runtime_root, runtime_root]
 
 
 def test_run_suite_cli_timeout_overrides_yaml_timeouts(
@@ -294,7 +602,7 @@ def test_run_suite_cli_timeout_overrides_yaml_timeouts(
         observed_timeouts.append(timeout_sec)
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
-            json.dumps({"status": "PASS", "duration_sec": 1.0}),
+            json.dumps(_runtime_result_payload(scenario)),
             encoding="utf-8",
         )
         return 0
@@ -332,7 +640,9 @@ def test_run_suite_propagates_worst_verdict(
         status, exit_code = statuses[scenario.name]
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(
-            json.dumps({"scenario": scenario.name, "status": status, "duration_sec": 1.0}),
+            json.dumps(
+                _runtime_result_payload(scenario, status=status)
+            ),
             encoding="utf-8",
         )
         return exit_code
@@ -347,3 +657,126 @@ def test_run_suite_propagates_worst_verdict(
     payload = json.loads(result_path.read_text(encoding="utf-8"))
     assert exit_code == 2
     assert payload["status"] == "TIMEOUT"
+
+
+@pytest.mark.parametrize("mode", ["single", "suite"])
+@pytest.mark.parametrize(
+    "timeout",
+    [float("nan"), float("inf"), -float("inf"), 0.0, -1.0, 1e308, True, "10", 10**1000],
+    ids=["nan", "inf", "negative_inf", "zero", "negative", "overflow", "bool", "str", "huge_int"],
+)
+def test_invalid_timeout_is_rejected_before_runtime_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str, timeout: float,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path)
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: pytest.fail("must not probe"))
+    invoke = runner.run_suite if mode == "suite" else runner.run_scenario
+    kwargs = {} if mode == "suite" else {"scenario": "short_route"}
+    with pytest.raises(runner.ConfigError, match="timeout"):
+        invoke(project_root=tmp_path, timeout_sec=timeout, **kwargs)
+
+
+@pytest.mark.parametrize("mode", ["single", "suite"])
+def test_watchdog_overrides_even_fresh_pass_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path)
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+    monkeypatch.setattr(runner, "_native_python_dependency_paths", lambda: ("/trusted",))
+
+    def expired_runtime(command, **kwargs):
+        environment = kwargs["env"]
+        scenario = runner.get_scenario(runner.load_config(tmp_path / "robotci.yaml"),
+                                       environment["ROBOTCI_SCENARIO"])
+        output = Path(environment["ROBOTCI_RESULT_FILE"])
+        output.write_text(json.dumps(_runtime_result_payload(scenario)), encoding="utf-8")
+        default_replay_path(output).write_text("partial replay", encoding="utf-8")
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    monkeypatch.setattr(runner, "run_runtime_process", expired_runtime)
+    if mode == "suite":
+        code, _, output = runner.run_suite(project_root=tmp_path)
+        suite = json.loads(output.read_text(encoding="utf-8"))
+        assert suite["status"] == "INFRA_ERROR"
+        paths = [output.parent / item["result_file"] for item in suite["scenarios"]]
+    else:
+        code, _, output = runner.run_scenario(scenario="short_route", project_root=tmp_path)
+        paths = [output]
+    assert code == 3
+    for result_path in paths:
+        assert load_result(result_path).status == "INFRA_ERROR"
+        payload = json.loads(result_path.read_text(encoding="utf-8"))
+        assert payload["reason_code"] == "runtime_watchdog_timeout"
+        assert payload["navigation_result"] == "RUNTIME_WATCHDOG_TIMEOUT"
+        assert not default_replay_path(result_path).exists()
+
+
+@pytest.mark.parametrize("removal", ["success", "failed", "hung"])
+def test_docker_watchdog_removes_exact_named_container_and_discards_partial_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, removal: str,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path, runtime="docker")
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "docker")
+    source = tmp_path / "artifacts/short_route/result.json"
+    commands: list[list[str]] = []
+
+    def expired_runtime(command, **kwargs):
+        commands.append(command)
+        scenario = runner.get_scenario(runner.load_config(tmp_path / "robotci.yaml"), "short_route")
+        source.write_text(json.dumps(_runtime_result_payload(scenario)), encoding="utf-8")
+        default_replay_path(source).write_text("partial replay", encoding="utf-8")
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    def cleanup(command, **kwargs):
+        commands.append(command)
+        assert kwargs["timeout"] == runner.DOCKER_REMOVE_TIMEOUT_SEC
+        if removal == "hung":
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+        return subprocess.CompletedProcess(command, 0 if removal == "success" else 1)
+
+    monkeypatch.setattr(runner, "run_runtime_process", expired_runtime)
+    monkeypatch.setattr(runner.subprocess, "run", cleanup)
+    code, _, output = runner.run_scenario(scenario="short_route", project_root=tmp_path)
+    assert code == 3
+    name = commands[0][commands[0].index("--name") + 1]
+    assert name.startswith("robotci-run-")
+    assert commands[1] == ["docker", "rm", "--force", name]
+    assert not source.exists()
+    assert not default_replay_path(source).exists()
+    assert load_result(output).status == "INFRA_ERROR"
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["reason_code"] == "runtime_watchdog_timeout"
+    if removal != "success":
+        assert "Docker container removal" in payload["error"]
+
+
+@pytest.mark.parametrize("interruption", [KeyboardInterrupt, SystemExit])
+def test_docker_abort_removes_container_and_preserves_interrupt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, interruption: type[BaseException],
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path, runtime="docker")
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "docker")
+    source = tmp_path / "artifacts/short_route/result.json"
+    commands: list[list[str]] = []
+
+    def interrupted_runtime(command, **kwargs):
+        commands.append(command)
+        source.write_text('{"status":"PASS"}', encoding="utf-8")
+        raise interruption()
+
+    def cleanup(command, **kwargs):
+        commands.append(command)
+        assert kwargs["timeout"] == runner.DOCKER_REMOVE_TIMEOUT_SEC
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(runner, "run_runtime_process", interrupted_runtime)
+    monkeypatch.setattr(runner.subprocess, "run", cleanup)
+    with pytest.raises(interruption):
+        runner.run_scenario(scenario="short_route", project_root=tmp_path)
+    name = commands[0][commands[0].index("--name") + 1]
+    assert commands[1] == ["docker", "rm", "--force", name]
+    assert not source.exists()
