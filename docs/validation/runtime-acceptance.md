@@ -1,16 +1,15 @@
 # Native Nav2 / Gazebo runtime acceptance
 
-Status on 2026-09-30: the first complete cohort using the installed Nav2 1.3.13
-conditional-replanning behavior tree detected the real speed intervention, but
-its independent same-head repetition failed one unchanged final-distance gate.
-Timing was stable and all six repeated routes passed without recoveries or stuck
-events; the driver still correctly stopped before control or candidate collection.
-Repeatable acceptance under the default policy is **not established**. The first
-RotationShim warmup then failed navigation despite verified setup and cleanup.
-The next fixed experiment keeps that controller and selects `map` as the local
-costmap frame; its full series and independent repetition remain pending.
-All positive and negative outcomes,
-including earlier failed calibrations, are retained below. No
+Status on 2026-09-30: the recorded setup combining RotationShim, the fixed
+conditional-replanning tree, and a `map` local costmap succeeded in **two
+separately fingerprinted internal experiments**. Each completed nine routes,
+passed its own 20 unchanged-baseline gates and both controls, and detected a
+sole duration regression from the real speed intervention. All routes completed
+without observed recoveries or stuck events. Six Ubuntu dependency versions
+changed between the fresh runners, so direct cross-cohort comparison is
+incompatible; the two identities are preserved. Earlier setup failures remain
+historical evidence, including the failed fixed-BT repetition and RotationShim
+warmup. All positive and negative outcomes are retained below. No
 simulator-wide or statistical false-positive guarantee is claimed. The
 maintenance environment is Ubuntu 24.04 with Python 3.12, but has no `ros2`,
 `gz`, Docker executable, or `/opt/ros/jazzy/setup.bash`. Unit tests and the
@@ -579,7 +578,7 @@ with yaw error approximately -0.4863 rad. A later near-zero-yaw, stationary phas
 remains approximately 0.2391 m from that goal. These observations motivate a
 frame-consistency test; no retained TF time series establishes its physical cause.
 
-## Next frame experiment: local costmap in map, verification pending
+## Map-frame setup and source-backed hypothesis
 
 The exact [Nav2 1.3.13 ControllerServer](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_controller/src/controller_server.cpp)
 caches the path's final pose, including its original timestamp, in `setPlannerPath`.
@@ -596,7 +595,7 @@ produce different odom-frame goal coordinates. That is a source-backed possible
 interaction, not a measured sole cause: this artifact lacks the actual historical
 and current TF samples needed to demonstrate it during the failed warmup.
 
-The next setup changes only
+The map-frame setup changes only
 `local_costmap.local_costmap.ros__parameters.global_frame` from `odom` to `map`
 before collecting a new cohort. On this controlled static depot route, a map-frame
 local grid removes the map-to-odom goal conversion from the goal-checking/control
@@ -616,10 +615,193 @@ and predeclared baseline-1 rule remain unchanged.
 
 A fresh warmup, five unchanged baselines, all 20 ordered-pair gates, preselected
 baseline-1 capture, held-out control, real candidate, and restored control are
-required, followed by an
-independent fresh repetition of the same frozen setup. Both complete series
-remain pending. The failed warmup and all earlier cohorts stay in the evidence
-record; no previous run is reused or selected to bypass stability admission.
+required, followed by an independent fresh repetition of the same frozen setup.
+Both independently completed series are recorded below with their separate
+runner identities. The failed warmup and all earlier cohorts stay in the evidence record;
+no previous run is reused or selected to bypass stability admission.
+
+## First map-frame cohort: completed regression proof
+
+[Gazebo run 36766284229](https://github.com/Evolut10n11/robotci/actions/runs/36766284229),
+attempt 1, [job 110061148891](https://github.com/Evolut10n11/robotci/actions/runs/36766284229/job/110061148891),
+tested PR head `371ff0dc6882bc634492bbc846bdf273c8efb19e` at checkout merge
+`d06e87e8d3a8e34b4b613b122ae13eaf3ef54f0e`. Retained
+[artifact 11122550938](https://github.com/Evolut10n11/robotci/actions/runs/36766284229/artifacts/11122550938)
+contains 146 files, including all nine typed suite/result/replay/target bundles,
+20 separate ordered-pair reports, captured baseline, controls and candidate gates
+in JSON/Markdown/JUnit, subject YAML, navigation XML, inventory, and logs. Its
+archive SHA256 is
+`24debd32c3809479db5c62a080b312bdb7102d4e02975bad1f2693d0a655c538`.
+
+| Run | MPPI speed cap, m/s | Duration, seconds | Path, metres | Final distance, metres | Feedback/replay samples |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| warmup | 0.5 | 15.747 | 5.262 | 0.179332 | 78 |
+| baseline-1 | 0.5 | 13.610 | 5.192 | 0.195641 | 68 |
+| baseline-2 | 0.5 | 13.909 | 5.173 | 0.198905 | 70 |
+| baseline-3 | 0.5 | 13.720 | 5.186 | 0.178135 | 69 |
+| baseline-4 | 0.5 | 13.521 | 5.176 | 0.172481 | 68 |
+| baseline-5 | 0.5 | 14.114 | 5.214 | 0.183840 | 71 |
+| held-out control | 0.5 | 14.338 | 5.183 | 0.171197 | 72 |
+| candidate | 0.2 | 30.053 | 5.262 | 0.183391 | 150 |
+| restored control | 0.5 | 13.742 | 5.184 | 0.181410 | 69 |
+
+All nine navigations completed with `PASS`, complete evidence and provenance,
+valid final poses, zero invalid samples, and zero observed recoveries or stuck
+events. Received, valid, and replay sample counts agree. Independent core loading
+validated all suites, results, and matching replays, then recomputed **20 of 20**
+directed unchanged-baseline gates as `PASS`. Baseline duration ranged from 13.521
+to 14.114 seconds, with median 13.720 seconds and largest ordered-pair increase
+of 4.386%. Their final-distance spread was 0.02642 m. Baseline-1 was captured under
+the selection rule declared before collection.
+
+Both held-out and restored controls passed with no findings. The candidate
+changed only `controller_server.ros__parameters.FollowPath.vx_max` from 0.5 to
+0.2 m/s. Its gate reported exactly one finding: duration increased from 13.610
+to 30.053 seconds, **+120.816%**, exceeding the unchanged 10% allowance. Path,
+final distance, recoveries, and stuck counters produced no findings. The driver
+reported `COMPLETED_DURATION_REGRESSION`, with actual restored-control navigation
+and `subject_restored=true`.
+
+Each target manifest passed strict admission. All ten controller/preset fields
+were expected = before = after: RotationShim wrapper, MPPI primary, goal-heading
+rotation enabled, speed 0.5 m/s except 0.2 m/s for the candidate, final-heading
+activation and XY tolerance both 0.20 m, yaw tolerance 0.25 rad, stateful checking,
+and visualization/noise regeneration disabled. The actual typed local-costmap
+frame was expected = before = after `map`. BT parameter and file evidence matched
+the frozen XML digest
+`684c368fff80558623adc50c59d6f4f8f09a6fbc9138fa70cad32ffda03333b4`.
+Target assets were frozen after warmup and stayed constant. All nine transport
+partitions were distinct; both cleanup flags passed for every run, with no
+survivors.
+
+The comparable suites share execution fingerprint
+`sha256:9e413ab14a5a05924d8653f7a1404f9a2b6463d01099fe2cd7f83fa781dcabe1`
+and environment fingerprint
+`sha256:08e790930db3bcc3e70093c43cfb48bbcd1ab5018f3fad6feb464910fb8272e1`.
+Actual original/restored subject bytes match
+`sha256:ccff641a783c369e6e7aba9438b4fa246f094b9622ef0074503f8038541c1a89`;
+candidate bytes match
+`sha256:145fb73776a0256f2b5451ec2223bebab5f4f87d8c6b2188028a346b95b97398`.
+A recursive comparison of the actual YAML confirms the sole semantic speed
+delta; map frame, BT, wrapper, and every other subject parameter remain unchanged.
+
+Each Nav2 log contains one navigation-goal receipt and one completion, with zero
+progress errors or RotationShim fallback messages. Baseline, control, candidate,
+and restored runs contain no new-path updates. Warmup contains one new-path update
+after the first recorded pose inside the 0.20 m XY criterion, 0.450 seconds before Nav2's logged successful
+completion; it was excluded from the five-run baseline cohort. Baseline-1 and
+baseline-3 each record one missed-rate warning reporting 23.8095 Hz; all other
+runs record none. These observations are preserved rather than replaced by a
+claim of perfectly constant scheduling or no path updates across all nine runs.
+
+In all nine observed replays, map-frame displacement from the first recorded
+sample inside the 0.20 m XY criterion to the final recorded sample is at most
+0.02475 m, including approximately 0.0083 m for warmup and 0.0043 m for the
+candidate. Final reported distances across the nine runs are 0.1712–0.1989 m.
+These observations support coherent arrival within the recorded feedback.
+The last feedback sample slightly precedes Nav2 completion; this is not a bound
+on the unrecorded physical completion pose. No historical TF or physical odometry
+trace establishes the timestamp interaction as the exclusive cause or proves
+a broader motion bound.
+
+This is one completed internal experiment for the map-frame setup. Its result
+is consistent with the source-backed frame hypothesis, without proving that the
+timestamp interaction alone caused the earlier warmup failure. Attempt 2 below
+used an independent fresh job on the same PR head with no target or subject
+change, but different system dependency versions. Earlier failed cohorts remain
+in the record, and this evidence contributes zero external participants to M8.
+
+## Second map-frame experiment: independently completed regression proof
+
+Attempt 2 of [run 36766284229](https://github.com/Evolut10n11/robotci/actions/runs/36766284229),
+[job 110067480928](https://github.com/Evolut10n11/robotci/actions/runs/36766284229/job/110067480928),
+used the same PR head `371ff0dc6882bc634492bbc846bdf273c8efb19e` and checkout
+merge `d06e87e8d3a8e34b4b613b122ae13eaf3ef54f0e`. Retained
+[artifact 11122693635](https://github.com/Evolut10n11/robotci/actions/runs/36766284229/artifacts/11122693635)
+contains 146 files and has archive SHA256
+`5a993a461873def4be2e9c91e7d3c2f5d9e2d46afe561f6bab99c3627eba6cc8`.
+
+| Run | MPPI speed cap, m/s | Duration, seconds | Path, metres | Final distance, metres | Feedback/replay samples |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| warmup | 0.5 | 12.882 | 5.161 | 0.153240 | 65 |
+| baseline-1 | 0.5 | 13.524 | 5.265 | 0.191389 | 68 |
+| baseline-2 | 0.5 | 13.124 | 5.218 | 0.203503 | 66 |
+| baseline-3 | 0.5 | 13.873 | 5.245 | 0.176325 | 70 |
+| baseline-4 | 0.5 | 13.665 | 5.251 | 0.179268 | 68 |
+| baseline-5 | 0.5 | 13.282 | 5.233 | 0.205209 | 67 |
+| held-out control | 0.5 | 13.281 | 5.305 | 0.196746 | 67 |
+| candidate | 0.2 | 27.326 | 5.176 | 0.178870 | 137 |
+| restored control | 0.5 | 13.271 | 5.166 | 0.157625 | 66 |
+
+All nine suites, results, and matching replays passed independent core validation,
+with complete evidence/provenance, valid final poses, zero invalid samples, and
+received = valid = replay sample counts. Every navigation returned `PASS`, with
+zero recoveries or stuck events. Within this experiment, all **20 of 20** directed
+baseline gates passed. Baseline durations ranged from 13.124 to 13.873 seconds,
+with median 13.524 seconds and maximum ordered-pair increase of 5.707%. Their
+final-distance spread was 0.02888 m. The goal checker's stateful XY capture and
+RobotCI's unchanged 0.35 m task tolerance remain distinct from the observed final
+feedback position; a final sample just outside 0.20 m does not change those rules.
+
+Both held-out and restored controls passed with no findings. The preselected
+baseline-1 to candidate gate reported a sole duration finding: 13.524 to 27.326
+seconds, **+102.056%**, against the unchanged 10% allowance. The actual candidate
+YAML's only semantic delta was `FollowPath.vx_max` from 0.5 to 0.2 m/s. The driver
+reported `COMPLETED_DURATION_REGRESSION` and `subject_restored=true`, and the
+restored-control navigation was performed and passed.
+
+All ten controller/preset fields, the actual BT parameter/file digest, and the
+local-costmap frame passed expected/before/after verification. The frame remained
+`map`, speed remained 0.5 m/s except 0.2 m/s for the candidate, and all target
+assets, original/candidate YAML bytes, and policy match attempt 1 exactly.
+The subject digests remain `ccff641a783c369e6e7aba9438b4fa246f094b9622ef0074503f8038541c1a89`
+and `145fb73776a0256f2b5451ec2223bebab5f4f87d8c6b2188028a346b95b97398`.
+Target assets were frozen after warmup. Each run confirmed both cleanup flags
+with no survivors. Its nine fresh transport partitions are also disjoint from
+the first experiment's nine partitions.
+
+Each Nav2 recording contains one goal receipt and one completion, with no
+RotationShim fallback, progress failure, recovery/stuck event, or rate warning.
+Baseline-1 contains one new-path update 13.150402 seconds after the controller
+goal receipt and 0.300331 seconds before its successful completion. The other
+eight recordings contain no new-path update. Successful completion despite these
+late path updates is retained as an observation, not hidden behind a zero-update
+claim or treated as exclusive causal proof.
+
+## Separate runner identities and scope of the reproduced result
+
+The second experiment's execution fingerprint is
+`sha256:cf9daa400091d0e9bd3bac9648dee6198de593321861763e72fb6640d20d5c29`;
+its environment fingerprint is
+`sha256:9021d89eed071119c1829a8b9dacad080cdde860a8bf47a88a1ea1625178fb95`.
+These differ from the first experiment's recorded identities. Both environments
+contain 1,479 packages; all other recorded environment fields match, but these
+six Ubuntu dependency versions changed between provisioning the fresh runners:
+
+| Package | First experiment | Second experiment |
+| --- | --- | --- |
+| `libapparmor1:amd64` | `4.0.1really4.0.1-0ubuntu0.24.04.7` | `4.0.1really4.0.1-0ubuntu0.24.04.8` |
+| `libaudit-common` | `1:3.1.2-2.1build1.1` | `1:3.1.2-2.1ubuntu0.1` |
+| `libaudit1:amd64` | `1:3.1.2-2.1build1.1` | `1:3.1.2-2.1ubuntu0.1` |
+| `libexpat1-dev:amd64` | `2.6.1-2ubuntu0.4` | `2.6.1-2ubuntu0.6` |
+| `libexpat1:amd64` | `2.6.1-2ubuntu0.4` | `2.6.1-2ubuntu0.6` |
+| `linux-libc-dev:amd64` | `6.8.0-139.139` | `6.8.0-142.142` |
+
+Source revision, target assets, subject bytes, and policy are identical between
+the two experiments, but the runtime environment is not. Each experiment has its
+own internally compatible five baselines, 20 comparisons, passing controls, and
+real intervention result. Direct cross-cohort comparison correctly refuses
+`runtime environment differs`: it is incompatible input, not a behavioral
+regression. No saved identity was rewritten, no combined cross-cohort gate was
+accepted, and no 90-pair comparison over pooled baselines was performed.
+
+The setup's success was reproduced in two separately fingerprinted runner
+environments. This validates the experimental reset/readiness/evidence/gate
+sequence for these recorded Nav2 1.3.13 / Gazebo Harmonic depot experiments.
+It does not establish a statistical false-positive bound, arbitrary-route or
+simulator-wide reliability, hardware safety, or compatibility with actual
+Clearpath simulation. Earlier failures remain evidence of the calibration
+boundary, and all of these internal runs contribute zero external teams to M8.
 
 ## Target and experiment boundary
 

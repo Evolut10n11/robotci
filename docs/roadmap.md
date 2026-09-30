@@ -29,9 +29,14 @@ capability is absent until earlier product validation finishes.
    [issue #48](https://github.com/Evolut10n11/robotci/issues/48).
    Use the [register](validation/README.md); internal demo runs and repository
    inspections do not count as external participation.
-2. Verify the experimental [Nav2/Gazebo adapter](../examples/nav2-gazebo/README.md)
-   with repeated unchanged baselines and a real controller intervention; retain
-   successful and failed evidence in the [acceptance record](validation/runtime-acceptance.md).
+2. Extend the measured [Nav2/Gazebo experiment](../examples/nav2-gazebo/README.md)
+   to other routes and environments. Two internal map-frame experiments each
+   passed their own 20 unchanged comparisons and both controls, and detected
+   the real speed intervention. Runner dependency changes gave them separate
+   fingerprints; cross-cohort gates correctly refuse compatibility. Preserve
+   every successful and failed setup in the
+   [acceptance record](validation/runtime-acceptance.md) and keep new claims
+   scoped to observed measurements.
    Canonical ROS namespaces and bounded action-server readiness are implemented.
    The [Clearpath preflight](validation/clearpath-preflight.md) still requires an
    actual Clearpath simulation before compatibility can be claimed.
