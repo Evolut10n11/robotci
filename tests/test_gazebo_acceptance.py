@@ -206,6 +206,8 @@ def provenance(subject: bytes) -> dict:
     (lambda value: value["benchmark_preset"].update(stateful=0), "preset differs"),
     (lambda value: value["benchmark_preset_after"].update(xy_goal_tolerance=0.25),
      "preset differs"),
+    (lambda value: value["benchmark_preset_after"].update(goal_angle_activation_distance=0.5),
+     "preset differs"),
     (lambda value: value["benchmark_preset_expected"].pop("visualize"), "complete fixed"),
 ])
 def test_unverified_target_cannot_be_accepted(

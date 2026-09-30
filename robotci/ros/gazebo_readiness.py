@@ -40,6 +40,7 @@ CONTROLLER_PARAMETER_NAMES = (
     "FollowPath.plugin", "FollowPath.vx_max", "FollowPath.visualize",
     "FollowPath.regenerate_noises", "general_goal_checker.xy_goal_tolerance",
     "general_goal_checker.yaw_goal_tolerance", "general_goal_checker.stateful",
+    "FollowPath.GoalAngleCritic.threshold_to_consider",
 )
 
 
@@ -47,7 +48,7 @@ def validate_benchmark_preset(preset: dict[str, Any]) -> None:
     for name in ("visualize", "regenerate_noises", "stateful"):
         if not isinstance(preset.get(name), bool):
             raise ValueError(f"benchmark {name} must be a boolean")
-    for name in ("xy_goal_tolerance", "yaw_goal_tolerance"):
+    for name in ("xy_goal_tolerance", "yaw_goal_tolerance", "goal_angle_activation_distance"):
         value = preset.get(name)
         try:
             valid = (not isinstance(value, bool) and isinstance(value, int | float)
@@ -63,11 +64,11 @@ def decode_controller_parameters(values: list[Any]) -> tuple[dict[str, Any], dic
     if len(values) != len(CONTROLLER_PARAMETER_NAMES):
         raise ValueError("controller read-back is incomplete")
     for name, value, expected_type in zip(
-        CONTROLLER_PARAMETER_NAMES, values, (4, 3, 1, 1, 3, 3, 1), strict=True
+        CONTROLLER_PARAMETER_NAMES, values, (4, 3, 1, 1, 3, 3, 1, 3), strict=True
     ):
         if value.type != expected_type:
             raise ValueError(f"controller {name} has the wrong ROS parameter type")
-    plugin, speed, visualize, noises, xy, yaw, stateful = values
+    plugin, speed, visualize, noises, xy, yaw, stateful, angle_distance = values
     controller = {"plugin": plugin.string_value, "vx_max": speed.double_value}
     if (not math.isfinite(speed.double_value) or speed.double_value <= 0
             or isinstance(speed.double_value, bool)):
@@ -76,6 +77,7 @@ def decode_controller_parameters(values: list[Any]) -> tuple[dict[str, Any], dic
         "visualize": visualize.bool_value, "regenerate_noises": noises.bool_value,
         "xy_goal_tolerance": xy.double_value, "yaw_goal_tolerance": yaw.double_value,
         "stateful": stateful.bool_value,
+        "goal_angle_activation_distance": angle_distance.double_value,
     }
     validate_benchmark_preset(preset)
     return controller, preset
@@ -188,6 +190,9 @@ def asset_manifest(args: argparse.Namespace) -> dict[str, Any]:
         "xy_goal_tolerance": checker.get("xy_goal_tolerance", 0.25),
         "yaw_goal_tolerance": checker.get("yaw_goal_tolerance", 0.25),
         "stateful": checker.get("stateful", True),
+        "goal_angle_activation_distance": controller.get("GoalAngleCritic", {}).get(
+            "threshold_to_consider", 0.5,
+        ),
     }
     validate_benchmark_preset(preset)
     packages = {}
