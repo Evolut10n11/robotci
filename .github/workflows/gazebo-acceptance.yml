@@ -1,0 +1,192 @@
+name: Gazebo Acceptance
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/gazebo-acceptance.yml"
+      - "scripts/gazebo_acceptance.py"
+      - "scripts/run_gazebo_attempt.sh"
+      - "scripts/configure_ci_apt.sh"
+      - "robotci/ros/gazebo*.py"
+      - "examples/nav2-gazebo/**"
+      - "robotci/runner.py"
+      - "robotci/runtime_process.py"
+      - "robotci/reproducibility.py"
+      - "robotci/native_runtime.py"
+      - "robotci/ros/navigation_scenario.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gazebo-acceptance:
+    name: Real Gazebo / unchanged controls and MPPI intervention
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ROS_DOMAIN_ID: "42"
+      QT_QPA_PLATFORM: offscreen
+      LIBGL_ALWAYS_SOFTWARE: "1"
+      NAV2_SOURCE_REVISION: 645abd95f2be02a13ca539b29c2ddc065db34f89
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure bounded Ubuntu package downloads
+        timeout-minutes: 1
+        run: bash scripts/configure_ci_apt.sh
+
+      - name: Set up ROS 2 Jazzy
+        uses: ros-tooling/setup-ros@v0.7
+        with:
+          required-ros-distributions: jazzy
+
+      - name: Install Gazebo and Nav2 runtime
+        timeout-minutes: 12
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            python3-pip \
+            ros-jazzy-navigation2 \
+            ros-jazzy-nav2-bringup \
+            ros-jazzy-nav2-loopback-sim \
+            ros-jazzy-nav2-simple-commander \
+            ros-jazzy-nav2-minimal-tb4-description \
+            ros-jazzy-nav2-minimal-tb4-sim \
+            ros-jazzy-ros-gz
+          python3 -m pip install --break-system-packages -e .
+
+      - name: Freeze target and controller inputs
+        shell: bash
+        run: |
+          set -eo pipefail
+          source /opt/ros/jazzy/setup.bash
+          set -u
+          mkdir -p artifacts/target
+          mkdir -p "$RUNNER_TEMP/robotci-gazebo-target"
+          curl --fail --location --retry 2 --connect-timeout 10 --max-time 60 \
+            "https://raw.githubusercontent.com/ros-navigation/navigation2/${NAV2_SOURCE_REVISION}/nav2_bringup/launch/tb4_simulation_launch.py" \
+            --output "$RUNNER_TEMP/robotci-gazebo-target/tb4_simulation_launch.py"
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import shutil
+          import subprocess
+          from pathlib import Path
+          from ament_index_python.packages import get_package_share_directory
+          import yaml
+
+          bringup = Path(get_package_share_directory("nav2_bringup"))
+          sim = Path(get_package_share_directory("nav2_minimal_tb4_sim"))
+          # Executable launch code belongs outside the checkout: a .py under
+          # artifacts would make that directory a fingerprinted import namespace.
+          target = Path(os.environ["RUNNER_TEMP"]) / "robotci-gazebo-target"
+          archive = Path("artifacts/target")
+          shutil.copyfile(target / "tb4_simulation_launch.py", archive / "tb4_simulation_launch.py.txt")
+          shutil.copyfile(bringup / "params/nav2_params.yaml", target / "controller.yaml")
+          # Releases differ in cmd_vel message type. Use the actually installed
+          # bridge contract, fixed before warmup; the candidate changes only vx_max.
+          bridge_file = sim / "configs/tb4_bridge.yaml"
+          bridge = yaml.safe_load(bridge_file.read_text())
+          shutil.copyfile(bridge_file, archive / "tb4_bridge.yaml")
+          cmd_types = {
+              item["ros_type_name"] for item in bridge
+              if "cmd_vel" in str(item.get("ros_topic_name", item.get("topic_name", ""))).split("/")
+          }
+          supported = {"geometry_msgs/msg/Twist": False, "geometry_msgs/msg/TwistStamped": True}
+          if len(cmd_types) != 1 or not cmd_types <= supported.keys():
+              raise SystemExit(f"Unsupported/ambiguous TB4 cmd_vel bridge: {cmd_types}")
+          cmd_type = cmd_types.pop()
+          params = target / "controller.yaml"
+          document = yaml.safe_load(params.read_text())
+          for node in ("controller_server", "behavior_server", "velocity_smoother", "collision_monitor"):
+              document[node]["ros__parameters"]["enable_stamped_cmd_vel"] = supported[cmd_type]
+          # The first measured upstream-default experiment rejected unchanged
+          # baselines; tighter simultaneous XY/yaw checks also proved unstable.
+          # Freeze a fresh preset using Nav2's position latch before final yaw.
+          # Regression policy remains unchanged; candidate changes vx_max only.
+          controller = document["controller_server"]["ros__parameters"]
+          controller["FollowPath"]["visualize"] = False
+          controller["FollowPath"]["regenerate_noises"] = False
+          controller["general_goal_checker"]["stateful"] = True
+          controller["general_goal_checker"]["xy_goal_tolerance"] = 0.20
+          controller["general_goal_checker"]["yaw_goal_tolerance"] = 0.25
+          controller["FollowPath"]["GoalAngleCritic"]["threshold_to_consider"] = 0.25
+          params.write_text(yaml.safe_dump(document, sort_keys=False))
+          shutil.copyfile(params, archive / "controller.original.yaml")
+          packages = subprocess.run(
+              ["dpkg-query", "-W", "-f=${Package}\t${Version}\n"],
+              check=True, capture_output=True, text=True, timeout=30,
+          )
+          (archive / "installed-packages.tsv").write_text(packages.stdout)
+          (archive / "source.json").write_text(json.dumps({
+              "nav2_launch_source_revision": os.environ["NAV2_SOURCE_REVISION"],
+              "robotci_revision": os.environ["GITHUB_SHA"],
+              "installed_nav2_share": str(bringup),
+              "installed_cmd_vel_ros_type": cmd_type,
+              "enable_stamped_cmd_vel": supported[cmd_type],
+              "installed_bridge_sha256": "sha256:" + hashlib.sha256(bridge_file.read_bytes()).hexdigest(),
+              "note": "Pinned launch source; apt runtime versions recorded separately."
+          }, indent=2) + "\n")
+          PY
+          echo "ROBOTCI_GAZEBO_LAUNCH_FILE=$RUNNER_TEMP/robotci-gazebo-target/tb4_simulation_launch.py" >> "$GITHUB_ENV"
+
+      - name: Warm up, run five baselines, controls, and actual controller intervention
+        timeout-minutes: 30
+        shell: bash
+        run: |
+          set -eo pipefail
+          source /opt/ros/jazzy/setup.bash
+          python3 scripts/gazebo_acceptance.py \
+            --config examples/nav2-gazebo/robotci.yaml \
+            --params-file "$RUNNER_TEMP/robotci-gazebo-target/controller.yaml" \
+            --output artifacts/gazebo-acceptance \
+            --total-timeout-sec 1700 \
+            --require-duration-regression
+
+      - name: Publish measured outcome
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = Path("artifacts/gazebo-acceptance")
+          manifest = evidence / "experiment.json"
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a") as summary:
+              summary.write("## Real Gazebo acceptance\n\n")
+              if manifest.exists():
+                  result = json.loads(manifest.read_text())
+                  summary.write(f"Observed outcome: **{result['status']}**\n\n")
+                  summary.write(f"Duration slowdown detected: `{result['duration_regression_detected']}`\n\n")
+                  summary.write(f"Original controller restored: `{result['subject_restored']}`\n\n")
+                  summary.write("Internal experiment; external M8 participants: **0**.\n\n")
+                  if result.get("error"):
+                      summary.write(f"Recorded blocker: {result['error']}\n\n")
+                  for name in ("control-gate.md", "candidate-gate.md", "restored-control-gate.md"):
+                      report = evidence / name
+                      if report.exists():
+                          summary.write(report.read_text() + "\n")
+              else:
+                  summary.write("**NOT EXECUTED**: provisioning/input setup did not produce an experiment manifest.\n")
+          PY
+
+      - name: Upload all measurements, replays, gates, target manifests, and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gazebo-acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            artifacts/target/
+            artifacts/gazebo-acceptance/
+            /tmp/robotci-gazebo-*.log
+          if-no-files-found: warn

@@ -24,6 +24,20 @@ The adapter receives the same scenario contract as the built-in Nav2 Loopback at
 - `ROBOTCI_TIMEOUT_SEC`
 - `ROBOTCI_PYTHON`
 
+For a namespaced target, set `ROBOTCI_ROS_NAMESPACE` before the native run. The
+probe normalizes `robot1` to `/robot1` and accepts an explicit `--namespace`
+override. The effective native namespace is included in execution identity.
+The navigation action readiness wait is bounded; a missing action is
+`INFRA_ERROR`, not robot-behavior failure. TF frame names and target-specific
+topic remapping still belong to the adapter.
+
+The checked-in [Gazebo example](../examples/nav2-gazebo/README.md) supplies a
+fresh-world adapter and an automated controller experiment. Its four optional
+native path controls select absolute regular files: `ROBOTCI_GAZEBO_PARAMS_FILE`,
+`ROBOTCI_GAZEBO_MAP_FILE`, `ROBOTCI_GAZEBO_WORLD_FILE`, and
+`ROBOTCI_GAZEBO_LAUNCH_FILE`. Keep selected paths stable throughout a comparison;
+the experiment separately records controller read-back and asset digests.
+
 The adapter is responsible for starting or connecting to the target simulator/Nav2 stack, placing or localizing the simulated robot at the configured start pose, executing the scenario, writing the normal RobotCI scenario result JSON to `ROBOTCI_RESULT_FILE`, and cleaning up processes that it starts.
 
 The outer [runtime watchdog](runtime-integrity.md#runtime-watchdog) bounds setup,

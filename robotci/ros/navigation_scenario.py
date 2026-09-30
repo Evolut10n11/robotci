@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import os
 import time
 from pathlib import Path
 
@@ -13,13 +14,19 @@ from robotci.evidence import NavigationEvidencePolicy, evaluate_navigation_succe
 from robotci.metrics import NavigationMetricsTracker, planar_yaw_from_quaternion
 from robotci.replay import ReplayRecorder, default_replay_path, write_replay
 from robotci.results import Pose2D, ScenarioResult, build_scenario_task, write_result
+from robotci.ros_namespace import normalize_ros_namespace
 
 EXIT_PASS = 0
 EXIT_FAIL = 1
 EXIT_TIMEOUT = 2
 EXIT_INFRA_ERROR = 3
+NAVIGATION_SERVER_TIMEOUT_SEC = 30.0
 
 FeedbackKey = tuple[int, int, int, int, int]
+
+
+class _NavigationServerUnavailable(RuntimeError):
+    """A missing ROS endpoint is infrastructure failure, not navigation failure."""
 
 
 def _pose_stamped(navigator: BasicNavigator, pose: Pose2D) -> PoseStamped:
@@ -106,6 +113,7 @@ def run_navigation_scenario(
     map_id: str = "unspecified",
     goal_tolerance_m: float = 0.25,
     min_feedback_samples: int = 1,
+    namespace: str | None = None,
 ) -> int:
     try:
         timeout_is_valid = (
@@ -118,6 +126,10 @@ def run_navigation_scenario(
         timeout_is_valid = False
     if not timeout_is_valid:
         raise ValueError("timeout_sec must be a finite number greater than zero")
+
+    namespace = normalize_ros_namespace(
+        os.environ.get("ROBOTCI_ROS_NAMESPACE", "") if namespace is None else namespace
+    )
 
     started_at = time.monotonic()
     navigator: BasicNavigator | None = None
@@ -144,7 +156,17 @@ def run_navigation_scenario(
     try:
         rclpy.init(args=["--ros-args", "-p", "use_sim_time:=true"])
         node_name = f"robotci_{scenario_name.replace('-', '_')}"
-        navigator = BasicNavigator(node_name=node_name)
+        navigator = BasicNavigator(node_name=node_name, namespace=namespace)
+
+        # Jazzy's goToPose waits forever for this relative action endpoint.
+        # Fail boundedly on an unavailable or wrong namespace before dispatch.
+        # The outer runtime watchdog also covers a server disappearing later.
+        if not navigator.nav_to_pose_client.wait_for_server(
+            timeout_sec=NAVIGATION_SERVER_TIMEOUT_SEC,
+        ):
+            raise _NavigationServerUnavailable(
+                f"NAVIGATION_SERVER_UNAVAILABLE: {namespace}/navigate_to_pose"
+            )
 
         goal_pose = _pose_stamped(navigator, goal)
 
@@ -234,6 +256,9 @@ def run_navigation_scenario(
                     reason_code = "unknown_navigation_result"
                     exit_code = EXIT_INFRA_ERROR
 
+    except _NavigationServerUnavailable as exc:
+        navigation_result = str(exc)
+        reason_code = "navigation_server_unavailable"
     except Exception as exc:  # noqa: BLE001 - scenario boundary must record infrastructure errors
         status = "INFRA_ERROR"
         navigation_result = f"{type(exc).__name__}: {exc}"
@@ -297,6 +322,11 @@ def run_navigation_scenario(
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run one RobotCI Nav2 scenario")
     parser.add_argument("--scenario", required=True, help="Scenario name")
+    parser.add_argument(
+        "--namespace",
+        default=None,
+        help="Nav2 ROS namespace; defaults to ROBOTCI_ROS_NAMESPACE or the root namespace",
+    )
     parser.add_argument("--start-x", type=float, required=True)
     parser.add_argument("--start-y", type=float, required=True)
     parser.add_argument("--start-yaw", type=float, default=0.0)
@@ -348,6 +378,7 @@ def main() -> int:
         map_id=args.map_id,
         goal_tolerance_m=args.goal_tolerance_m,
         min_feedback_samples=args.min_feedback_samples,
+        namespace=args.namespace,
     )
 
 

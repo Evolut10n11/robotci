@@ -214,7 +214,10 @@ def _run_native(
 ) -> int:
     runtime_budget = _runtime_budget(timeout_sec)
     script = runtime_root / "scripts" / "run_navigation_scenario.sh"
-    environment = inherited_runtime_environment()
+    try:
+        environment = inherited_runtime_environment()
+    except ReproducibilityError as exc:
+        raise RuntimeUnavailableError(str(exc)) from exc
     half_yaw = scenario.start.yaw / 2.0
     dependency_path = os.pathsep.join(_native_python_dependency_paths())
 

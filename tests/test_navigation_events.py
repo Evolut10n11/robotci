@@ -85,6 +85,7 @@ def test_navigation_boundary_writes_observations_with_matching_result(navigation
     class Navigator:
         def __init__(self, **kwargs):
             self.index = -1
+            self.nav_to_pose_client = NS(wait_for_server=lambda **kwargs: True)
 
         def get_clock(self):
             return NS(now=lambda: NS(to_msg=lambda: NS()))

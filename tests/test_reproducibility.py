@@ -25,6 +25,7 @@ from robotci.reproducibility import (
     build_suite_plan_fingerprint,
     capture_suite_execution,
     collect_runtime_environment,
+    inherited_runtime_environment,
     parse_runtime_environment,
     parse_suite_execution,
     validate_suite_execution,
@@ -540,6 +541,84 @@ def test_runtime_variables_reject_remote_configuration(
         match="remote runtime configuration is unsupported",
     ):
         _runtime_variables(tmp_path)
+
+
+def test_native_namespace_environment_and_fingerprint_use_effective_graph(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ROBOTCI_ROS_NAMESPACE", raising=False)
+    original = _runtime_variables(tmp_path)
+    for root in ("", "/"):
+        monkeypatch.setenv("ROBOTCI_ROS_NAMESPACE", root)
+        assert "ROBOTCI_ROS_NAMESPACE" not in inherited_runtime_environment()
+        assert _runtime_variables(tmp_path) == original
+
+    monkeypatch.setenv("ROBOTCI_ROS_NAMESPACE", "fleet/robot1")
+    relative = _runtime_variables(tmp_path)
+    assert inherited_runtime_environment()["ROBOTCI_ROS_NAMESPACE"] == "/fleet/robot1"
+    monkeypatch.setenv("ROBOTCI_ROS_NAMESPACE", "/fleet/robot1")
+    assert _runtime_variables(tmp_path) == relative
+    monkeypatch.setenv("ROBOTCI_ROS_NAMESPACE", "/fleet/robot2")
+    changed = _runtime_variables(tmp_path)
+    assert _environment(runtime_variables=relative).fingerprint != (
+        _environment(runtime_variables=changed).fingerprint
+    )
+
+
+def test_native_environment_rejects_invalid_namespace(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ROBOTCI_ROS_NAMESPACE", "/invalid//namespace")
+    with pytest.raises(ReproducibilityError, match="invalid ROBOTCI_ROS_NAMESPACE"):
+        inherited_runtime_environment()
+
+
+@pytest.mark.parametrize("name", [
+    "ROBOTCI_GAZEBO_LAUNCH_FILE", "ROBOTCI_GAZEBO_MAP_FILE",
+    "ROBOTCI_GAZEBO_PARAMS_FILE", "ROBOTCI_GAZEBO_WORLD_FILE",
+])
+def test_gazebo_asset_paths_are_admitted_and_canonical_but_sut_bytes_are_separate(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, name: str,
+) -> None:
+    directory = tmp_path / "assets"
+    directory.mkdir()
+    asset = directory / "asset.yaml"
+    asset.write_text("controller: original\n", encoding="utf-8")
+    monkeypatch.setenv(name, str(directory / ".." / "assets" / "asset.yaml"))
+    assert inherited_runtime_environment()[name] == str(asset)
+    original = _runtime_variables(tmp_path)
+    monkeypatch.setenv(name, str(asset))
+    assert _runtime_variables(tmp_path) == original
+    asset.write_text("controller: candidate\n", encoding="utf-8")
+    assert _runtime_variables(tmp_path) == original
+
+
+@pytest.mark.parametrize("value", ["relative.yaml", "", "/missing/robotci-asset.yaml"])
+def test_gazebo_asset_selection_rejects_unresolvable_paths(
+    monkeypatch: pytest.MonkeyPatch, value: str,
+) -> None:
+    monkeypatch.setenv("ROBOTCI_GAZEBO_PARAMS_FILE", value)
+    with pytest.raises(ReproducibilityError, match="ROBOTCI_GAZEBO_PARAMS_FILE"):
+        inherited_runtime_environment()
+
+
+def test_gazebo_asset_selection_rejects_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("ROBOTCI_GAZEBO_WORLD_FILE", str(tmp_path))
+    with pytest.raises(ReproducibilityError, match="must reference a regular file"):
+        inherited_runtime_environment()
+
+
+def test_gazebo_asset_selection_rejects_symlink_loop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    asset = tmp_path / "loop.yaml"
+    try:
+        asset.symlink_to(asset)
+    except OSError:
+        pytest.skip("Creating symbolic links is not supported in this environment")
+    monkeypatch.setenv("ROBOTCI_GAZEBO_MAP_FILE", str(asset))
+    with pytest.raises(ReproducibilityError, match="cannot resolve ROBOTCI_GAZEBO_MAP_FILE"):
+        inherited_runtime_environment()
 
 
 def test_duplicate_runtime_packages_are_rejected() -> None:

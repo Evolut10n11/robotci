@@ -21,6 +21,7 @@ import yaml
 
 from robotci.config import RobotCIConfig
 from robotci.native_runtime import ROS_SETUP
+from robotci.ros_namespace import normalize_ros_namespace
 
 SUITE_RESULT_SCHEMA_VERSION = 1
 ENVIRONMENT_SCHEMA_VERSION = 1
@@ -69,10 +70,23 @@ _RUNTIME_VARIABLE_NAMES = frozenset(
         "LANG",
         "LANGUAGE",
         "ROBOTCI_ATTEMPT_SCRIPT",
+        "ROBOTCI_GAZEBO_LAUNCH_FILE",
+        "ROBOTCI_GAZEBO_MAP_FILE",
+        "ROBOTCI_GAZEBO_PARAMS_FILE",
+        "ROBOTCI_GAZEBO_WORLD_FILE",
         "ROBOTCI_LOG_FILE",
         "ROBOTCI_RETRY_DELAY_SEC",
+        "ROBOTCI_ROS_NAMESPACE",
         "SKIP_DEFAULT_XML",
         "TMPDIR",
+    }
+)
+_GAZEBO_PATH_VARIABLES = frozenset(
+    {
+        "ROBOTCI_GAZEBO_LAUNCH_FILE",
+        "ROBOTCI_GAZEBO_MAP_FILE",
+        "ROBOTCI_GAZEBO_PARAMS_FILE",
+        "ROBOTCI_GAZEBO_WORLD_FILE",
     }
 )
 _RUNTIME_VARIABLE_PREFIXES = (
@@ -1171,10 +1185,34 @@ def _inherited_runtime_variable_names() -> tuple[str, ...]:
 def inherited_runtime_environment() -> dict[str, str]:
     """Return the exact inherited environment admitted to native ROS processes."""
 
-    return {
+    environment = {
         name: os.environ[name]
         for name in _inherited_runtime_variable_names()
     }
+    try:
+        namespace = normalize_ros_namespace(environment.get("ROBOTCI_ROS_NAMESPACE", ""))
+    except ValueError as exc:
+        raise ReproducibilityError(f"invalid ROBOTCI_ROS_NAMESPACE: {exc}") from exc
+    # Equivalent names target the same ROS graph. Explicit root settings retain
+    # the default execution identity, rather than introducing a distinct input.
+    if namespace:
+        environment["ROBOTCI_ROS_NAMESPACE"] = namespace
+    else:
+        environment.pop("ROBOTCI_ROS_NAMESPACE", None)
+    for name in _GAZEBO_PATH_VARIABLES & environment.keys():
+        path = Path(environment[name])
+        if not path.is_absolute():
+            raise ReproducibilityError(f"{name} must be an absolute file path")
+        try:
+            path = path.resolve(strict=True)
+        except (OSError, RuntimeError) as exc:
+            raise ReproducibilityError(f"cannot resolve {name}: {exc}") from exc
+        if not path.is_file():
+            raise ReproducibilityError(f"{name} must reference a regular file")
+        # Controller bytes belong to SUT evidence. Keep this selection stable
+        # while the acceptance experiment records/read-backs changed settings.
+        environment[name] = str(path)
+    return environment
 
 
 def _runtime_variables(runtime_root: Path) -> tuple[RuntimeVariable, ...]:

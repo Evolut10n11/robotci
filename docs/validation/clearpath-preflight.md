@@ -45,14 +45,74 @@ of a Clearpath or RobotCI behavior defect.
    is false. The adapter must explicitly select simulation time and discover the
    actual namespaced action endpoint; assuming global `/navigate_to_pose` is wrong
    for a nonempty robot namespace.
-3. RobotCI's current
+3. RobotCI's preflight-era
    [navigation probe](https://github.com/Evolut10n11/robotci/blob/12ca1a3a20282741bc38cd6b27cc08e6870460ed/robotci/ros/navigation_scenario.py)
    constructs `BasicNavigator` without a namespace and initializes rclpy with a
    fixed argument list. It does not expose a namespace/remapping CLI option.
-   Therefore the documented adapter seam alone is not evidence that namespaced
-   Clearpath navigation works. A namespace-aware probe/adapter path and its
-   provenance must be implemented and verified on the target runtime before
-   claiming compatibility. No speculative namespace change is included here.
+   Therefore the documented adapter seam alone was not evidence that namespaced
+   Clearpath navigation works. The namespace integration below removes the probe
+   interface gap, but it still needs verification on the target runtime before
+   claiming compatibility.
+
+## Namespace integration — 2026-09-30
+
+The native probe now accepts `ROBOTCI_ROS_NAMESPACE`, or a direct `--namespace`
+argument. Jazzy's [BasicNavigator API](https://api.nav2.org/nav2-jazzy/html/robot__navigator_8py_source.html)
+accepts that namespace and creates a relative `navigate_to_pose` action client.
+Set the namespace from the simulator's actual `robot.yaml` before starting the
+RobotCI suite; do not guess it from the platform model:
+
+```bash
+export ROBOTCI_ROS_NAMESPACE="/a200"
+robotci run --runtime native --config "$PWD/robotci.yaml"
+```
+
+This example assumes the verified setup uses `/a200`; substitute the concrete
+namespace selected by that setup. The external attempt script still launches
+or connects to the namespaced stack. The built-in Loopback launch remains in
+the root namespace.
+
+After its readiness/reset checks, an attempt script may invoke the probe with
+the explicit CLI argument and the inherited scenario contract:
+
+```bash
+"$ROBOTCI_PYTHON" -m robotci.ros.navigation_scenario \
+  --namespace "$ROBOTCI_ROS_NAMESPACE" \
+  --scenario "$ROBOTCI_SCENARIO" \
+  --start-x "$ROBOTCI_START_X" --start-y "$ROBOTCI_START_Y" \
+  --start-yaw "$ROBOTCI_START_YAW" \
+  --goal-x "$ROBOTCI_GOAL_X" --goal-y "$ROBOTCI_GOAL_Y" \
+  --goal-yaw "$ROBOTCI_GOAL_YAW" \
+  --map-id "$ROBOTCI_MAP_ID" \
+  --output "$ROBOTCI_RESULT_FILE" \
+  --timeout-sec "$ROBOTCI_TIMEOUT_SEC" \
+  --goal-tolerance-m "$ROBOTCI_GOAL_TOLERANCE_M" \
+  --min-feedback-samples "$ROBOTCI_MIN_FEEDBACK_SAMPLES"
+```
+
+`--namespace` overrides the inherited setting for a direct probe invocation.
+For a suite, keep it consistent with the namespace set before `robotci run`
+so execution and the captured environment describe the same ROS graph.
+
+Empty namespace and `/` select the root graph. Relative names such as `a200`
+normalize to `/a200`; malformed namespaces fail before ROS initialization.
+Native execution admits the canonical namespace and hashes it into runtime
+provenance. Equivalent root settings retain the default identity, while changing
+the robot namespace makes baseline and candidate incompatible.
+
+The probe waits at most 30 seconds for that namespace's NavigateToPose server
+before dispatching a goal. A missing or wrong namespace produces exit `3`,
+`INFRA_ERROR`, and `reason_code: navigation_server_unavailable`. If the server
+disappears after this check, the outer runtime watchdog still bounds the attempt.
+Unit tests cover root behavior, canonicalization, explicit override, final pose
+feedback, unavailable-server evidence, and namespace-sensitive fingerprints.
+
+A ROS namespace changes action/topic names, not TF frame identifiers. The probe
+continues to use the `map` frame. The adapter must verify the target map frame,
+localization, TF/topic remapping, and start pose independently. Arbitrary ROS
+remapping and a configurable map frame are not exposed by this slice.
+No Clearpath simulator was executed as part of these namespace unit checks;
+the real namespaced success and wrong-namespace acceptance checks remain pending.
 
 ## Next runnable acceptance sequence
 
@@ -64,7 +124,8 @@ navigation demo revision before collecting comparable results.
    `robot.yaml`, simulation clock, sensor topics, and TF tree.
 2. Start warehouse localization and navigation with `use_sim_time:=true` and the
    same setup directory; verify the actual namespace, action, and lifecycle state.
-3. Resolve the probe namespace/remapping gap above. Verify both namespace success
+3. Set the implemented probe namespace and resolve target-specific TF/topic
+   remappings. Verify both namespace success
    and wrong-namespace failure with bounded waits; include effective settings in
    runtime provenance.
 4. Choose a verified free-space route, set its start/goal and real map identity,
@@ -78,6 +139,6 @@ navigation demo revision before collecting comparable results.
 7. Review repeatability and the report before inviting a participant to reproduce
    it. Internal success still does not count toward the five-team cohort.
 
-The next technical blocker is access to that simulation environment, followed by
-the explicit namespace integration. Paid interest and repeat-use intent remain
+The next technical blocker is access to that simulation environment and
+verification of its namespace/frame integration. Paid interest and repeat-use intent remain
 unknown until an external team actually tries the workflow and answers.

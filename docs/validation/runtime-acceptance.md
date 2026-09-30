@@ -1,10 +1,188 @@
 # Native Nav2 / Gazebo runtime acceptance
 
-Status on 2026-09-30: experiment prepared, simulation **not executed**. The
+Status on 2026-09-30: the adapter completed real Gazebo navigation, but the first
+unchanged series and two subsequent cohorts were unstable; an intervening tighter
+preset timed out during warmup. A revised frozen preset requires a new full series. The
 maintenance environment is Ubuntu 24.04 with Python 3.12, but has no `ros2`,
 `gz`, Docker executable, or `/opt/ros/jazzy/setup.bash`. Unit tests and the
-existing Loopback CI are not evidence that this Gazebo integration works.
+existing Loopback CI alone are not evidence that this Gazebo integration works.
 This experiment contributes zero external participants to M8.
+
+## Checked-in experiment
+
+The [Gazebo example](../../examples/nav2-gazebo/README.md),
+[fresh-world adapter](../../scripts/run_gazebo_attempt.sh),
+[readiness probe](../../robotci/ros/gazebo_readiness.py), and
+[acceptance driver](../../scripts/gazebo_acceptance.py) implement this sequence.
+The [Gazebo Acceptance workflow](../../.github/workflows/gazebo-acceptance.yml)
+provisions an isolated Ubuntu runner and retains measurements, manifests, logs
+and comparison artifacts even on failure. It selects command-velocity message
+type from the installed TurtleBot bridge before freezing the baseline setup.
+
+Target launch/controller files are kept outside the RobotCI source tree.
+Otherwise a Python launch file can make an output directory an importable
+namespace whose changing contents alter the harness fingerprint. The source
+identity contract is preserved; target/controller bytes are recorded separately.
+Every invocation uses a new world/transport partition and verifies physical
+Gazebo pose separately from the localized pose. Controller settings are read
+back before and after navigation, and cleanup must be confirmed before the run
+is admitted into the comparison series.
+
+## Observed first experiment: unchanged baselines were unstable
+
+The real [Gazebo CI run 36732478638](https://github.com/Evolut10n11/robotci/actions/runs/36732478638),
+at revision `19506bb4`, completed the warmup and all five baseline navigations
+with `PASS`. Retained artifact `11105484556` contains the original controller
+YAML, per-run results/replays/read-back, logs, and all 20 ordered-pair gates.
+There were no observed stuck events or recoveries in those five baselines.
+
+| Unchanged run | Duration, seconds | Path length, metres | Final goal distance, metres |
+| --- | ---: | ---: | ---: |
+| baseline-1 | 15.193 | 5.327 | 0.185 |
+| baseline-2 | 13.301 | 5.089 | 0.305 |
+| baseline-3 | 14.588 | 5.299 | 0.234 |
+| baseline-4 | 15.193 | 5.355 | 0.190 |
+| baseline-5 | 16.193 | 5.448 | 0.292 |
+
+Eight of the 20 unchanged-pair comparisons produced `REGRESSION`: four exceeded
+the default 10% duration allowance and four exceeded the default 0.1 m goal
+distance allowance. The duration range was 21.7% relative to the shortest run;
+goal distance varied by approximately 0.120 m. The driver stopped with
+`UNCHANGED_BASELINES_UNSTABLE`. It did not capture a known-good baseline or run
+the held-out control, speed intervention, or restored control. Navigation
+success therefore did not establish usable regression detection for this setup.
+
+The original installed controller enabled MPPI trajectory visualization and
+noise regeneration, and used a stateful goal checker with 0.25 m XY and
+0.25 rad yaw tolerances. Replay shows the first four runs reaching x=4 m in
+11.190–11.596 seconds, while final completion varies more; the final poses are
+consistent with a broad arrival criterion and a variable completion tail.
+The logs contain no missed-controller-loop warnings. These observations support
+testing a more precise, less costly controller preset; they do not prove that
+one setting explains every source of variance.
+
+For the second attempt, the workflow froze these settings before warmup in the
+explicit SUT controller YAML:
+
+| Setting | Frozen value |
+| --- | --- |
+| `FollowPath.visualize` | `false` |
+| `FollowPath.regenerate_noises` | `false` |
+| `general_goal_checker.xy_goal_tolerance` | `0.05` m |
+| `general_goal_checker.yaw_goal_tolerance` | `0.10` rad |
+| `general_goal_checker.stateful` | `false` |
+
+The preset removes visualization work and per-iteration noise-thread wakeups,
+and requires the XY criterion to remain satisfied while checking yaw. It does
+not make a general determinism guarantee for MPPI, AMCL, or shared-host timing.
+Readiness and post-navigation probes must confirm the exact preset, alongside
+the controller's effective speed and source digest. The speed intervention
+still changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s.
+
+The first series remains a failed stability experiment. Its runs are not reused
+or selected as a baseline. Every revised setup must repeat warmup, all five
+baselines, all 20 stability gates, the held-out control, candidate, and restored
+control. Default regression thresholds and the predeclared selection of run 1
+remain unchanged.
+
+## Observed second experiment: tight goal-checker warmup timed out
+
+The next [Gazebo CI run 36736326803](https://github.com/Evolut10n11/robotci/actions/runs/36736326803)
+used the 0.05 m / 0.10 rad non-stateful goal checker listed above. Retained
+artifact `11107048798` records a warmup `TIMEOUT` after 120.023 seconds, with
+six observed stuck events and ten recoveries. The final reported distance was
+0.136 m; all 596 recorded pose samples were valid. The driver reported
+`INCOMPLETE`, restored the original controller bytes, and collected no
+baselines, controls, or candidate comparison.
+
+Before the first stuck event at 20.875 seconds, the closest observed position
+was 0.309 m from the goal at 15.036 seconds, with yaw error approximately
+0.089 rad. Over the entire run, the minimum observed XY distance was 0.106 m
+at 61.495 seconds, with yaw error approximately 0.520 rad. Among samples
+satisfying the 0.10 rad yaw criterion, the closest XY distance was 0.126 m.
+No recorded sample satisfied even a 0.10 m XY criterion. The tighter checker
+therefore did not produce a usable completion condition for this controller.
+
+Inspection of the installed
+[Nav2 1.3.13 MPPI source](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_mppi_controller/src/critics/goal_angle_critic.cpp)
+and retained parameters shows `GoalAngleCritic` becoming active within 0.5 m
+of the goal, with cost weight 3, while the goal-position critic has weight 5.
+The early alignment objective is a plausible contributor to the observed
+near-goal stall; changing the goal checker alone did not resolve it. The
+experiment does not establish that this is the only cause.
+
+## Observed third preset: two unchanged cohorts remained unstable
+
+The third preset used 0.15 m XY tolerance, 0.25 rad yaw tolerance, a non-stateful
+goal checker, and a final-heading activation distance of 0.15 m. Visualization
+and per-iteration noise regeneration remained disabled. Two separate CI runs
+tested this same preset on the Gazebo PR and the subsequent integration PR:
+
+- [PR #93 run 36742707538](https://github.com/Evolut10n11/robotci/actions/runs/36742707538),
+  artifact `11111976272`, recorded checkout revision `75846c8`.
+- [PR #94 run 36742824636](https://github.com/Evolut10n11/robotci/actions/runs/36742824636),
+  artifact `11111881793`, recorded checkout revision `39e35c5`.
+
+Each cohort completed its warmup and all five unchanged routes with `PASS`.
+Warmup durations were 17.558 and 16.566 seconds respectively. Each internally
+comparable cohort produced 13 passing and seven regressing ordered-pair gates,
+then stopped with `UNCHANGED_BASELINES_UNSTABLE`. Neither run selected a
+known-good baseline or evaluated a held-out control, candidate, or restored
+control. No comparison across these different checkout revisions was used.
+
+| Unchanged run | PR #93 duration, seconds | Recoveries | PR #94 duration, seconds | Recoveries |
+| --- | ---: | ---: | ---: | ---: |
+| baseline-1 | 15.942 | 0 | 15.249 | 0 |
+| baseline-2 | 16.737 | 0 | 15.715 | 0 |
+| baseline-3 | 15.748 | 0 | 16.474 | 0 |
+| baseline-4 | 62.938 | 5 | 48.998 | 4 |
+| baseline-5 | 43.849 | 3 | 42.127 | 3 |
+
+The late two runs in both cohorts reached approximately 0.142–0.181 m from the
+goal before their first recovery. At those closest pre-recovery samples, the
+absolute yaw errors were approximately 0.464–1.037 rad. Their traces then show
+near-goal turning, positional drift, and recovery cycles. This pattern supports
+testing a completion protocol that can capture arrival before the final turn;
+it does not establish a stable comparison result for that protocol.
+
+## Current frozen preset: verification pending
+
+The next full series keeps visualization and per-iteration noise regeneration
+disabled. It uses a stateful goal checker with 0.20 m XY tolerance and the
+original 0.25 rad yaw tolerance. The final-heading critic activates within
+0.25 m, before the position capture boundary:
+
+| Setting | Frozen value |
+| --- | --- |
+| `FollowPath.visualize` | `false` |
+| `FollowPath.regenerate_noises` | `false` |
+| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.25` m |
+| `general_goal_checker.xy_goal_tolerance` | `0.20` m |
+| `general_goal_checker.yaw_goal_tolerance` | `0.25` rad |
+| `general_goal_checker.stateful` | `true` |
+
+Inspection of the installed
+[Nav2 1.3.13 SimpleGoalChecker](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_controller/plugins/simple_goal_checker.cpp)
+shows that stateful checking retains the satisfied XY criterion while checking
+the final yaw. MPPI's final-heading critic is gated by position distance; the
+0.25 m activation makes that objective available before the 0.20 m capture
+boundary. The observed pre-recovery arrivals motivate this fixed hypothesis.
+They do not prove that the new controller will complete reliably, limit final
+drift, or pass the default regression policy. RobotCI still evaluates the
+observed final pose against the unchanged scenario evidence policy.
+
+The controller's XY completion tolerance remains stricter than its original
+0.25 m. These are controller settings frozen before collecting new data;
+RobotCI's task and comparison policy remain unchanged, including the default
+10% duration/path and 0.1 m final-distance allowances. The adapter must read
+back the complete preset before and after each navigation. Candidate YAML
+changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s.
+
+All failed attempts and both third-preset cohorts remain evidence of setup
+limitations. No run is reused or handpicked as a known-good baseline. The revised preset
+must complete a fresh warmup, five unchanged runs, all 20 ordered-pair gates,
+the held-out control, candidate, and restored control. Its success remains
+pending until the actual measurements and reports are retained and reviewed.
 
 ## Target and experiment boundary
 
@@ -65,8 +243,10 @@ Keep a small `robotci_adapter.sh` in the simulation workspace, following the
    beside each suite. Resolve any Gazebo-generated cache or asset download
    before freezing the environment and collecting comparable runs.
 
-Implement and verify this adapter on the provisioned host before calling the
-commands below. No untested Gazebo adapter is checked in as supported behavior.
+Verify the checked-in adapter or the target-specific equivalent on the
+provisioned host before calling the manual commands below. The automated driver
+performs the complete measurement series and reports incomplete or unstable
+experiments explicitly; code being present alone is not runtime evidence.
 `robotci doctor` checks the current Jazzy/Loopback requirements; it does not
 validate the extra Gazebo dependencies or this adapter's reset/readiness logic.
 
