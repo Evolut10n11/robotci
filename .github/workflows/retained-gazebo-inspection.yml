@@ -1,0 +1,97 @@
+name: Temporary retained Gazebo evidence inspection
+
+on:
+  pull_request:
+    branches: [main]
+    paths: [".github/workflows/retained-gazebo-inspection.yml"]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  inspect:
+    name: Read both failed calibration artifacts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Download PR93 retained measurements
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: "11111976272"
+          run-id: "36742707538"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/retained-gazebo/pr93
+      - name: Download independent PR94 retained measurements
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: "11111881793"
+          run-id: "36742824636"
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/retained-gazebo/pr94
+      - name: Inspect data without executing artifact contents
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import math
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "retained-gazebo"
+          def emit(kind, path, value):
+              print(json.dumps({"kind": kind, "path": str(path.relative_to(root)),
+                                "value": value}, sort_keys=True))
+
+          for path in sorted(root.rglob("experiment.json")):
+              emit("experiment", path, json.loads(path.read_text()))
+          for path in sorted(root.rglob("depot_route.json")):
+              result = json.loads(path.read_text())
+              emit("result", path, {key: result.get(key) for key in
+                   ("status", "reason_code", "metrics", "telemetry_quality")})
+              sidecar = path.with_suffix(".gazebo.json")
+              if sidecar.exists():
+                  target = json.loads(sidecar.read_text())
+                  emit("target", sidecar, {key: target.get(key) for key in
+                       ("checks", "cleanup", "start_pose", "controller",
+                        "controller_after", "benchmark_preset", "benchmark_preset_after",
+                        "sensor_counts")})
+              replay_path = path.with_suffix(".replay.json")
+              if not replay_path.exists():
+                  continue
+              replay = json.loads(replay_path.read_text())
+              events = replay.get("events", [])
+              emit("events", replay_path, events)
+              poses = []
+              for sample in replay.get("samples", []):
+                  position = sample.get("position")
+                  orientation = sample.get("orientation")
+                  if not isinstance(position, dict) or not isinstance(orientation, dict):
+                      continue
+                  x, y, yaw = position.get("x"), position.get("y"), orientation.get("yaw")
+                  if not all(isinstance(value, int | float) and math.isfinite(value)
+                             for value in (x, y, yaw)):
+                      continue
+                  poses.append({"t": sample["t"], "x": x, "y": y, "yaw": yaw,
+                                "distance": math.hypot(x - 5.0, y)})
+              stuck_times = [event.get("t") for event in events
+                             if "stuck" in str(event).lower() and
+                             isinstance(event.get("t"), int | float)]
+              first_stuck = min(stuck_times, default=math.inf)
+              before_stuck = [pose for pose in poses if pose["t"] < first_stuck]
+              emit("pose_summary", replay_path, {
+                  "samples": len(poses),
+                  "closest": sorted(poses, key=lambda pose: pose["distance"])[:5],
+                  "closest_before_stuck": sorted(before_stuck,
+                      key=lambda pose: pose["distance"])[:5],
+                  "first_xy_and_yaw": next((pose for pose in poses
+                      if pose["distance"] <= 0.15 and abs(pose["yaw"]) <= 0.25), None),
+                  "first_x4": next((pose for pose in poses if pose["x"] >= 4.0), None),
+                  "last": poses[-1] if poses else None,
+              })
+          for path in sorted(root.rglob("*.log")):
+              lines = path.read_text(errors="replace").splitlines()
+              relevant = [line for line in lines if any(word in line.lower() for word in
+                          ("warn", "error", "failed", "abort", "recovery", "progress"))]
+              emit("log_diagnostics", path, relevant[-50:])
+          PY
