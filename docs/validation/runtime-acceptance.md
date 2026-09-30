@@ -1,8 +1,8 @@
 # Native Nav2 / Gazebo runtime acceptance
 
 Status on 2026-09-30: the adapter completed real Gazebo navigation, but the first
-unchanged baseline series was unstable and the next, tighter controller preset
-timed out during warmup. A revised frozen preset requires a new complete series. The
+unchanged series and two subsequent cohorts were unstable; an intervening tighter
+preset timed out during warmup. A revised frozen preset requires a new full series. The
 maintenance environment is Ubuntu 24.04 with Python 3.12, but has no `ros2`,
 `gz`, Docker executable, or `/opt/ros/jazzy/setup.bash`. Unit tests and the
 existing Loopback CI alone are not evidence that this Gazebo integration works.
@@ -111,28 +111,65 @@ The early alignment objective is a plausible contributor to the observed
 near-goal stall; changing the goal checker alone did not resolve it. The
 experiment does not establish that this is the only cause.
 
+## Observed third preset: two unchanged cohorts remained unstable
+
+The third preset used 0.15 m XY tolerance, 0.25 rad yaw tolerance, a non-stateful
+goal checker, and a final-heading activation distance of 0.15 m. Visualization
+and per-iteration noise regeneration remained disabled. Two separate CI runs
+tested this same preset on the Gazebo PR and the subsequent integration PR:
+
+- [PR #93 run 36742707538](https://github.com/Evolut10n11/robotci/actions/runs/36742707538),
+  artifact `11111976272`, recorded checkout revision `75846c8`.
+- [PR #94 run 36742824636](https://github.com/Evolut10n11/robotci/actions/runs/36742824636),
+  artifact `11111881793`, recorded checkout revision `39e35c5`.
+
+Each cohort completed its warmup and all five unchanged routes with `PASS`.
+Warmup durations were 17.558 and 16.566 seconds respectively. Each internally
+comparable cohort produced 13 passing and seven regressing ordered-pair gates,
+then stopped with `UNCHANGED_BASELINES_UNSTABLE`. Neither run selected a
+known-good baseline or evaluated a held-out control, candidate, or restored
+control. No comparison across these different checkout revisions was used.
+
+| Unchanged run | PR #93 duration, seconds | Recoveries | PR #94 duration, seconds | Recoveries |
+| --- | ---: | ---: | ---: | ---: |
+| baseline-1 | 15.942 | 0 | 15.249 | 0 |
+| baseline-2 | 16.737 | 0 | 15.715 | 0 |
+| baseline-3 | 15.748 | 0 | 16.474 | 0 |
+| baseline-4 | 62.938 | 5 | 48.998 | 4 |
+| baseline-5 | 43.849 | 3 | 42.127 | 3 |
+
+The late two runs in both cohorts reached approximately 0.142–0.181 m from the
+goal before their first recovery. At those closest pre-recovery samples, the
+absolute yaw errors were approximately 0.464–1.037 rad. Their traces then show
+near-goal turning, positional drift, and recovery cycles. This pattern supports
+testing a completion protocol that can capture arrival before the final turn;
+it does not establish a stable comparison result for that protocol.
+
 ## Current frozen preset: verification pending
 
-The next full series will keep visualization and per-iteration noise regeneration
-disabled and the goal checker non-stateful. It will delay the final-heading
-critic until the robot is within 0.15 m and use a 0.15 m XY goal tolerance with
-the original 0.25 rad yaw tolerance:
+The next full series keeps visualization and per-iteration noise regeneration
+disabled. It uses a stateful goal checker with 0.20 m XY tolerance and the
+original 0.25 rad yaw tolerance. The final-heading critic activates within
+0.25 m, before the position capture boundary:
 
 | Setting | Frozen value |
 | --- | --- |
 | `FollowPath.visualize` | `false` |
 | `FollowPath.regenerate_noises` | `false` |
-| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.15` m |
-| `general_goal_checker.xy_goal_tolerance` | `0.15` m |
+| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.25` m |
+| `general_goal_checker.xy_goal_tolerance` | `0.20` m |
 | `general_goal_checker.yaw_goal_tolerance` | `0.25` rad |
-| `general_goal_checker.stateful` | `false` |
+| `general_goal_checker.stateful` | `true` |
 
-The final-heading activation distance equals the XY goal-checker tolerance.
-Inspection of Nav2 1.3.13 shows that the heading critic is gated by position
-distance. Matching the thresholds avoids a near-goal band that can satisfy
-the XY completion criterion while leaving the explicit final-heading objective
-inactive. This is an inference from the source, not observed proof that the
-revised controller will complete reliably or meet the regression policy.
+Inspection of the installed
+[Nav2 1.3.13 SimpleGoalChecker](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_controller/plugins/simple_goal_checker.cpp)
+shows that stateful checking retains the satisfied XY criterion while checking
+the final yaw. MPPI's final-heading critic is gated by position distance; the
+0.25 m activation makes that objective available before the 0.20 m capture
+boundary. The observed pre-recovery arrivals motivate this fixed hypothesis.
+They do not prove that the new controller will complete reliably, limit final
+drift, or pass the default regression policy. RobotCI still evaluates the
+observed final pose against the unchanged scenario evidence policy.
 
 The controller's XY completion tolerance remains stricter than its original
 0.25 m. These are controller settings frozen before collecting new data;
@@ -141,8 +178,8 @@ RobotCI's task and comparison policy remain unchanged, including the default
 back the complete preset before and after each navigation. Candidate YAML
 changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s.
 
-Both failed attempts remain evidence of setup limitations. No run from either
-attempt is reused or handpicked as a known-good baseline. The revised preset
+All failed attempts and both third-preset cohorts remain evidence of setup
+limitations. No run is reused or handpicked as a known-good baseline. The revised preset
 must complete a fresh warmup, five unchanged runs, all 20 ordered-pair gates,
 the held-out control, candidate, and restored control. Its success remains
 pending until the actual measurements and reports are retained and reviewed.

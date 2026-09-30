@@ -24,21 +24,22 @@ Before warm-up, the workflow freezes the same benchmark preset for every run:
 | --- | --- |
 | `FollowPath.visualize` | `false` |
 | `FollowPath.regenerate_noises` | `false` |
-| `general_goal_checker.stateful` | `false` |
-| `general_goal_checker.xy_goal_tolerance` | `0.15 m` |
+| `general_goal_checker.stateful` | `true` |
+| `general_goal_checker.xy_goal_tolerance` | `0.20 m` |
 | `general_goal_checker.yaw_goal_tolerance` | `0.25 rad` |
-| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.15 m` |
+| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.25 m` |
 
-This disables trajectory visualization and repeated noise generation, requires
-position and orientation tolerances together, and delays final-heading cost
-until the XY arrival boundary. These settings are a calibration hypothesis.
+This disables trajectory visualization and repeated noise generation, uses
+Nav2's position latch before final orientation, and activates final-heading cost
+slightly before position capture. These settings are a calibration hypothesis.
 The adapter verifies the actual parameter values before and after navigation.
 Controller frequency remains `20 Hz`, batch size remains `2000`, and the
 intervention changes only `vx_max`. This preset does not guarantee deterministic
 navigation; the five unchanged baselines must still pass all default gates.
-The runbook preserves both the unstable upstream baseline experiment and the
-subsequent 0.05 m goal-checker warmup timeout. The new preset requires fresh
-runtime measurements; neither failed series supplies a known-good baseline.
+The runbook preserves the unstable upstream baseline experiment, the 0.05 m
+goal-checker warmup timeout, and both unstable 0.15 m simultaneous-check series.
+The new preset requires fresh runtime measurements; no failed series supplies
+a known-good baseline.
 
 Download its artifact to inspect `experiment.json`, scenario results, observed
 replays, target manifests, logs, and JSON/Markdown/JUnit comparison reports.
