@@ -26,6 +26,13 @@ The adapter receives the same scenario contract as the built-in Nav2 Loopback at
 
 The adapter is responsible for starting or connecting to the target simulator/Nav2 stack, placing or localizing the simulated robot at the configured start pose, executing the scenario, writing the normal RobotCI scenario result JSON to `ROBOTCI_RESULT_FILE`, and cleaning up processes that it starts.
 
+The outer [runtime watchdog](runtime-integrity.md#runtime-watchdog) bounds setup,
+navigation and cleanup together. Its expiry is `INFRA_ERROR`, separate from the
+probe's navigation `TIMEOUT`. Preserve the inherited `ROBOTCI_PROCESS_OWNER`
+marker when starting detached processes so Linux watchdog cleanup can identify
+them; do not use its random value as part of navigation or comparison inputs.
+Normal process cleanup still belongs to the adapter.
+
 Return codes keep the existing RobotCI contract:
 
 - `0` — PASS
@@ -101,6 +108,9 @@ and TF/topic context. Do not assume a global `/navigate_to_pose` endpoint. Keep 
 adapter in the pilot workspace until the compatibility pattern is proven reusable.
 The [Clearpath preflight](validation/clearpath-preflight.md) records the verified
 source revision, current runtime blocker, and the remaining acceptance checks.
+The [Nav2/Gazebo acceptance runbook](validation/runtime-acceptance.md) specifies
+repeated baselines, unchanged controls, a real controller-parameter intervention,
+and the evidence needed before claiming a validated integration.
 
 ## Limitations
 

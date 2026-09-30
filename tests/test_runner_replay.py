@@ -50,7 +50,7 @@ def test_run_docker_copies_replay_next_to_requested_result(
         source_replay.write_text('{"schema_version":1}\n', encoding="utf-8")
         return subprocess.CompletedProcess(command, 0)
 
-    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(runner, "run_runtime_process", fake_run)
 
     exit_code = runner._run_docker(
         tmp_path,

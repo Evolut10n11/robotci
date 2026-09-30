@@ -9,11 +9,13 @@ import pytest
 
 from robotci import runner
 from robotci.config import PoseConfig, ScenarioConfig
+from robotci.replay import default_replay_path
 from robotci.reproducibility import (
     RuntimePackage,
     build_runtime_environment,
     build_suite_execution_identity,
 )
+from robotci.result_schema import load_result
 from robotci.results import Pose2D, build_scenario_task
 
 _TEST_EXECUTION = build_suite_execution_identity(
@@ -211,6 +213,7 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
         captured["command"] = command
         captured["cwd"] = kwargs["cwd"]
         captured["env"] = kwargs["env"]
+        captured["runtime_budget"] = kwargs["timeout"]
         environment = kwargs["env"]
         assert isinstance(environment, dict)
         captured["pycache_exists_during_run"] = Path(
@@ -243,13 +246,14 @@ def test_run_native_passes_yaml_pose_and_timeout_to_script(
         "_native_python_dependency_paths",
         lambda: ("/trusted/python-packages",),
     )
-    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(runner, "run_runtime_process", fake_run)
 
     exit_code = runner._run_native(tmp_path, scenario, output, 42.5)
 
     assert exit_code == 0
     assert captured["command"] == ["bash", str(script)]
     assert captured["cwd"] == tmp_path
+    assert captured["runtime_budget"] == runner._runtime_budget(42.5)
     environment = captured["env"]
     assert isinstance(environment, dict)
     assert environment["ROBOTCI_SCENARIO"] == "custom_route"
@@ -311,15 +315,19 @@ def test_run_docker_mounts_config_and_copies_result(
 
     def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
         captured["command"] = command
+        captured["runtime_budget"] = kwargs["timeout"]
         source.parent.mkdir(parents=True, exist_ok=True)
         source.write_text('{"status": "PASS"}\n', encoding="utf-8")
         return subprocess.CompletedProcess(command, 0)
 
-    monkeypatch.setattr(runner.subprocess, "run", fake_run)
+    monkeypatch.setattr(runner, "run_runtime_process", fake_run)
 
     exit_code = runner._run_docker(tmp_path, scenario, destination, 30.0, config_path)
 
     assert exit_code == 0
+    assert captured["runtime_budget"] == runner._runtime_budget(
+        30.0, docker=True, build_image=True,
+    )
     assert destination.read_text(encoding="utf-8") == '{"status": "PASS"}\n'
     command = captured["command"]
     assert isinstance(command, list)
@@ -649,3 +657,126 @@ def test_run_suite_propagates_worst_verdict(
     payload = json.loads(result_path.read_text(encoding="utf-8"))
     assert exit_code == 2
     assert payload["status"] == "TIMEOUT"
+
+
+@pytest.mark.parametrize("mode", ["single", "suite"])
+@pytest.mark.parametrize(
+    "timeout",
+    [float("nan"), float("inf"), -float("inf"), 0.0, -1.0, 1e308, True, "10", 10**1000],
+    ids=["nan", "inf", "negative_inf", "zero", "negative", "overflow", "bool", "str", "huge_int"],
+)
+def test_invalid_timeout_is_rejected_before_runtime_selection(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str, timeout: float,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path)
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: pytest.fail("must not probe"))
+    invoke = runner.run_suite if mode == "suite" else runner.run_scenario
+    kwargs = {} if mode == "suite" else {"scenario": "short_route"}
+    with pytest.raises(runner.ConfigError, match="timeout"):
+        invoke(project_root=tmp_path, timeout_sec=timeout, **kwargs)
+
+
+@pytest.mark.parametrize("mode", ["single", "suite"])
+def test_watchdog_overrides_even_fresh_pass_artifact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, mode: str,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path)
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "native")
+    monkeypatch.setattr(runner, "_native_python_dependency_paths", lambda: ("/trusted",))
+
+    def expired_runtime(command, **kwargs):
+        environment = kwargs["env"]
+        scenario = runner.get_scenario(runner.load_config(tmp_path / "robotci.yaml"),
+                                       environment["ROBOTCI_SCENARIO"])
+        output = Path(environment["ROBOTCI_RESULT_FILE"])
+        output.write_text(json.dumps(_runtime_result_payload(scenario)), encoding="utf-8")
+        default_replay_path(output).write_text("partial replay", encoding="utf-8")
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    monkeypatch.setattr(runner, "run_runtime_process", expired_runtime)
+    if mode == "suite":
+        code, _, output = runner.run_suite(project_root=tmp_path)
+        suite = json.loads(output.read_text(encoding="utf-8"))
+        assert suite["status"] == "INFRA_ERROR"
+        paths = [output.parent / item["result_file"] for item in suite["scenarios"]]
+    else:
+        code, _, output = runner.run_scenario(scenario="short_route", project_root=tmp_path)
+        paths = [output]
+    assert code == 3
+    for result_path in paths:
+        assert load_result(result_path).status == "INFRA_ERROR"
+        payload = json.loads(result_path.read_text(encoding="utf-8"))
+        assert payload["reason_code"] == "runtime_watchdog_timeout"
+        assert payload["navigation_result"] == "RUNTIME_WATCHDOG_TIMEOUT"
+        assert not default_replay_path(result_path).exists()
+
+
+@pytest.mark.parametrize("removal", ["success", "failed", "hung"])
+def test_docker_watchdog_removes_exact_named_container_and_discards_partial_result(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, removal: str,
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path, runtime="docker")
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "docker")
+    source = tmp_path / "artifacts/short_route/result.json"
+    commands: list[list[str]] = []
+
+    def expired_runtime(command, **kwargs):
+        commands.append(command)
+        scenario = runner.get_scenario(runner.load_config(tmp_path / "robotci.yaml"), "short_route")
+        source.write_text(json.dumps(_runtime_result_payload(scenario)), encoding="utf-8")
+        default_replay_path(source).write_text("partial replay", encoding="utf-8")
+        raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+
+    def cleanup(command, **kwargs):
+        commands.append(command)
+        assert kwargs["timeout"] == runner.DOCKER_REMOVE_TIMEOUT_SEC
+        if removal == "hung":
+            raise subprocess.TimeoutExpired(command, kwargs["timeout"])
+        return subprocess.CompletedProcess(command, 0 if removal == "success" else 1)
+
+    monkeypatch.setattr(runner, "run_runtime_process", expired_runtime)
+    monkeypatch.setattr(runner.subprocess, "run", cleanup)
+    code, _, output = runner.run_scenario(scenario="short_route", project_root=tmp_path)
+    assert code == 3
+    name = commands[0][commands[0].index("--name") + 1]
+    assert name.startswith("robotci-run-")
+    assert commands[1] == ["docker", "rm", "--force", name]
+    assert not source.exists()
+    assert not default_replay_path(source).exists()
+    assert load_result(output).status == "INFRA_ERROR"
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["reason_code"] == "runtime_watchdog_timeout"
+    if removal != "success":
+        assert "Docker container removal" in payload["error"]
+
+
+@pytest.mark.parametrize("interruption", [KeyboardInterrupt, SystemExit])
+def test_docker_abort_removes_container_and_preserves_interrupt(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, interruption: type[BaseException],
+) -> None:
+    _make_project_root(tmp_path)
+    _write_config(tmp_path, runtime="docker")
+    monkeypatch.setattr(runner, "select_runtime", lambda requested: "docker")
+    source = tmp_path / "artifacts/short_route/result.json"
+    commands: list[list[str]] = []
+
+    def interrupted_runtime(command, **kwargs):
+        commands.append(command)
+        source.write_text('{"status":"PASS"}', encoding="utf-8")
+        raise interruption()
+
+    def cleanup(command, **kwargs):
+        commands.append(command)
+        assert kwargs["timeout"] == runner.DOCKER_REMOVE_TIMEOUT_SEC
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr(runner, "run_runtime_process", interrupted_runtime)
+    monkeypatch.setattr(runner.subprocess, "run", cleanup)
+    with pytest.raises(interruption):
+        runner.run_scenario(scenario="short_route", project_root=tmp_path)
+    name = commands[0][commands[0].index("--name") + 1]
+    assert commands[1] == ["docker", "rm", "--force", name]
+    assert not source.exists()
