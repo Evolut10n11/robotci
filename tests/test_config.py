@@ -63,6 +63,16 @@ def test_load_config_accepts_utf8_bom(tmp_path: Path) -> None:
     assert load_config(config_path).scenarios[0].name == "route"
 
 
+def test_load_config_rejects_invalid_utf8_with_config_error(tmp_path: Path) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_bytes(b"version: 1\n# invalid UTF-8: \xff\n")
+
+    with pytest.raises(ConfigError, match="Failed to read") as error:
+        load_config(config_path)
+
+    assert isinstance(error.value.__cause__, UnicodeDecodeError)
+
+
 def test_load_config_rejects_missing_file(tmp_path: Path) -> None:
     with pytest.raises(ConfigError, match="config not found"):
         load_config(tmp_path / "robotci.yaml")
@@ -117,15 +127,101 @@ scenarios:
         load_config(config_path)
 
 
-def test_load_config_rejects_unsafe_scenario_name(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("first", "second"),
+    [("Foo", "foo"), ("route", "Route"), ("NAV-1", "nav-1"), (" foo ", "Foo")],
+)
+def test_load_config_rejects_case_insensitive_scenario_collisions(
+    tmp_path: Path, first: str, second: str,
+) -> None:
     config_path = tmp_path / "robotci.yaml"
     config_path.write_text(
-        """
+        json.dumps({
+            "version": 1,
+            "scenarios": [
+                {"name": name, "start": {"x": 0, "y": 0}, "goal": {"x": 1, "y": 1}}
+                for name in (first, second)
+            ],
+        }),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="scenario names must be unique") as error:
+        load_config(config_path)
+
+    assert str(error.value) == (
+        "scenario names must be unique (case-insensitive): "
+        f"scenarios[1].name '{second.strip()}' conflicts with "
+        f"scenarios[0].name '{first.strip()}'"
+    )
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        spelling
+        for device in (
+            "CON", "PRN", "AUX", "NUL",
+            *(f"{prefix}{number}" for prefix in ("COM", "LPT") for number in range(1, 10)),
+        )
+        for spelling in (device, device.lower())
+    ] + ["CoN", "cOm1", "LpT9", " NUL "],
+)
+def test_load_config_rejects_windows_device_scenario_names(
+    tmp_path: Path, name: str,
+) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        json.dumps({
+            "version": 1,
+            "scenarios": [
+                {"name": name, "start": {"x": 0, "y": 0}, "goal": {"x": 1, "y": 1}},
+            ],
+        }),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ConfigError, match="reserved on Windows") as error:
+        load_config(config_path)
+
+    assert str(error.value) == (
+        f"scenarios[0].name '{name.strip()}' is reserved on Windows; "
+        "choose a portable scenario name"
+    )
+
+
+def test_load_config_preserves_portable_names_similar_to_windows_devices(tmp_path: Path) -> None:
+    names = ["Console", "Null", "AUX-route", "NUL_1", "COM0", "com10", "LPT0", "lpt10"]
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        json.dumps({
+            "version": 1,
+            "scenarios": [
+                {"name": name, "start": {"x": 0, "y": 0}, "goal": {"x": 1, "y": 1}}
+                for name in names
+            ],
+        }),
+        encoding="utf-8",
+    )
+
+    config = load_config(config_path)
+
+    assert [scenario.name for scenario in config.scenarios] == names
+    assert get_scenario(config, "COM0").name == "COM0"
+    with pytest.raises(ConfigError, match="unknown scenario 'com0'"):
+        get_scenario(config, "com0")
+
+
+@pytest.mark.parametrize("name", ["../escape", "CON.txt", "nul.json", "COM1.replay"])
+def test_load_config_rejects_unsafe_scenario_name(tmp_path: Path, name: str) -> None:
+    config_path = tmp_path / "robotci.yaml"
+    config_path.write_text(
+        f"""
 version: 1
 scenarios:
-  - name: ../escape
-    start: {x: 0, y: 0}
-    goal: {x: 1, y: 1}
+  - name: {name}
+    start: {{x: 0, y: 0}}
+    goal: {{x: 1, y: 1}}
 """.strip(),
         encoding="utf-8",
     )
