@@ -5,9 +5,11 @@ conditional-replanning behavior tree detected the real speed intervention, but
 its independent same-head repetition failed one unchanged final-distance gate.
 Timing was stable and all six repeated routes passed without recoveries or stuck
 events; the driver still correctly stopped before control or candidate collection.
-Repeatable acceptance under the default policy is **not established**. The next
-fixed experiment adds RotationShim for final-heading control; its full series
-and independent repetition remain pending. All positive and negative outcomes,
+Repeatable acceptance under the default policy is **not established**. The first
+RotationShim warmup then failed navigation despite verified setup and cleanup.
+The next fixed experiment keeps that controller and selects `map` as the local
+costmap frame; its full series and independent repetition remain pending.
+All positive and negative outcomes,
 including earlier failed calibrations, are retained below. No
 simulator-wide or statistical false-positive guarantee is claimed. The
 maintenance environment is Ubuntu 24.04 with Python 3.12, but has no `ros2`,
@@ -483,9 +485,9 @@ completion, zero new-path updates, zero progress errors, and zero missed-rate
 warnings. The conditional-replanning change eliminated observed path replacement
 in these cohorts, but did not eliminate final-distance variation.
 
-## Next structural experiment: RotationShim verification pending
+## RotationShim experiment and source-backed hypothesis
 
-The next fixed setup addresses final translation during yaw alignment rather
+The RotationShim setup addresses final translation during yaw alignment rather
 than changing RobotCI's comparison allowances. The exact installed
 [Nav2 1.3.13 RotationShim source](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_rotation_shim_controller/src/nav2_rotation_shim_controller.cpp)
 configures its primary controller with the same plugin name and parameter
@@ -499,7 +501,7 @@ zero observed physical drift.
 
 The frozen setup changes are:
 
-| Setting | Next frozen value |
+| Setting | Frozen value |
 | --- | --- |
 | `FollowPath.plugin` | `nav2_rotation_shim_controller::RotationShimController` |
 | `FollowPath.primary_controller` | `nav2_mppi_controller::MPPIController` |
@@ -515,19 +517,109 @@ conditional-replanning XML remains the same invariant asset.
 
 This source-backed hypothesis targets endpoint movement during final orientation
 on the fixed static route. The previous distance failure does not prove that this
-mechanism explains all variation, and RotationShim is not a measured success
-until the new setup completes collection. Typed before/after read-back must
+mechanism explains all variation; the first warmup below failed rather than
+establishing successful collection. Typed before/after read-back must
 confirm the wrapper plugin, primary controller, heading flag, complete preset,
 and effective MPPI speed, together with unchanged BT and target provenance.
 
 The candidate still changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s.
 Scenario goal tolerance stays 0.35 m; default gates remain 10% for duration/path,
 0.1 m for final-distance increase, and zero additional stuck/recovery events.
-Each fresh experiment must complete warmup, five baselines, all 20 ordered-pair
-gates, baseline-1 capture under the predeclared rule, held-out control, real
-candidate, and restored control. An independent fresh repetition of that frozen
-setup is also required. Both series are pending; no earlier run supplies a new
-baseline, no failed run is discarded, and external M8 participation remains zero.
+Every revised setup must collect fresh measurements; no earlier run supplies a
+new baseline, no failed run is discarded, and external M8 participation remains
+zero.
+
+## Observed RotationShim warmup: navigation failed
+
+[Gazebo run 36761957082](https://github.com/Evolut10n11/robotci/actions/runs/36761957082),
+attempt 1, [job 110046493181](https://github.com/Evolut10n11/robotci/actions/runs/36761957082/job/110046493181),
+tested PR head `520c126f269807091d6036d69966e637b8cbdf65` at checkout merge
+`36a7db79c01162ce61c8a0f273f22845a7f42f80`. Retained
+[artifact 11118939322](https://github.com/Evolut10n11/robotci/actions/runs/36761957082/artifacts/11118939322)
+contains 17 files and has archive SHA256
+`7a78d5da3e8ac6a67859201c22714f65be272be97c51652d710ea3837040649e`.
+Its original YAML used `odom` as the local costmap's global frame.
+
+| Measurement | Warmup observation |
+| --- | --- |
+| Navigation result | `FAILED` |
+| Duration | 43.324 seconds |
+| Path length | 6.069056834523745 m |
+| Final goal distance | 0.588347574265819 m |
+| Recoveries / stuck events | 16 / 2 |
+| Received / valid / replay samples | 216 / 216 / 216 |
+| Invalid poses / final-pose valid | 0 / `true` |
+
+The suite failed, and the driver reported `INCOMPLETE` with exit 3. Independent
+core loading validated the failed suite, result, and matching replay as complete
+evidence/provenance. Warmup was not admitted: `runs` and `unchanged_pair_gates` are
+empty in the experiment manifest. No baseline, held-out control, speed candidate,
+or restored-control navigation was executed. `subject_restored=true` records
+source-byte restoration only. A candidate YAML with the sole `vx_max` change
+was prepared; its existence is not an executed candidate observation.
+
+All ten typed controller/preset fields passed before/after read-back, including
+the RotationShim wrapper, MPPI primary, goal-heading flag, 0.5 m/s speed,
+0.20 m heading activation, and stateful 0.20 m / 0.25 rad goal checking.
+The navigation XML and target assets remained unchanged, with XML digest
+`684c368fff80558623adc50c59d6f4f8f09a6fbc9138fa70cad32ffda03333b4`.
+The original subject and before/after parameter digests match
+`sha256:61444050c3026ced09abc56ed7f675983ee8afd74ebca6ba70f9cc2aab581582`.
+Both owned-process and process-group cleanup passed with no survivors.
+Verified setup and cleanup do not imply that the controller completed its task.
+
+The warmup execution fingerprint is
+`sha256:3699fef0f2d0079c3f4da5309ae9efb0ed6f9d9741fd73baecb62fc8be53851c`.
+The first progress failure occurs at approximately 21.90 seconds. The zero-pose
+plans and repeated recovery errors occur after that initial failure, so those
+later planning errors do not explain its onset. Logs contain no RotationShim
+fallback message or new-path update. The closest replay
+sample is approximately 0.173787 m from the map-frame goal at 12.359 seconds,
+with yaw error approximately -0.4863 rad. A later near-zero-yaw, stationary phase
+remains approximately 0.2391 m from that goal. These observations motivate a
+frame-consistency test; no retained TF time series establishes its physical cause.
+
+## Next frame experiment: local costmap in map, verification pending
+
+The exact [Nav2 1.3.13 ControllerServer](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_controller/src/controller_server.cpp)
+caches the path's final pose, including its original timestamp, in `setPlannerPath`.
+`isGoalReached` transforms that cached pose into the local costmap's global frame.
+The [nav_2d_utils transform helper](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_dwb_controller/nav_2d_utils/src/tf_help.cpp)
+first requests the input pose's timestamp; it tries the latest transform only
+after an extrapolation exception. In contrast, RotationShim stamps its sampled
+goal with the current clock, and
+[MPPI goal transformation](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_mppi_controller/src/path_handler.cpp)
+uses the current robot-pose timestamp supplied by the controller.
+
+With a changing `map` to `odom` transform, those differently timed requests can
+produce different odom-frame goal coordinates. That is a source-backed possible
+interaction, not a measured sole cause: this artifact lacks the actual historical
+and current TF samples needed to demonstrate it during the failed warmup.
+
+The next setup changes only
+`local_costmap.local_costmap.ros__parameters.global_frame` from `odom` to `map`
+before collecting a new cohort. On this controlled static depot route, a map-frame
+local grid removes the map-to-odom goal conversion from the goal-checking/control
+comparison. It still depends on live localization and TF for the robot pose.
+AMCL corrections can now shift the robot and rolling local grid discontinuously
+in that frame; this tradeoff must be measured and is not a general configuration
+recommendation or a guarantee of successful arrival.
+
+RotationShim, its MPPI primary and goal-heading flag, every goal/preset setting,
+the fixed BT, and other MPPI parameters remain unchanged. The adapter must read
+back the actual local-costmap `global_frame` as a typed string before and after
+navigation, require `map`, and reject missing or changed frame evidence together
+with the existing controller/BT/asset admission checks. The candidate still
+changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s; RobotCI's 0.35 m task
+tolerance, default 10% duration/path and 0.1 m distance gates, event allowances,
+and predeclared baseline-1 rule remain unchanged.
+
+A fresh warmup, five unchanged baselines, all 20 ordered-pair gates, preselected
+baseline-1 capture, held-out control, real candidate, and restored control are
+required, followed by an
+independent fresh repetition of the same frozen setup. Both complete series
+remain pending. The failed warmup and all earlier cohorts stay in the evidence
+record; no previous run is reused or selected to bypass stability admission.
 
 ## Target and experiment boundary
 

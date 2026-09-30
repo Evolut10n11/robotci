@@ -6,8 +6,9 @@ navigation. It is an internal integration experiment, not an external M8 pilot.
 The first nine-run cohort with conditional replanning detected the real speed
 intervention. Its independent same-head repetition passed 19 of 20 unchanged
 gates but failed final-distance stability, despite stable timing and no recoveries
-or stuck events. Repeatable acceptance is not established. The next fixed
-experiment adds RotationShim and awaits a full series plus independent repetition.
+or stuck events. The following RotationShim warmup failed navigation. Repeatable
+acceptance is not established. The next fixed experiment keeps RotationShim and
+sets the local costmap frame to `map`; its full series and repetition are pending.
 
 ## Run the complete experiment
 
@@ -28,6 +29,7 @@ same for every run:
 
 | Nav2 setting | Value |
 | --- | --- |
+| `local_costmap.local_costmap.ros__parameters.global_frame` | `map` |
 | `FollowPath.plugin` | `nav2_rotation_shim_controller::RotationShimController` |
 | `FollowPath.primary_controller` | `nav2_mppi_controller::MPPIController` |
 | `FollowPath.rotate_to_goal_heading` | `true` |
@@ -43,7 +45,7 @@ Nav2's position latch before final orientation, and matches final-heading cost
 activation to the XY capture boundary. RotationShim wraps MPPI in the same
 `FollowPath` namespace. These settings are an unverified structural hypothesis.
 The adapter must verify the actual wrapper plugin, primary controller, heading
-flag, preset, and speed before and after navigation.
+flag, preset, speed, and local-costmap frame before and after navigation.
 Controller frequency remains `20 Hz`, batch size remains `2000`, and the
 intervention changes only `vx_max`. This preset does not guarantee deterministic
 navigation; the five unchanged baselines must still pass all default gates.
@@ -81,7 +83,7 @@ collection. Conditional replanning did not establish stable final-distance gates
 The [runbook](../../docs/validation/runtime-acceptance.md) records exact artifacts,
 read-back and digests, and preserves all earlier positive and negative cohorts.
 
-## Next structural experiment: RotationShim
+## RotationShim evidence
 
 The exact
 [Nav2 1.3.13 RotationShim source](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_rotation_shim_controller/src/nav2_rotation_shim_controller.cpp)
@@ -92,14 +94,44 @@ collision checks still apply; a failed rotation branch can fall back to MPPI.
 This targets translation during the final turn, without guaranteeing zero
 physical drift or stable gates.
 
-Keep the conditional-replanning XML, stateful 0.20 m / 0.25 rad goal checker,
-and other MPPI parameters unchanged. Only the wrapper/primary selection,
-goal-heading flag, and final-heading activation listed above define the new
-setup. The candidate still changes only `vx_max` from 0.5 to 0.2 m/s. Scenario
-goal tolerance remains 0.35 m and default comparison gates remain 10% for
+The first RotationShim warmup used an `odom` local grid and failed after 43.324
+seconds, with 16 recoveries, two stuck events, and final distance 0.588 m.
+All 216 received pose samples were valid and match the retained replay. Typed
+controller/preset/BT read-back and owned-process cleanup passed, but navigation
+did not. The driver reported `INCOMPLETE`, restored the source YAML, and ran no
+baselines, controls, or speed candidate. The
+[runbook](../../docs/validation/runtime-acceptance.md#observed-rotationshim-warmup-navigation-failed)
+retains run 36761957082 and artifact 11118939322 with the exact measurements.
+
+## Next frame experiment: local costmap in map
+
+In the exact
+[Nav2 1.3.13 controller](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_controller/src/controller_server.cpp),
+goal checking transforms the cached path endpoint with its original timestamp.
+The [transform helper](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_dwb_controller/nav_2d_utils/src/tf_help.cpp)
+only falls back to the latest transform after an extrapolation exception.
+RotationShim samples its goal at the current clock;
+[MPPI](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_mppi_controller/src/path_handler.cpp)
+uses the current robot-pose timestamp. A changing map-to-odom transform can
+therefore give these components different goal coordinates. The failed artifact
+has no TF time series proving that this interaction caused its failure.
+
+Select `map` for the local costmap's global frame to remove that goal conversion
+on this controlled static route. This keeps live localization/TF dependence and
+can introduce discontinuous local-grid motion from AMCL corrections. It is a
+source-backed experiment hypothesis, not a general recommendation or arrival
+guarantee. The adapter must verify the live `global_frame` typed string before
+and after navigation and reject absent or changed frame evidence.
+
+Keep all RotationShim settings, the conditional-replanning XML, stateful
+0.20 m / 0.25 rad goal checker, and other MPPI parameters unchanged. The frame
+selection is the sole new setup change. The candidate still changes only
+`vx_max` from 0.5 to 0.2 m/s. Scenario goal tolerance remains 0.35 m and default
+comparison gates remain 10% for
 duration/path, 0.1 m for distance increase, and zero additional event counts.
 
-This hypothesis requires a fresh warmup, five baselines, all twenty comparisons,
+This new frame hypothesis requires a fresh warmup, five baselines, all twenty
+comparisons,
 preselected baseline-1 capture, held-out control, candidate, and restored control,
 then an independent fresh repetition of the frozen setup. Both series are
 pending. No failed or successful earlier run supplies a baseline for this setup,
@@ -125,7 +157,7 @@ navigation action must be ready before a goal is dispatched.
 The adapter reads the absolute `ROBOTCI_GAZEBO_PARAMS_FILE` selected by the
 experiment. Optional absolute launch, map and world selections use
 `ROBOTCI_GAZEBO_LAUNCH_FILE`, `ROBOTCI_GAZEBO_MAP_FILE` and
-`ROBOTCI_GAZEBO_WORLD_FILE`. Controller settings and the selected navigation XML
+`ROBOTCI_GAZEBO_WORLD_FILE`. Controller settings, the local-costmap frame, and the selected navigation XML
 are read back before and after navigation; asset digests and process cleanup are
 recorded in the scenario's
 `.gazebo.json` sidecar. This example uses the root ROS namespace.

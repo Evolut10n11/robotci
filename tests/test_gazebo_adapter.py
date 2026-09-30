@@ -22,6 +22,7 @@ from robotci.ros.gazebo_readiness import (
     behavior_tree_record,
     decode_behavior_tree_parameters,
     decode_controller_parameters,
+    decode_local_costmap_frame,
     main,
     map_pose_is_free,
     parse_gazebo_pose,
@@ -125,6 +126,7 @@ def _asset_args(tmp_path: Path) -> argparse.Namespace:
             },
         }},
         "bt_navigator": {"ros__parameters": {"default_nav_to_pose_bt_xml": str(tree)}},
+        "local_costmap": {"local_costmap": {"ros__parameters": {"global_frame": "map"}}},
     }))
     shares = []
     for name in ("sim", "description"):
@@ -164,6 +166,7 @@ def test_sut_digest_is_separate_from_stable_target_assets(tmp_path: Path, monkey
     tree = params["bt_navigator"]["ros__parameters"]["default_nav_to_pose_bt_xml"]
     assert baseline["behavior_tree_expected"] == behavior_tree_record(tree)
     assert baseline["assets"]["behavior_tree"] == sha256_file(Path(tree))
+    assert baseline["local_costmap_frame_expected"] == "map"
 
 
 @pytest.mark.parametrize("speed", [True, "0.5", float("inf"), -0.5])
@@ -290,6 +293,7 @@ def test_asset_manifest_records_fixed_preset_from_sut_yaml(tmp_path: Path, monke
 
 @pytest.mark.parametrize("change", [
     None, "speed", "preset", "goal_angle", "file", "plugin", "primary", "rotation",
+    "frame", "frame_type", "frame_missing",
 ])
 def test_after_navigation_readback_detects_parameter_or_file_drift(
     tmp_path: Path, monkeypatch, change: str | None,
@@ -302,6 +306,7 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
     manifest = {"controller": controller, "benchmark_preset": preset,
                 "params_sha256": sha256_file(params), "checks": {},
                 "behavior_tree_expected": tree, "behavior_tree": tree,
+                "local_costmap_frame_expected": "map", "local_costmap_frame": "map",
                 "assets": {"behavior_tree": tree["sha256"]}}
     if change == "speed":
         values[1].double_value = 0.2
@@ -324,8 +329,17 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
     tree_future = SimpleNamespace(done=lambda: True, result=lambda: tree_response)
     tree_client = SimpleNamespace(service_is_ready=lambda: True,
                                   call_async=lambda request: tree_future)
-    node = SimpleNamespace(create_client=lambda srv, path:
-                           tree_client if path.startswith("/bt_navigator/") else client,
+    frame_value = SimpleNamespace(type=4, string_value="odom" if change == "frame" else "map")
+    if change == "frame_type":
+        frame_value.type = 3
+    frame_response = SimpleNamespace(values=[] if change == "frame_missing" else [frame_value])
+    frame_future = SimpleNamespace(done=lambda: True, result=lambda: frame_response)
+    frame_client = SimpleNamespace(service_is_ready=lambda: True,
+                                   call_async=lambda request: frame_future)
+    clients = {"/controller_server/get_parameters": client,
+               "/bt_navigator/get_parameters": tree_client,
+               "/local_costmap/local_costmap/get_parameters": frame_client}
+    node = SimpleNamespace(create_client=lambda srv, path: clients[path],
                            destroy_node=lambda: None)
     monkeypatch.setitem(sys.modules, "rclpy", SimpleNamespace(
         init=lambda **kwargs: None, shutdown=lambda: None, spin_once=lambda *args, **kwargs: None,
@@ -334,10 +348,21 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
     monkeypatch.setitem(sys.modules, "rcl_interfaces.srv", SimpleNamespace(
         GetParameters=SimpleNamespace(Request=SimpleNamespace),
     ))
+    deadlines = []
+
+    def read_parameters(node, client, names, deadline, description):
+        deadlines.append(deadline)
+        return _read_parameters_bounded(node, client, names, deadline, description)
+
+    monkeypatch.setattr("robotci.ros.gazebo_readiness._read_parameters_bounded", read_parameters)
     if change in ("plugin", "primary", "rotation"):
         with pytest.raises(ValueError, match="requires"):
             verify_controller_unchanged(argparse.Namespace(params=params), manifest)
         assert not manifest["checks"].get("controller_stable")
+    elif change in ("frame", "frame_type", "frame_missing"):
+        with pytest.raises(ValueError, match="local.costmap"):
+            verify_controller_unchanged(argparse.Namespace(params=params), manifest)
+        assert not manifest["checks"].get("local_costmap_frame_stable")
     elif change:
         with pytest.raises(RuntimeError, match="changed during navigation"):
             verify_controller_unchanged(argparse.Namespace(params=params), manifest)
@@ -348,6 +373,34 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
         assert manifest["checks"]["benchmark_preset_stable"] is True
         assert manifest["behavior_tree_after"] == tree
         assert manifest["checks"]["behavior_tree_stable"] is True
+        assert manifest["local_costmap_frame_after"] == "map"
+        assert manifest["checks"]["local_costmap_frame_stable"] is True
+        assert len(deadlines) == 3
+        assert len(set(deadlines)) == 1
+
+
+@pytest.mark.parametrize("value", [None, False, "", "odom", "/map", 1])
+def test_local_costmap_frame_must_be_map_in_frozen_yaml(tmp_path: Path, value) -> None:
+    args = _asset_args(tmp_path)
+    document = yaml.safe_load(args.params.read_text())
+    params = document["local_costmap"]["local_costmap"]["ros__parameters"]
+    if value is None:
+        params.pop("global_frame")
+    else:
+        params["global_frame"] = value
+    args.params.write_text(yaml.safe_dump(document))
+    with pytest.raises(ValueError, match="local_costmap.global_frame"):
+        asset_manifest(args)
+
+
+@pytest.mark.parametrize("values", [
+    [], [SimpleNamespace(type=0)], [SimpleNamespace(type=1)], [SimpleNamespace(type=3)],
+    [SimpleNamespace(type=4, string_value="odom")],
+])
+def test_local_costmap_frame_readback_requires_one_map_string(values) -> None:
+    with pytest.raises(ValueError, match="local.costmap"):
+        decode_local_costmap_frame(values, "map")
+    assert decode_local_costmap_frame([SimpleNamespace(type=4, string_value="map")], "map") == "map"
 
 
 def _behavior_file(tmp_path: Path, name: str = "navigation.xml") -> Path:
@@ -408,8 +461,11 @@ def test_behavior_tree_readback_matches_frozen_path_and_content(tmp_path: Path, 
 
 
 @pytest.mark.parametrize("phase", ["service", "response"])
-def test_behavior_tree_parameter_readback_is_bounded_and_cancels_pending_request(
-    monkeypatch, phase: str,
+@pytest.mark.parametrize("description,names", [
+    ("behavior-tree", ["default_nav_to_pose_bt_xml"]), ("local-costmap frame", ["global_frame"]),
+])
+def test_parameter_readback_is_bounded_and_cancels_pending_request(
+    monkeypatch, phase: str, description: str, names: list[str],
 ) -> None:
     clock = iter(index / 4 for index in range(20))
     monkeypatch.setattr("robotci.ros.gazebo_readiness.time.monotonic", lambda: next(clock))
@@ -424,9 +480,8 @@ def test_behavior_tree_parameter_readback_is_bounded_and_cancels_pending_request
     monkeypatch.setitem(sys.modules, "rcl_interfaces.srv", SimpleNamespace(
         GetParameters=SimpleNamespace(Request=SimpleNamespace),
     ))
-    with pytest.raises(TimeoutError, match="behavior-tree.*unavailable|behavior-tree.*timed out"):
-        _read_parameters_bounded(None, client, ["default_nav_to_pose_bt_xml"], 1.0,
-                                 "behavior-tree")
+    with pytest.raises(TimeoutError, match=f"{description}.*unavailable|{description}.*timed out"):
+        _read_parameters_bounded(None, client, names, 1.0, description)
     assert len(spins) == 4
     assert canceled == ([True] if phase == "response" else [])
 

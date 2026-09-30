@@ -121,6 +121,7 @@ def validate_target(
         "navigate_to_pose", "controller_stable", "cmd_vel_type_verified",
         "benchmark_preset_verified", "benchmark_preset_stable",
         "behavior_tree_verified", "behavior_tree_stable",
+        "local_costmap_frame_verified", "local_costmap_frame_stable",
     ):
         if not isinstance(checks, dict) or checks.get(name) is not True:
             raise AcceptanceError(f"Gazebo readiness evidence missing: {name}")
@@ -142,6 +143,11 @@ def validate_target(
         raise AcceptanceError("controller YAML digest changed during navigation")
     if value.get("controller_after") != controller:
         raise AcceptanceError("effective controller settings changed during navigation")
+    for phase in (
+        "local_costmap_frame_expected", "local_costmap_frame", "local_costmap_frame_after",
+    ):
+        if value.get(phase) != "map":
+            raise AcceptanceError(f"fixed local costmap frame read-back differs: {phase}")
     for phase in ("benchmark_preset", "benchmark_preset_after", "benchmark_preset_expected"):
         preset = value.get(phase)
         if not isinstance(preset, dict) or preset.keys() != BENCHMARK_PRESET.keys():
@@ -204,7 +210,7 @@ def validate_target(
             raise AcceptanceError(f"effective {node} command message type differs from the bridge")
     return {"assets": assets, "packages": packages, "command_velocity_type": command_type,
             "stamped_cmd_vel": velocity_flags, "benchmark_preset": value["benchmark_preset"],
-            "behavior_tree": behavior}
+            "behavior_tree": behavior, "local_costmap_frame": value["local_costmap_frame"]}
 
 
 def measurement_outcome(candidate_report: dict[str, object]) -> tuple[str, bool]:

@@ -134,6 +134,10 @@ jobs:
           controller["general_goal_checker"]["xy_goal_tolerance"] = 0.20
           controller["general_goal_checker"]["yaw_goal_tolerance"] = 0.25
           controller["FollowPath"]["GoalAngleCritic"]["threshold_to_consider"] = 0.20
+          # Keep the fixed path goal and both arrival checkers in one frame.
+          # Nav2 1.3.13 uses different goal timestamps in the outer checker
+          # and RotationShim; map avoids historical map-to-odom disagreement.
+          document["local_costmap"]["local_costmap"]["ros__parameters"]["global_frame"] = "map"
           params.write_text(yaml.safe_dump(document, sort_keys=False))
           shutil.copyfile(params, archive / "controller.original.yaml")
           packages = subprocess.run(

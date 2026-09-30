@@ -137,6 +137,17 @@ def decode_behavior_tree_parameters(
     return observed
 
 
+def decode_local_costmap_frame(values: list[Any], expected: str) -> str:
+    if len(values) != 1:
+        raise ValueError("local-costmap frame read-back is incomplete")
+    if values[0].type != 4:
+        raise ValueError("local-costmap frame has the wrong ROS parameter type")
+    observed = values[0].string_value
+    if expected != "map" or observed != expected:
+        raise ValueError("local_costmap.global_frame must equal the frozen map frame")
+    return observed
+
+
 def sha256_tree(path: Path) -> str:
     """Hash asset names and bytes, independent of checkout/installation path."""
     digest = hashlib.sha256()
@@ -238,6 +249,11 @@ def asset_manifest(args: argparse.Namespace) -> dict[str, Any]:
     behavior_tree = behavior_tree_record(
         params.get("bt_navigator", {}).get("ros__parameters", {}).get(BEHAVIOR_TREE_PARAMETER)
     )
+    local_costmap_frame = params.get("local_costmap", {}).get("local_costmap", {}).get(
+        "ros__parameters", {},
+    ).get("global_frame")
+    if local_costmap_frame != "map":
+        raise ValueError("local_costmap.global_frame must equal the frozen map frame")
     packages = {}
     for share in (args.sim_share, args.description_share):
         package = ET.parse(share / "package.xml").getroot()
@@ -276,6 +292,7 @@ def asset_manifest(args: argparse.Namespace) -> dict[str, Any]:
         "controller_expected": expected,
         "benchmark_preset_expected": preset,
         "behavior_tree_expected": behavior_tree,
+        "local_costmap_frame_expected": local_costmap_frame,
         "command_velocity_type": command_types[0],
         "renderer": {"headless": True, "software": True, "engine": "ogre2"},
         "packages": packages,
@@ -331,6 +348,9 @@ def verify_controller_unchanged(args: argparse.Namespace, manifest: dict[str, An
     node = Node("robotci_gazebo_controller_verification")
     client = node.create_client(GetParameters, "/controller_server/get_parameters")
     behavior_parameters = node.create_client(GetParameters, "/bt_navigator/get_parameters")
+    frame_parameters = node.create_client(
+        GetParameters, "/local_costmap/local_costmap/get_parameters",
+    )
     deadline = time.monotonic() + 10
     try:
         observed, preset = decode_controller_parameters(_read_parameters_bounded(
@@ -352,6 +372,13 @@ def verify_controller_unchanged(args: argparse.Namespace, manifest: dict[str, An
                 or behavior_tree["sha256"] != manifest["assets"]["behavior_tree"]):
             raise RuntimeError("behavior-tree configuration changed during navigation")
         manifest["checks"]["behavior_tree_stable"] = True
+        local_frame = decode_local_costmap_frame(_read_parameters_bounded(
+            node, frame_parameters, ["global_frame"], deadline, "local-costmap frame",
+        ), manifest["local_costmap_frame_expected"])
+        manifest["local_costmap_frame_after"] = local_frame
+        if local_frame != manifest["local_costmap_frame"]:
+            raise RuntimeError("local-costmap frame changed during navigation")
+        manifest["checks"]["local_costmap_frame_stable"] = True
     finally:
         node.destroy_node()
         rclpy.shutdown()
@@ -415,6 +442,9 @@ def wait_until_ready(args: argparse.Namespace, manifest: dict[str, Any]) -> None
                for name in REQUIRED_LIFECYCLE_NODES}
     parameters = node.create_client(GetParameters, "/controller_server/get_parameters")
     behavior_parameters = node.create_client(GetParameters, "/bt_navigator/get_parameters")
+    frame_parameters = node.create_client(
+        GetParameters, "/local_costmap/local_costmap/get_parameters",
+    )
     velocity_parameters = {
         name: node.create_client(GetParameters, f"/{name}/get_parameters")
         for name in ("controller_server", "behavior_server", "velocity_smoother",
@@ -557,6 +587,15 @@ def wait_until_ready(args: argparse.Namespace, manifest: dict[str, Any]) -> None
             behavior_tree = decode_behavior_tree_parameters(
                 response.values, manifest["behavior_tree_expected"],
             )
+            request = GetParameters.Request()
+            request.names = ["global_frame"]
+            response = call(frame_parameters, request)
+            if response is None:
+                last_problem = "local-costmap frame parameter service is not yet discovered"
+                continue
+            local_frame = decode_local_costmap_frame(
+                response.values, manifest["local_costmap_frame_expected"],
+            )
             expected_stamped = manifest["command_velocity_type"].endswith("TwistStamped")
             velocity_flags = {}
             velocity_discovered = True
@@ -587,10 +626,12 @@ def wait_until_ready(args: argparse.Namespace, manifest: dict[str, Any]) -> None
                            "cmd_vel_type_verified": True,
                            "benchmark_preset_verified": True,
                            "behavior_tree_verified": True,
+                           "local_costmap_frame_verified": True,
                            "required_tf": True, "nav2_active": True, "navigate_to_pose": True},
                 "controller": controller,
                 "benchmark_preset": preset,
                 "behavior_tree": behavior_tree,
+                "local_costmap_frame": local_frame,
                 "lifecycle": states,
                 "clock": {"first": clock_start, "last": clock_last},
                 "sensor_samples": counts,
