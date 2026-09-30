@@ -22,6 +22,13 @@ def _copy_fixture(tmp_path: Path) -> Path:
     return run / "suite-result.json"
 
 
+def _bundle_bytes(path: Path) -> dict[Path, bytes]:
+    return {
+        item.relative_to(path): item.read_bytes()
+        for item in path.rglob("*") if item.is_file()
+    }
+
+
 def test_capture_is_self_contained_after_source_is_removed(tmp_path: Path) -> None:
     suite = _copy_fixture(tmp_path)
     store = tmp_path / "baselines"
@@ -124,6 +131,155 @@ def test_explicit_replace_updates_capture(tmp_path: Path) -> None:
     captured_result = store / "stable" / "results" / "route.json"
     captured = json.loads(captured_result.read_text(encoding="utf-8"))
     assert captured["metrics"]["path_length_m"] == 4.5
+    assert list(store.iterdir()) == [store / "stable"]
+
+
+@pytest.mark.parametrize("replace", [False, True])
+def test_failed_publication_never_exposes_a_partial_baseline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, replace: bool,
+) -> None:
+    suite = _copy_fixture(tmp_path)
+    store = tmp_path / "baselines"
+    destination = store / "stable"
+    if replace:
+        capture_baseline("stable", suite, store_root=store)
+    original = _bundle_bytes(destination)
+    result_path = suite.parent / "results" / "route.json"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    result["metrics"]["path_length_m"] = 4.5
+    result_path.write_text(json.dumps(result), encoding="utf-8")
+    rename = Path.rename
+    failed = False
+
+    def fail_publication(source: Path, target: Path) -> Path:
+        nonlocal failed
+        if Path(target) == destination and not failed:
+            failed = True
+            raise OSError("simulated publication failure")
+        return rename(source, target)
+
+    monkeypatch.setattr(Path, "rename", fail_publication)
+
+    with pytest.raises(BaselineError, match="simulated publication failure"):
+        capture_baseline("stable", suite, store_root=store, replace=replace)
+
+    assert failed
+    assert _bundle_bytes(destination) == original
+    if replace:
+        assert baseline_suite_path("stable", store_root=store).is_file()
+        assert list(store.iterdir()) == [destination]
+    else:
+        assert not destination.exists()
+        assert list(store.iterdir()) == []
+
+
+def test_failed_backup_move_preserves_the_published_baseline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    suite = _copy_fixture(tmp_path)
+    store = tmp_path / "baselines"
+    captured = capture_baseline("stable", suite, store_root=store)
+    original = _bundle_bytes(captured.path)
+    rename = Path.rename
+
+    def refuse_move_of_existing_baseline(source: Path, target: Path) -> Path:
+        if source == captured.path:
+            raise PermissionError("baseline is locked")
+        return rename(source, target)
+
+    monkeypatch.setattr(Path, "rename", refuse_move_of_existing_baseline)
+
+    with pytest.raises(OSError, match="baseline is locked"):
+        capture_baseline("stable", suite, store_root=store, replace=True)
+
+    assert _bundle_bytes(captured.path) == original
+    assert list(store.iterdir()) == [captured.path]
+
+
+def test_interrupted_publication_restores_the_previous_baseline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    suite = _copy_fixture(tmp_path)
+    store = tmp_path / "baselines"
+    captured = capture_baseline("stable", suite, store_root=store)
+    original = _bundle_bytes(captured.path)
+    rename = Path.rename
+    interrupted = False
+
+    def interrupt_publication(source: Path, target: Path) -> Path:
+        nonlocal interrupted
+        if Path(target) == captured.path and not interrupted:
+            interrupted = True
+            raise KeyboardInterrupt("capture cancelled")
+        return rename(source, target)
+
+    monkeypatch.setattr(Path, "rename", interrupt_publication)
+
+    with pytest.raises(KeyboardInterrupt, match="capture cancelled"):
+        capture_baseline("stable", suite, store_root=store, replace=True)
+
+    assert interrupted
+    assert _bundle_bytes(captured.path) == original
+    assert baseline_suite_path("stable", store_root=store).is_file()
+    assert list(store.iterdir()) == [captured.path]
+
+
+@pytest.mark.parametrize("publication_error", [OSError, KeyboardInterrupt])
+def test_failed_rollback_keeps_a_recoverable_known_good_bundle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, publication_error: type[BaseException],
+) -> None:
+    suite = _copy_fixture(tmp_path)
+    store = tmp_path / "baselines"
+    captured = capture_baseline("stable", suite, store_root=store)
+    original = _bundle_bytes(captured.path)
+    rename = Path.rename
+    publication_failed = False
+
+    def refuse_publication_and_restore(source: Path, target: Path) -> Path:
+        nonlocal publication_failed
+        if Path(target) == captured.path:
+            if not publication_failed:
+                publication_failed = True
+                raise publication_error("publication interrupted")
+            raise PermissionError("destination is locked")
+        return rename(source, target)
+
+    monkeypatch.setattr(Path, "rename", refuse_publication_and_restore)
+
+    with pytest.raises(BaselineError, match="previous baseline preserved at") as error:
+        capture_baseline("stable", suite, store_root=store, replace=True)
+
+    assert not captured.path.exists()
+    remaining_bundles = list(store.rglob("manifest.json"))
+    assert len(remaining_bundles) == 1
+    recovery_path = remaining_bundles[0].parent
+    assert str(recovery_path.resolve()) in str(error.value)
+    assert _bundle_bytes(recovery_path) == original
+    assert list_baselines(store_root=store) == []
+
+
+def test_failed_staging_copy_preserves_the_previous_baseline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    suite = _copy_fixture(tmp_path)
+    store = tmp_path / "baselines"
+    captured = capture_baseline("stable", suite, store_root=store)
+    original = _bundle_bytes(captured.path)
+    copy2 = shutil.copy2
+
+    def interrupt_copy(source: Path, target: Path) -> str | Path:
+        copied = copy2(source, target)
+        if Path(target).name == "route.json":
+            raise OSError("copy interrupted after writing a file")
+        return copied
+
+    monkeypatch.setattr("robotci.baselines.shutil.copy2", interrupt_copy)
+
+    with pytest.raises(OSError, match="copy interrupted"):
+        capture_baseline("stable", suite, store_root=store, replace=True)
+
+    assert _bundle_bytes(captured.path) == original
+    assert list(store.iterdir()) == [captured.path]
 
 
 def test_list_show_and_remove_baselines(tmp_path: Path) -> None:

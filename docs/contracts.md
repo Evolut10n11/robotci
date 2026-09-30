@@ -76,6 +76,11 @@ versions, duplicate or unsafe scenario names, invalid or non-finite coordinates,
 invalid runtimes, and non-positive or non-finite timeouts before any robotics
 runtime starts.
 
+Scenario names use ASCII letters, numbers, `_` and `-`, starting with a letter
+or number. Names must be unique without regard to case, and Windows device
+names such as `CON`, `NUL`, `COM1` and `LPT1` are rejected on every OS. This keeps
+scenario result filenames portable; the chosen spelling is otherwise preserved.
+
 Each scenario also defines its deterministic PASS evidence policy.
 `goal_tolerance_m` is the maximum measured final distance to the goal, and
 `min_feedback_samples` is the minimum number of Nav2 feedback messages. Their

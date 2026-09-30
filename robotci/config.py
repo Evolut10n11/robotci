@@ -12,6 +12,11 @@ from robotci.visual_profiles import ROBOT_VISUAL_PROFILES, RobotVisualProfile
 
 RuntimeName = Literal["auto", "native", "docker"]
 _SCENARIO_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+_WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
+    f"{prefix}{number}"
+    for prefix in ("com", "lpt")
+    for number in range(1, 10)
+}
 
 
 class ConfigError(ValueError):
@@ -169,6 +174,11 @@ def _parse_scenario(value: object, index: int) -> ScenarioConfig:
         raise ConfigError(
             f"{prefix}.name must use only letters, numbers, '_' or '-'"
         )
+    if clean_name.casefold() in _WINDOWS_RESERVED_NAMES:
+        raise ConfigError(
+            f"{prefix}.name '{clean_name}' is reserved on Windows; "
+            "choose a portable scenario name"
+        )
 
     if "start" not in data:
         raise ConfigError(f"{prefix}.start is required")
@@ -238,7 +248,7 @@ def load_config(path: str | Path = "robotci.yaml") -> RobotCIConfig:
         )
     except yaml.YAMLError as exc:
         raise ConfigError(f"Invalid YAML in {config_path}: {exc}") from exc
-    except OSError as exc:
+    except (OSError, UnicodeError) as exc:
         raise ConfigError(f"Failed to read {config_path}: {exc}") from exc
 
     data = _require_mapping(raw, "config")
@@ -266,9 +276,17 @@ def load_config(path: str | Path = "robotci.yaml") -> RobotCIConfig:
         _parse_scenario(value, index)
         for index, value in enumerate(raw_scenarios)
     )
-    names = [scenario.name for scenario in scenarios]
-    if len(names) != len(set(names)):
-        raise ConfigError("scenario names must be unique")
+    seen_names: dict[str, int] = {}
+    for index, scenario in enumerate(scenarios):
+        key = scenario.name.casefold()
+        if key in seen_names:
+            previous = seen_names[key]
+            raise ConfigError(
+                "scenario names must be unique (case-insensitive): "
+                f"scenarios[{index}].name '{scenario.name}' conflicts with "
+                f"scenarios[{previous}].name '{scenarios[previous].name}'"
+            )
+        seen_names[key] = index
 
     return RobotCIConfig(
         version=1,
