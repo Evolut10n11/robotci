@@ -3,9 +3,11 @@
 This example runs a real TurtleBot 4 in Gazebo Harmonic with ROS 2 Jazzy on
 Ubuntu 24.04. The route is checked against the depot occupancy map before
 navigation. It is an internal integration experiment, not an external M8 pilot.
-One full nine-run cohort detected the real speed intervention, but the next
-unchanged repetition failed stability. The next behavior-tree experiment is
-prepared and awaits a fresh full series; repeatable acceptance is not established.
+The first nine-run cohort with conditional replanning detected the real speed
+intervention. Its independent same-head repetition passed 19 of 20 unchanged
+gates but failed final-distance stability, despite stable timing and no recoveries
+or stuck events. Repeatable acceptance is not established. The next fixed
+experiment adds RotationShim and awaits a full series plus independent repetition.
 
 ## Run the complete experiment
 
@@ -21,26 +23,32 @@ ordered baseline comparisons, an independent unchanged control, one MPPI
 Baseline 1 is selected before measurement. The default regression policy stays
 unchanged throughout the experiment.
 
-Before warm-up, the workflow freezes the same benchmark preset for every run:
+For the next fixed experiment, freeze this setup before warm-up and keep it the
+same for every run:
 
 | Nav2 setting | Value |
 | --- | --- |
+| `FollowPath.plugin` | `nav2_rotation_shim_controller::RotationShimController` |
+| `FollowPath.primary_controller` | `nav2_mppi_controller::MPPIController` |
+| `FollowPath.rotate_to_goal_heading` | `true` |
 | `FollowPath.visualize` | `false` |
 | `FollowPath.regenerate_noises` | `false` |
 | `general_goal_checker.stateful` | `true` |
 | `general_goal_checker.xy_goal_tolerance` | `0.20 m` |
 | `general_goal_checker.yaw_goal_tolerance` | `0.25 rad` |
-| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.25 m` |
+| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.20 m` |
 
 This disables trajectory visualization and repeated noise generation, uses
-Nav2's position latch before final orientation, and activates final-heading cost
-slightly before position capture. These settings are a calibration hypothesis.
-The adapter verifies the actual parameter values before and after navigation.
+Nav2's position latch before final orientation, and matches final-heading cost
+activation to the XY capture boundary. RotationShim wraps MPPI in the same
+`FollowPath` namespace. These settings are an unverified structural hypothesis.
+The adapter must verify the actual wrapper plugin, primary controller, heading
+flag, preset, and speed before and after navigation.
 Controller frequency remains `20 Hz`, batch size remains `2000`, and the
 intervention changes only `vx_max`. This preset does not guarantee deterministic
 navigation; the five unchanged baselines must still pass all default gates.
 
-## Next fixed behavior-tree experiment
+## Fixed behavior-tree evidence
 
 The installed
 [Nav2 1.3.13 controller](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_controller/src/controller_server.cpp)
@@ -50,7 +58,7 @@ periodically replans at 1 Hz. This can interrupt stateful arrival capture during
 the final turn; it is a source-based explanation to test, not a proven cause of
 every observed failure.
 
-The workflow will select the exact installed
+The workflow selects the exact installed
 [`navigate_w_recovery_and_replanning_only_if_path_becomes_invalid.xml`](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_bt_navigator/behavior_trees/navigate_w_recovery_and_replanning_only_if_path_becomes_invalid.xml).
 It keeps recovery behavior and computes a replacement path for a changed goal
 or invalid current path. Its planning branch still checks at 1 Hz, but does
@@ -62,14 +70,40 @@ absolute path in `bt_navigator.ros__parameters.default_nav_to_pose_bt_xml` in
 the SUT YAML. The adapter verifies that string parameter and the actual XML
 digest before and after navigation. The tree is an invariant target asset;
 changed or missing read-back/file evidence prevents admission. Keep the
-controller preset above unchanged and change only `vx_max` for the candidate.
+selected XML unchanged and change only `vx_max` for the candidate.
 
-The new tree selection does not guarantee stable navigation. It requires a
-fresh warmup, five baselines, all twenty comparisons, held-out control,
-candidate, and restored control with the same default policy. The
-[runbook](../../docs/validation/runtime-acceptance.md) preserves every failed
-calibration, the successful historical cohort, and the later failed repetition.
-No failed or successful earlier run supplies a baseline for this new setup.
+The first fixed-BT cohort passed all twenty baseline gates and both controls;
+the speed candidate produced a sole duration finding of +110.155%. Its independent
+same-head repetition passed every route, but baseline-2 to baseline-5 increased
+final distance by 0.121618 m against the unchanged 0.1 m allowance. Only 19 of 20
+gates passed, so that repetition correctly stopped before control or candidate
+collection. Conditional replanning did not establish stable final-distance gates.
+The [runbook](../../docs/validation/runtime-acceptance.md) records exact artifacts,
+read-back and digests, and preserves all earlier positive and negative cohorts.
+
+## Next structural experiment: RotationShim
+
+The exact
+[Nav2 1.3.13 RotationShim source](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_rotation_shim_controller/src/nav2_rotation_shim_controller.cpp)
+configures MPPI under the same plugin namespace. With goal-heading rotation
+enabled, it reads the goal checker's XY tolerance and, after position capture,
+returns a rotation command with zero linear fields. Angular acceleration and
+collision checks still apply; a failed rotation branch can fall back to MPPI.
+This targets translation during the final turn, without guaranteeing zero
+physical drift or stable gates.
+
+Keep the conditional-replanning XML, stateful 0.20 m / 0.25 rad goal checker,
+and other MPPI parameters unchanged. Only the wrapper/primary selection,
+goal-heading flag, and final-heading activation listed above define the new
+setup. The candidate still changes only `vx_max` from 0.5 to 0.2 m/s. Scenario
+goal tolerance remains 0.35 m and default comparison gates remain 10% for
+duration/path, 0.1 m for distance increase, and zero additional event counts.
+
+This hypothesis requires a fresh warmup, five baselines, all twenty comparisons,
+preselected baseline-1 capture, held-out control, candidate, and restored control,
+then an independent fresh repetition of the frozen setup. Both series are
+pending. No failed or successful earlier run supplies a baseline for this setup,
+and no threshold is relaxed after seeing the results.
 
 ## Inspect the evidence
 

@@ -30,7 +30,9 @@ controller_server:
   ros__parameters:
     controller_frequency: 20.0
     FollowPath:
-      plugin: nav2_mppi_controller::MPPIController
+      plugin: nav2_rotation_shim_controller::RotationShimController
+      primary_controller: nav2_mppi_controller::MPPIController
+      rotate_to_goal_heading: true
       vx_max: 0.5
       vy_max: 0.0
 """
@@ -54,6 +56,19 @@ def test_intervention_requires_real_mppi_controller(subject: bytes) -> None:
     changed = subject.replace(b"nav2_mppi_controller::MPPIController", b"other::Controller")
     with pytest.raises(experiment.AcceptanceError, match="MPPI"):
         experiment.candidate_parameters(changed)
+
+
+@pytest.mark.parametrize("change", [
+    lambda value: value.update(plugin=experiment.MPPI_PLUGIN),
+    lambda value: value.pop("primary_controller"),
+    lambda value: value.update(rotate_to_goal_heading=False),
+    lambda value: value.update(rotate_to_goal_heading=1),
+])
+def test_intervention_requires_fixed_goal_rotation_wrapper(subject: bytes, change) -> None:
+    document = yaml.safe_load(subject)
+    change(document["controller_server"]["ros__parameters"]["FollowPath"])
+    with pytest.raises(experiment.AcceptanceError, match="RotationShim"):
+        experiment.candidate_parameters(yaml.safe_dump(document).encode())
 
 
 @pytest.mark.parametrize("failure", [RuntimeError("runtime failed"), KeyboardInterrupt()])
@@ -169,8 +184,9 @@ def provenance(subject: bytes) -> dict:
             "benchmark_preset_verified", "benchmark_preset_stable",
             "behavior_tree_verified", "behavior_tree_stable",
         )},
-        "controller": {"plugin": experiment.MPPI_PLUGIN, "vx_max": 0.5},
-        "controller_after": {"plugin": experiment.MPPI_PLUGIN, "vx_max": 0.5},
+        **{key: {"plugin": experiment.SHIM_PLUGIN, "primary_controller": experiment.MPPI_PLUGIN,
+                 "rotate_to_goal_heading": True, "vx_max": 0.5}
+           for key in ("controller", "controller_after")},
         "params_sha256": experiment.digest(subject),
         "params_sha256_after": experiment.digest(subject),
         "benchmark_preset": copy.deepcopy(experiment.BENCHMARK_PRESET),
@@ -198,6 +214,11 @@ def provenance(subject: bytes) -> dict:
     (lambda value: value["cleanup"].update(process_groups_stopped=False), "cleanup"),
     (lambda value: value["checks"].update(start_pose_verified=1), "start_pose"),
     (lambda value: value["controller"].update(vx_max=0.2), "read-back"),
+    (lambda value: value["controller"].update(plugin=experiment.MPPI_PLUGIN), "RotationShim"),
+    (lambda value: value["controller"].update(primary_controller="other::Controller"),
+     "RotationShim"),
+    (lambda value: value["controller"].update(rotate_to_goal_heading=False), "goal rotation"),
+    (lambda value: value["controller"].update(rotate_to_goal_heading=1), "goal rotation"),
     (lambda value: value.update(params_sha256="sha256:" + "b" * 64), "subject"),
     (lambda value: value["controller_after"].update(vx_max=0.2), "during navigation"),
     (lambda value: value.update(params_sha256_after="sha256:" + "b" * 64), "during navigation"),

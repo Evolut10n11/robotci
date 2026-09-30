@@ -1,12 +1,14 @@
 # Native Nav2 / Gazebo runtime acceptance
 
-Status on 2026-09-30: one full internal cohort completed the regression-detection
-experiment, but a fresh repetition with the same controller preset was unstable.
-The successful nine-run cohort remains valid historical evidence; repeatable
-acceptance under the default policy is **not established**. The latest repetition
-stopped before control or candidate collection. A fixed behavior-tree experiment
-is prepared from the installed Nav2 1.3.13 source; its full measurement series is
-pending. All outcomes and earlier failed calibrations are retained below. No
+Status on 2026-09-30: the first complete cohort using the installed Nav2 1.3.13
+conditional-replanning behavior tree detected the real speed intervention, but
+its independent same-head repetition failed one unchanged final-distance gate.
+Timing was stable and all six repeated routes passed without recoveries or stuck
+events; the driver still correctly stopped before control or candidate collection.
+Repeatable acceptance under the default policy is **not established**. The next
+fixed experiment adds RotationShim for final-heading control; its full series
+and independent repetition remain pending. All positive and negative outcomes,
+including earlier failed calibrations, are retained below. No
 simulator-wide or statistical false-positive guarantee is claimed. The
 maintenance environment is Ubuntu 24.04 with Python 3.12, but has no `ros2`,
 `gz`, Docker executable, or `/opt/ros/jazzy/setup.bash`. Unit tests and the
@@ -259,7 +261,7 @@ configuration. The later failed repetition below prevents treating this as
 reproducibly validated acceptance. It contributes **zero external teams** to M8;
 an independent team's reproduction and broader validation remain separate work.
 
-## Latest repetition: unchanged baseline stability failed
+## Previous repetition: unchanged baseline stability failed
 
 [Gazebo CI run 36752331669](https://github.com/Evolut10n11/robotci/actions/runs/36752331669)
 for PR head `b8addf5b` attempted a fresh complete measurement series with the
@@ -297,7 +299,7 @@ All six suites are internally comparable under execution fingerprint
 `sha256:a4e0df18181be5ed6a03a63f2d078e38972f450fa10679d09d81fd851c43dc40`.
 The original/controller digest remained
 `sha256:9a66eefe15a5aec140ecf3d910e131ee193d8850d26e0ab2137385cecc4af26d`.
-The latest and historical successful cohorts have different execution
+This failed and the historical successful cohort have different execution
 fingerprints; no cross-cohort gate or rewritten fingerprint was used.
 
 The earlier +92.273% candidate result remains a completed observation from its
@@ -308,7 +310,7 @@ claiming repeatable acceptance. The default 10% duration/path, 0.1 m distance,
 zero-additional-event policy and predeclared selection of baseline run 1 remain
 unchanged. External M8 evidence remains zero.
 
-## Next fixed behavior-tree experiment: runtime verification pending
+## Fixed behavior-tree experiment and source-backed hypothesis
 
 Inspection of installed Nav2 1.3.13 exposes a control-flow interaction worth
 testing separately from controller tolerances. In
@@ -321,7 +323,7 @@ stateful arrival latch while the robot turns toward its final heading. This
 source-backed mechanism is a hypothesis for the near-goal failures; the source
 does not prove that it explains every unstable run.
 
-The next series selects the exact installed tree
+The new series selects the exact installed tree
 [`navigate_w_recovery_and_replanning_only_if_path_becomes_invalid.xml`](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_bt_navigator/behavior_trees/navigate_w_recovery_and_replanning_only_if_path_becomes_invalid.xml).
 It retains planning, control, and system recovery branches. Its 1 Hz planning
 branch checks for a changed goal or invalid existing path before computing a
@@ -346,14 +348,186 @@ changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s. RobotCI's scenario, 10%
 duration/path allowance, 0.1 m distance allowance, and zero additional event
 allowance remain unchanged.
 
-This new tree selection is an experiment setup change, not a successful
-measurement. No earlier run is reused, discarded, or promoted to establish it.
-Verification remains pending a fresh warmup, all five unchanged baselines,
-all 20 ordered-pair gates, the preselected baseline-1 capture, held-out control,
-real speed candidate, and restored control. A complete passing unchanged
-series and actual candidate findings are required before making a new
-regression-detection claim. The previous successful and failed cohorts remain
-separate observations, and external M8 participation remains zero.
+This tree selection is an experiment setup change. Its first complete cohort
+and failed independent same-head repetition are recorded below. No earlier run
+is reused, discarded, or promoted to establish it. Each
+cohort must independently complete warmup, all five unchanged baselines, all
+20 ordered-pair gates, the preselected baseline-1 capture, held-out control,
+real speed candidate, and restored control. The previous successful and failed
+cohorts remain separate observations, and external M8 participation remains zero.
+
+## First fixed-BT cohort: completed regression proof
+
+[Gazebo CI run 36755699992](https://github.com/Evolut10n11/robotci/actions/runs/36755699992),
+attempt 1, [job 110025258065](https://github.com/Evolut10n11/robotci/actions/runs/36755699992/job/110025258065),
+completed the full experiment for PR head
+`1dd20a71c477602ca099f1bb41b361fe80d51426`. The recorded checkout merge is
+`004ae02b45b411b9a1abcd8fe181321f1832ee99`. Retained
+[artifact 11116907304](https://github.com/Evolut10n11/robotci/actions/runs/36755699992/artifacts/11116907304)
+contains 146 files: the nine result/replay/target bundles, all 20 directed
+stability gates, captured baseline, control/candidate/restored JSON/Markdown/JUnit gates, frozen
+behavior-tree XML, subject YAML, package inventory, and logs. Its archive SHA256
+is `c1cd39f4a84da4b883b54a01bfc5afcb0d9e4a4e949c07cc4426c4d692cde0dc`.
+
+| Run | MPPI speed cap, m/s | Duration, seconds | Path, metres | Final distance, metres | Feedback/replay samples |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| warmup | 0.5 | 13.123 | 5.257 | 0.109 | 66 |
+| baseline-1 | 0.5 | 12.929 | 5.266 | 0.123 | 65 |
+| baseline-2 | 0.5 | 13.476 | 5.305 | 0.107 | 68 |
+| baseline-3 | 0.5 | 13.079 | 5.210 | 0.110 | 66 |
+| baseline-4 | 0.5 | 12.577 | 5.137 | 0.188 | 63 |
+| baseline-5 | 0.5 | 12.888 | 5.184 | 0.174 | 65 |
+| held-out control | 0.5 | 13.678 | 5.314 | 0.080 | 69 |
+| candidate | 0.2 | 27.171 | 5.251 | 0.102 | 136 |
+| restored control | 0.5 | 14.055 | 5.406 | 0.149 | 71 |
+
+All nine navigations completed with `PASS`, complete evidence/provenance, valid
+final poses, zero invalid pose samples, and zero observed recoveries or stuck
+events. Received, valid, and replay sample counts agree. Independently loading
+the suites, results, and replays with the core and recomputing every gate
+confirmed **20 of 20** directed baseline comparisons passing the unchanged
+policy. Baseline durations ranged from 12.577 to 13.476 seconds, with median
+12.929 seconds; the largest ordered-pair increase was 7.148%. Their final-distance
+spread was 0.08065 m. Baseline run 1 was selected by the predeclared rule.
+
+Both held-out and restored controls passed with no findings. The candidate
+changed only `FollowPath.vx_max` from 0.5 to 0.2 m/s and produced exactly one
+finding: duration increased from 12.929 to 27.171 seconds, **+110.155%**, against
+the unchanged 10% allowance. Path, final distance, recoveries, and stuck counts
+did not produce findings. The driver reported `COMPLETED_DURATION_REGRESSION`
+and `subject_restored=true`; the restored-control navigation was actually
+performed and passed.
+
+Every target manifest passed strict admission. The actual typed
+`default_nav_to_pose_bt_xml` parameter before and after navigation matched the
+expected canonical path
+`/home/runner/work/_temp/robotci-gazebo-target/navigation.xml`. The copied XML,
+archived XML, before/after file records, and invariant target asset all have
+SHA256 `684c368fff80558623adc50c59d6f4f8f09a6fbc9138fa70cad32ffda03333b4`.
+The complete controller preset, target assets, and effective controller read-back
+remained stable: 0.5 m/s for unchanged/restored runs and 0.2 m/s for the candidate.
+All nine runs used distinct transport partitions; each cleanup confirmed both
+owned-process and process-group termination, with no survivors.
+
+The suites share execution fingerprint
+`sha256:bbd273c44f68ce3d6622abd7a8f7408937aa5120f2d7799a17649573b032dbe6`.
+Actual original/restored subject bytes match
+`sha256:77542cf7366ed509bda86f53032b9a90d642d63b9e80ffbb03b117cd0d8168c2`;
+candidate bytes match
+`sha256:f832436489ba7b7fdbeef22c47ff870ff6790f51fa79b72e1f1399782a93646b`.
+The XML selection is unchanged throughout this cohort, and the controller's
+single speed delta remains separate from the stable harness identity.
+
+Each of the nine Nav2 logs contains exactly one navigation-goal receipt and one
+completion, zero `Passing new path to controller` updates, and zero progress
+failures. There are also zero path updates in the final five seconds. These
+observations are consistent with retaining the stateful arrival latch instead
+of resetting it through periodic valid-path replacement. They support the
+source-backed mechanism on this controlled static route, without establishing
+that it is the sole cause of every earlier failure.
+
+This is one completed internal regression-detection experiment for the fixed
+BT setup. Attempt 2 on the exact same PR head used an independent fresh job
+with no code or parameter changes between cohorts, but failed unchanged baseline
+stability as recorded below. The first success does not replace that failure,
+establish repeatable acceptance or a statistical false-positive bound, or
+contribute an external participant to M8.
+
+## Fixed-BT repetition: final-distance stability failed
+
+Attempt 2 of [run 36755699992](https://github.com/Evolut10n11/robotci/actions/runs/36755699992),
+[job 110033236297](https://github.com/Evolut10n11/robotci/actions/runs/36755699992/job/110033236297),
+used the exact same PR head `1dd20a71c477602ca099f1bb41b361fe80d51426` and
+checkout merge `004ae02b45b411b9a1abcd8fe181321f1832ee99` as attempt 1.
+Retained [artifact 11117198608](https://github.com/Evolut10n11/robotci/actions/runs/36755699992/artifacts/11117198608)
+contains 112 files and has archive SHA256
+`a21dc1447df7461f5269acb2ff08dad221e868a13515942dee9818e0b24526e1`.
+
+| Run | Duration, seconds | Path, metres | Final distance, metres | Feedback/replay samples |
+| --- | ---: | ---: | ---: | ---: |
+| warmup | 14.708 | 5.369 | 0.128878 | 73 |
+| baseline-1 | 14.592 | 5.380 | 0.123301 | 73 |
+| baseline-2 | 13.706 | 5.311 | 0.071493 | 69 |
+| baseline-3 | 14.209 | 5.370 | 0.133556 | 71 |
+| baseline-4 | 14.387 | 5.398 | 0.094472 | 72 |
+| baseline-5 | 13.726 | 5.346 | 0.193111 | 68 |
+
+All six navigations passed with complete evidence/provenance, valid final poses,
+zero invalid samples, and zero recoveries or stuck events. Received, valid, and
+replay sample counts agree. Baseline durations ranged from 13.706 to 14.592
+seconds, with median 14.209 seconds and maximum ordered-pair increase of 6.464%.
+The independent core recomputation confirmed **19 of 20** gates passing and one
+`REGRESSION`: baseline-2 to baseline-5 increased final distance from
+0.07149325996349674 to 0.19311079407079682 m, a 0.12161753410730007 m increase
+against the unchanged 0.1 m allowance. No duration, path, or event finding was
+reported. Navigation success and stable timing did not establish stable gates.
+
+The driver reported `UNCHANGED_BASELINES_UNSTABLE`. It did not capture a baseline
+or run the held-out control, candidate, or restored-control navigation.
+`subject_restored=true` confirms restoration of the original subject bytes,
+not a performed restored-control run. The earlier +110.155% speed result belongs
+only to attempt 1 and is not a candidate observation for this failed repetition.
+
+Target assets, subject bytes, policy, execution fingerprint
+`sha256:bbd273c44f68ce3d6622abd7a8f7408937aa5120f2d7799a17649573b032dbe6`,
+and environment fingerprint
+`sha256:830594ce303f471c4f0f06be3deceea8db851aa121cea284c1dceb06dd060c29`
+match attempt 1 exactly. All six manifests passed strict admission, with expected,
+before, and after BT/controller/preset records agreeing: MPPI at 0.5 m/s,
+stateful 0.20 m / 0.25 rad checking, and final-heading activation at 0.25 m.
+The archived XML has
+the same `684c368fff80558623adc50c59d6f4f8f09a6fbc9138fa70cad32ffda03333b4`
+digest. Each run used a different transport partition and confirmed both cleanup
+flags with no survivors. All six Nav2 logs contain one goal receipt and one
+completion, zero new-path updates, zero progress errors, and zero missed-rate
+warnings. The conditional-replanning change eliminated observed path replacement
+in these cohorts, but did not eliminate final-distance variation.
+
+## Next structural experiment: RotationShim verification pending
+
+The next fixed setup addresses final translation during yaw alignment rather
+than changing RobotCI's comparison allowances. The exact installed
+[Nav2 1.3.13 RotationShim source](https://github.com/ros-navigation/navigation2/blob/1.3.13/nav2_rotation_shim_controller/src/nav2_rotation_shim_controller.cpp)
+configures its primary controller with the same plugin name and parameter
+namespace. With `rotate_to_goal_heading=true`, it obtains the XY tolerance from
+the selected goal checker. After its position checker captures arrival, the
+goal-heading branch returns a rotation command whose linear fields are zero.
+Its angular command remains subject to acceleration limits and collision checks.
+If the rotation branch cannot produce a valid command, the code can fall back
+to the primary controller; zero commanded translation is not a guarantee of
+zero observed physical drift.
+
+The frozen setup changes are:
+
+| Setting | Next frozen value |
+| --- | --- |
+| `FollowPath.plugin` | `nav2_rotation_shim_controller::RotationShimController` |
+| `FollowPath.primary_controller` | `nav2_mppi_controller::MPPIController` |
+| `FollowPath.rotate_to_goal_heading` | `true` |
+| `FollowPath.GoalAngleCritic.threshold_to_consider` | `0.20` m |
+
+The MPPI primary controller remains in the same `FollowPath` namespace. Its
+other parameters remain unchanged, including visualization/noise settings,
+controller frequency, batch size, and the baseline 0.5 m/s speed cap. The goal
+checker remains stateful with 0.20 m XY and 0.25 rad yaw tolerance. The final-heading
+critic's 0.20 m activation now matches the XY capture boundary. The exact frozen
+conditional-replanning XML remains the same invariant asset.
+
+This source-backed hypothesis targets endpoint movement during final orientation
+on the fixed static route. The previous distance failure does not prove that this
+mechanism explains all variation, and RotationShim is not a measured success
+until the new setup completes collection. Typed before/after read-back must
+confirm the wrapper plugin, primary controller, heading flag, complete preset,
+and effective MPPI speed, together with unchanged BT and target provenance.
+
+The candidate still changes only `FollowPath.vx_max` from 0.5 to 0.2 m/s.
+Scenario goal tolerance stays 0.35 m; default gates remain 10% for duration/path,
+0.1 m for final-distance increase, and zero additional stuck/recovery events.
+Each fresh experiment must complete warmup, five baselines, all 20 ordered-pair
+gates, baseline-1 capture under the predeclared rule, held-out control, real
+candidate, and restored control. An independent fresh repetition of that frozen
+setup is also required. Both series are pending; no earlier run supplies a new
+baseline, no failed run is discarded, and external M8 participation remains zero.
 
 ## Target and experiment boundary
 

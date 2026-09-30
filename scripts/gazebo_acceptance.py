@@ -41,6 +41,7 @@ from robotci.viewer_session import replay_matches_result
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_REPETITIONS = 5
 MPPI_PLUGIN = "nav2_mppi_controller::MPPIController"
+SHIM_PLUGIN = "nav2_rotation_shim_controller::RotationShimController"
 SUT_KEY = "controller_server.ros__parameters.FollowPath.vx_max"
 BENCHMARK_PRESET = {
     "visualize": False,
@@ -48,7 +49,7 @@ BENCHMARK_PRESET = {
     "xy_goal_tolerance": 0.20,
     "yaw_goal_tolerance": 0.25,
     "stateful": True,
-    "goal_angle_activation_distance": 0.25,
+    "goal_angle_activation_distance": 0.20,
 }
 
 
@@ -71,8 +72,10 @@ def candidate_parameters(original: bytes) -> bytes:
         document = yaml.safe_load(original)
         controller = document["controller_server"]["ros__parameters"]["FollowPath"]
         velocity = controller["vx_max"]
-        if controller.get("plugin") != MPPI_PLUGIN:
-            raise AcceptanceError("the baseline must use the MPPI FollowPath controller")
+        if (controller.get("plugin") != SHIM_PLUGIN
+                or controller.get("primary_controller") != MPPI_PLUGIN
+                or controller.get("rotate_to_goal_heading") is not True):
+            raise AcceptanceError("the baseline must use RotationShim with MPPI and goal rotation")
         if isinstance(velocity, bool) or not isinstance(velocity, int | float):
             raise AcceptanceError("baseline MPPI vx_max must be the numeric value 0.5")
         if velocity != 0.5:
@@ -122,8 +125,10 @@ def validate_target(
         if not isinstance(checks, dict) or checks.get(name) is not True:
             raise AcceptanceError(f"Gazebo readiness evidence missing: {name}")
     controller = value.get("controller")
-    if not isinstance(controller, dict) or controller.get("plugin") != MPPI_PLUGIN:
-        raise AcceptanceError("runtime read-back did not confirm the MPPI controller")
+    if (not isinstance(controller, dict) or controller.get("plugin") != SHIM_PLUGIN
+            or controller.get("primary_controller") != MPPI_PLUGIN
+            or controller.get("rotate_to_goal_heading") is not True):
+        raise AcceptanceError("runtime read-back did not confirm RotationShim/MPPI goal rotation")
     velocity = controller.get("vx_max")
     if (
         isinstance(velocity, bool)

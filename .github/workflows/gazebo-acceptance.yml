@@ -55,6 +55,7 @@ jobs:
             python3-pip \
             ros-jazzy-navigation2 \
             ros-jazzy-nav2-bringup \
+            ros-jazzy-nav2-rotation-shim-controller \
             ros-jazzy-nav2-loopback-sim \
             ros-jazzy-nav2-simple-commander \
             ros-jazzy-nav2-minimal-tb4-description \
@@ -122,12 +123,17 @@ jobs:
           # Freeze a fresh preset using Nav2's position latch before final yaw.
           # Regression policy remains unchanged; candidate changes vx_max only.
           controller = document["controller_server"]["ros__parameters"]
+          # Finish heading with zero linear command after XY capture. The
+          # MPPI primary keeps its existing FollowPath namespace and vx_max.
+          controller["FollowPath"]["plugin"] = "nav2_rotation_shim_controller::RotationShimController"
+          controller["FollowPath"]["primary_controller"] = "nav2_mppi_controller::MPPIController"
+          controller["FollowPath"]["rotate_to_goal_heading"] = True
           controller["FollowPath"]["visualize"] = False
           controller["FollowPath"]["regenerate_noises"] = False
           controller["general_goal_checker"]["stateful"] = True
           controller["general_goal_checker"]["xy_goal_tolerance"] = 0.20
           controller["general_goal_checker"]["yaw_goal_tolerance"] = 0.25
-          controller["FollowPath"]["GoalAngleCritic"]["threshold_to_consider"] = 0.25
+          controller["FollowPath"]["GoalAngleCritic"]["threshold_to_consider"] = 0.20
           params.write_text(yaml.safe_dump(document, sort_keys=False))
           shutil.copyfile(params, archive / "controller.original.yaml")
           packages = subprocess.run(

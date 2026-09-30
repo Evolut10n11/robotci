@@ -118,7 +118,11 @@ def _asset_args(tmp_path: Path) -> argparse.Namespace:
     tree = _behavior_file(tmp_path)
     params.write_text(yaml.safe_dump({
         "controller_server": {"ros__parameters": {
-            "FollowPath": {"plugin": "nav2_mppi_controller::MPPIController", "vx_max": 0.5},
+            "FollowPath": {
+                "plugin": "nav2_rotation_shim_controller::RotationShimController",
+                "primary_controller": "nav2_mppi_controller::MPPIController",
+                "rotate_to_goal_heading": True, "vx_max": 0.5,
+            },
         }},
         "bt_navigator": {"ros__parameters": {"default_nav_to_pose_bt_xml": str(tree)}},
     }))
@@ -175,29 +179,36 @@ def test_sut_velocity_is_validated_before_ros_imports(tmp_path: Path, speed) -> 
 def _benchmark_preset() -> dict:
     return {"visualize": False, "regenerate_noises": False,
             "xy_goal_tolerance": 0.20, "yaw_goal_tolerance": 0.25, "stateful": True,
-            "goal_angle_activation_distance": 0.25}
+            "goal_angle_activation_distance": 0.20}
 
 
 def _controller_values() -> list[SimpleNamespace]:
     return [
-        SimpleNamespace(type=4, string_value="nav2_mppi_controller::MPPIController"),
+        SimpleNamespace(type=4,
+                        string_value="nav2_rotation_shim_controller::RotationShimController"),
         SimpleNamespace(type=3, double_value=0.5),
         SimpleNamespace(type=1, bool_value=False),
         SimpleNamespace(type=1, bool_value=False),
         SimpleNamespace(type=3, double_value=0.20),
         SimpleNamespace(type=3, double_value=0.25),
         SimpleNamespace(type=1, bool_value=True),
-        SimpleNamespace(type=3, double_value=0.25),
+        SimpleNamespace(type=3, double_value=0.20),
+        SimpleNamespace(type=4, string_value="nav2_mppi_controller::MPPIController"),
+        SimpleNamespace(type=1, bool_value=True),
     ]
 
 
 def test_effective_controller_and_fixed_preset_require_typed_ros_values() -> None:
     controller, preset = decode_controller_parameters(_controller_values())
-    assert controller == {"plugin": "nav2_mppi_controller::MPPIController", "vx_max": 0.5}
+    assert controller == {
+        "plugin": "nav2_rotation_shim_controller::RotationShimController",
+        "primary_controller": "nav2_mppi_controller::MPPIController",
+        "rotate_to_goal_heading": True, "vx_max": 0.5,
+    }
     assert preset == _benchmark_preset()
 
 
-@pytest.mark.parametrize("index", range(8))
+@pytest.mark.parametrize("index", range(10))
 def test_controller_readback_rejects_unset_or_wrong_parameter_types(index: int) -> None:
     values = _controller_values()
     values[index].type = 0
@@ -208,6 +219,42 @@ def test_controller_readback_rejects_unset_or_wrong_parameter_types(index: int) 
 def test_controller_readback_rejects_missing_fields() -> None:
     with pytest.raises(ValueError, match="incomplete"):
         decode_controller_parameters(_controller_values()[:-1])
+
+
+@pytest.mark.parametrize("name,value", [
+    ("plugin", "nav2_mppi_controller::MPPIController"), ("plugin", None),
+    ("primary_controller", "different::PrimaryController"),
+    ("primary_controller", None), ("rotate_to_goal_heading", False),
+    ("rotate_to_goal_heading", "true"), ("rotate_to_goal_heading", 1),
+    ("rotate_to_goal_heading", None),
+])
+def test_frozen_yaml_requires_rotation_shim_mppi_primary_and_enabled_goal_rotation(
+    tmp_path: Path, name: str, value,
+) -> None:
+    args = _asset_args(tmp_path)
+    data = yaml.safe_load(args.params.read_text())
+    follow_path = data["controller_server"]["ros__parameters"]["FollowPath"]
+    if value is None:
+        follow_path.pop(name)
+    else:
+        follow_path[name] = value
+    args.params.write_text(yaml.safe_dump(data))
+    with pytest.raises(ValueError, match="requires"):
+        asset_manifest(args)
+
+
+@pytest.mark.parametrize("index,attribute,value", [
+    (0, "string_value", "nav2_mppi_controller::MPPIController"),
+    (8, "string_value", "different::PrimaryController"),
+    (9, "bool_value", False), (9, "bool_value", 1),
+])
+def test_effective_controller_rejects_invalid_goal_phase_configuration(
+    index: int, attribute: str, value,
+) -> None:
+    values = _controller_values()
+    setattr(values[index], attribute, value)
+    with pytest.raises(ValueError, match="requires"):
+        decode_controller_parameters(values)
 
 
 @pytest.mark.parametrize("name,value", [
@@ -232,7 +279,7 @@ def test_asset_manifest_records_fixed_preset_from_sut_yaml(tmp_path: Path, monke
     controller["general_goal_checker"] = {
         "stateful": True, "xy_goal_tolerance": 0.20, "yaw_goal_tolerance": 0.25,
     }
-    controller["FollowPath"]["GoalAngleCritic"] = {"threshold_to_consider": 0.25}
+    controller["FollowPath"]["GoalAngleCritic"] = {"threshold_to_consider": 0.20}
     args.params.write_text(yaml.safe_dump(data))
     assert asset_manifest(args)["benchmark_preset_expected"] == _benchmark_preset()
     controller["general_goal_checker"]["xy_goal_tolerance"] = False
@@ -241,7 +288,9 @@ def test_asset_manifest_records_fixed_preset_from_sut_yaml(tmp_path: Path, monke
         asset_manifest(args)
 
 
-@pytest.mark.parametrize("change", [None, "speed", "preset", "goal_angle", "file"])
+@pytest.mark.parametrize("change", [
+    None, "speed", "preset", "goal_angle", "file", "plugin", "primary", "rotation",
+])
 def test_after_navigation_readback_detects_parameter_or_file_drift(
     tmp_path: Path, monkeypatch, change: str | None,
 ) -> None:
@@ -262,6 +311,12 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
         values[7].double_value = 0.5
     elif change == "file":
         params.write_text("changed controller configuration")
+    elif change == "plugin":
+        values[0].string_value = "nav2_mppi_controller::MPPIController"
+    elif change == "primary":
+        values[8].string_value = "different::PrimaryController"
+    elif change == "rotation":
+        values[9].bool_value = False
     response = SimpleNamespace(values=values)
     future = SimpleNamespace(done=lambda: True, result=lambda: response)
     client = SimpleNamespace(service_is_ready=lambda: True, call_async=lambda request: future)
@@ -279,7 +334,11 @@ def test_after_navigation_readback_detects_parameter_or_file_drift(
     monkeypatch.setitem(sys.modules, "rcl_interfaces.srv", SimpleNamespace(
         GetParameters=SimpleNamespace(Request=SimpleNamespace),
     ))
-    if change:
+    if change in ("plugin", "primary", "rotation"):
+        with pytest.raises(ValueError, match="requires"):
+            verify_controller_unchanged(argparse.Namespace(params=params), manifest)
+        assert not manifest["checks"].get("controller_stable")
+    elif change:
         with pytest.raises(RuntimeError, match="changed during navigation"):
             verify_controller_unchanged(argparse.Namespace(params=params), manifest)
         assert not manifest["checks"].get("benchmark_preset_stable")

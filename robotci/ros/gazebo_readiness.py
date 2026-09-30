@@ -26,6 +26,8 @@ from robotci.metrics import planar_yaw_from_quaternion
 START_TOLERANCE_M = 0.15
 START_YAW_TOLERANCE_RAD = 0.15
 MAP_CLEARANCE_M = 0.55
+ROTATION_SHIM_PLUGIN = "nav2_rotation_shim_controller::RotationShimController"
+MPPI_PLUGIN = "nav2_mppi_controller::MPPIController"
 REQUIRED_LIFECYCLE_NODES = (
     "map_server",
     "amcl",
@@ -41,6 +43,7 @@ CONTROLLER_PARAMETER_NAMES = (
     "FollowPath.regenerate_noises", "general_goal_checker.xy_goal_tolerance",
     "general_goal_checker.yaw_goal_tolerance", "general_goal_checker.stateful",
     "FollowPath.GoalAngleCritic.threshold_to_consider",
+    "FollowPath.primary_controller", "FollowPath.rotate_to_goal_heading",
 )
 BEHAVIOR_TREE_PARAMETER = "default_nav_to_pose_bt_xml"
 
@@ -60,20 +63,36 @@ def validate_benchmark_preset(preset: dict[str, Any]) -> None:
             raise ValueError(f"benchmark {name} must be a finite positive number")
 
 
+def validate_goal_phase_controller(controller: dict[str, Any]) -> None:
+    if controller.get("plugin") != ROTATION_SHIM_PLUGIN:
+        raise ValueError("Gazebo acceptance requires the RotationShimController FollowPath plugin")
+    if controller.get("primary_controller") != MPPI_PLUGIN:
+        raise ValueError("Gazebo acceptance requires an MPPI primary_controller")
+    if controller.get("rotate_to_goal_heading") is not True:
+        raise ValueError("Gazebo acceptance requires rotate_to_goal_heading=true")
+    speed = controller.get("vx_max")
+    try:
+        valid = (not isinstance(speed, bool) and isinstance(speed, int | float)
+                 and math.isfinite(speed) and speed > 0)
+    except OverflowError:
+        valid = False
+    if not valid:
+        raise ValueError("FollowPath.vx_max must be a finite positive number")
+
+
 def decode_controller_parameters(values: list[Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     """Validate ROS ParameterValue types before recording effective settings."""
     if len(values) != len(CONTROLLER_PARAMETER_NAMES):
         raise ValueError("controller read-back is incomplete")
     for name, value, expected_type in zip(
-        CONTROLLER_PARAMETER_NAMES, values, (4, 3, 1, 1, 3, 3, 1, 3), strict=True
+        CONTROLLER_PARAMETER_NAMES, values, (4, 3, 1, 1, 3, 3, 1, 3, 4, 1), strict=True
     ):
         if value.type != expected_type:
             raise ValueError(f"controller {name} has the wrong ROS parameter type")
-    plugin, speed, visualize, noises, xy, yaw, stateful, angle_distance = values
-    controller = {"plugin": plugin.string_value, "vx_max": speed.double_value}
-    if (not math.isfinite(speed.double_value) or speed.double_value <= 0
-            or isinstance(speed.double_value, bool)):
-        raise ValueError("effective FollowPath.vx_max must be finite and positive")
+    plugin, speed, visualize, noises, xy, yaw, stateful, angle_distance, primary, rotation = values
+    controller = {"plugin": plugin.string_value, "primary_controller": primary.string_value,
+                  "rotate_to_goal_heading": rotation.bool_value, "vx_max": speed.double_value}
+    validate_goal_phase_controller(controller)
     preset = {
         "visualize": visualize.bool_value, "regenerate_noises": noises.bool_value,
         "xy_goal_tolerance": xy.double_value, "yaw_goal_tolerance": yaw.double_value,
@@ -200,16 +219,10 @@ def asset_manifest(args: argparse.Namespace) -> dict[str, Any]:
     params = yaml.safe_load(args.params.read_text(encoding="utf-8"))
     controller_parameters = params["controller_server"]["ros__parameters"]
     controller = controller_parameters["FollowPath"]
-    expected = {"plugin": controller["plugin"], "vx_max": controller["vx_max"]}
-    if expected["plugin"] != "nav2_mppi_controller::MPPIController":
-        raise ValueError("Gazebo acceptance requires the MPPI FollowPath controller")
-    if (
-        isinstance(expected["vx_max"], bool)
-        or not isinstance(expected["vx_max"], int | float)
-        or not math.isfinite(expected["vx_max"])
-        or expected["vx_max"] <= 0
-    ):
-        raise ValueError("FollowPath.vx_max must be a finite positive number")
+    expected = {"plugin": controller.get("plugin"), "vx_max": controller.get("vx_max"),
+                "primary_controller": controller.get("primary_controller"),
+                "rotate_to_goal_heading": controller.get("rotate_to_goal_heading")}
+    validate_goal_phase_controller(expected)
     checker = controller_parameters.get("general_goal_checker", {})
     preset = {
         "visualize": controller.get("visualize", False),
