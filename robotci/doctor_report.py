@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -21,6 +22,9 @@ def build_report(checks: list[CheckResult]) -> dict[str, object]:
             "ok": runtime.ok,
             "selected": runtime.value,
             "message": runtime.message,
+            "adapter_override": (
+                runtime.value == "native" and bool(os.environ.get("ROBOTCI_ATTEMPT_SCRIPT"))
+            ),
         }
         if runtime is not None
         else None,
@@ -45,8 +49,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--require-ros",
         action="store_true",
         help=(
-            "Require a native ROS2 Jazzy/Nav2 runtime; Docker fallback does not satisfy "
-            "this mode."
+            "Require a native ROS2 Jazzy/Nav2 runtime; Docker fallback does not satisfy this mode."
         ),
     )
     mode.add_argument(
