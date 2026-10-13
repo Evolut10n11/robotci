@@ -1,0 +1,63 @@
+name: Robot Model Probes
+
+on:
+  pull_request:
+    paths:
+      - "experiments/robot_models/probe.py"
+      - "experiments/robot_models/requirements.txt"
+      - "tests/test_robot_model_probe.py"
+      - ".github/workflows/robot-model-probes.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  physics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    env:
+      MUJOCO_GL: osmesa
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+    steps:
+      - name: Checkout RobotCI
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Checkout pinned third-party models
+        uses: actions/checkout@v4
+        with:
+          repository: google-deepmind/mujoco_menagerie
+          ref: 0059d4335f8156206f63a35662313385f7ad6d74
+          path: artifacts/model-source
+          persist-credentials: false
+          sparse-checkout: |
+            unitree_go2
+            unitree_g1
+            franka_emika_panda
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install isolated simulation dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libosmesa6
+          python -m pip install -r experiments/robot_models/requirements.txt
+      - name: Measure robot physics and changed controller gains
+        run: python experiments/robot_models/probe.py --models-root artifacts/model-source --output artifacts/model-probe --render
+      - name: Upload measured evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-robot-model-probes
+          path: |
+            artifacts/model-probe/
+            experiments/robot_models/
+          if-no-files-found: error
+          retention-days: 30
