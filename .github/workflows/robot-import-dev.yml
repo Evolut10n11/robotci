@@ -1,0 +1,43 @@
+name: Robot Import Development Snapshot
+on:
+  push:
+    branches: [feat/robot-description-import]
+    paths: [.github/workflows/robot-import-dev.yml]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+        working-directory: web
+      - uses: actions/checkout@v4
+        with:
+          repository: google-deepmind/mujoco_menagerie
+          ref: 0059d4335f8156206f63a35662313385f7ad6d74
+          path: artifacts/model-source
+          persist-credentials: false
+          sparse-checkout: |
+            unitree_go2
+            unitree_g1
+            franka_emika_panda
+      - name: Archive only source and isolated development dependencies
+        run: |
+          mkdir -p artifacts/dev-snapshot
+          git archive HEAD -o artifacts/dev-snapshot/source.tar
+          tar -czf artifacts/dev-snapshot/web-deps.tar.gz -C web node_modules
+          tar -czf artifacts/dev-snapshot/models.tar.gz -C artifacts/model-source unitree_go2 unitree_g1 franka_emika_panda
+          git rev-parse HEAD > artifacts/dev-snapshot/commit.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: robot-import-dev-snapshot
+          path: artifacts/dev-snapshot/
+          retention-days: 3
+          if-no-files-found: error
