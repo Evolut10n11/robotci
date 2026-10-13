@@ -18,6 +18,8 @@ from typing import Any
 
 import yaml
 
+from robotci.model_mimic import resolve_mimic_reference
+
 MAX_DESCRIPTION_BYTES = 2 * 1024 * 1024
 MAX_NODES = 256
 MAX_ELEMENTS = 8000
@@ -266,10 +268,30 @@ def _urdf(root: ET.Element, warnings: list[str]) -> list[dict[str, Any]]:
                     "ref": 0,
                 }
             ]
-            mimic = joint.find("mimic")
-            if mimic is not None:
-                raise ModelImportError("Связанные mimic-суставы пока не поддержаны в preview.")
-    return list(nodes.values())
+        mimics = joint.findall("mimic")
+        if mimics:
+            if len(mimics) != 1 or kind == "fixed":
+                raise ModelImportError("Нужен один mimic у подвижного скалярного сустава.")
+            mimic = mimics[0]
+            if len(mimic) or set(mimic.attrib) - {"joint", "multiplier", "offset"}:
+                raise ModelImportError("Неподдерживаемые атрибуты или вложения mimic.")
+            nodes[c]["joints"][0]["mimic"] = {
+                "joint": _name(mimic.get("joint")),
+                "multiplier": _numbers(mimic.get("multiplier"), 1, [1])[0],
+                "offset": _numbers(mimic.get("offset"), 1, [0])[0],
+            }
+    result = list(nodes.values())
+    _validate_tree(result)
+    try:
+        mimic_count = resolve_mimic_reference(result, max_depth=MAX_DEPTH)
+    except ValueError as exc:
+        raise ModelImportError(str(exc)) from exc
+    if mimic_count:
+        warnings.append(
+            f"Связанных mimic-суставов: {mimic_count}. Опорная поза учитывает связи и пределы; "
+            "это не записанное движение или контроллер."
+        )
+    return result
 
 
 def _mjcf(root: ET.Element, warnings: list[str]) -> list[dict[str, Any]]:

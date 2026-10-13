@@ -1,0 +1,66 @@
+name: URDF Mimic Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "robotci/model_import.py"
+      - "robotci/model_mimic.py"
+      - "robotci/viewer.py"
+      - "robotci/viewer_assets/**"
+      - "examples/robot-models/**"
+      - "tests/test_model_mimic.py"
+      - "experiments/robot_models/mimic_acceptance.py"
+      - "experiments/robot_models/verify-mimic-reference.mjs"
+      - "web/src/description-model.js"
+      - "web/package*.json"
+      - ".github/workflows/urdf-mimic.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  panda-import:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Read pinned upstream Panda description and local geometry
+        uses: actions/checkout@v4
+        with:
+          repository: bulletphysics/bullet3
+          ref: d3afe76132fc76b0f9b2359cbaef47a3766e7fbb
+          path: artifacts/bullet-source
+          persist-credentials: false
+          sparse-checkout: examples/pybullet/gym/pybullet_data/franka_panda
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install isolated browser test tools
+        run: |
+          python -m pip install -e . playwright==1.55.0
+          python -m playwright install --with-deps chromium
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install renderer verification dependencies
+        run: npm ci --prefix web
+      - name: Verify actual Panda and coupled-gripper imports
+        run: >-
+          python experiments/robot_models/mimic_acceptance.py
+          --source artifacts/bullet-source/examples/pybullet/gym/pybullet_data/franka_panda
+          --output artifacts/mimic-acceptance
+      - name: Preserve measured browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: urdf-mimic-acceptance
+          path: artifacts/mimic-acceptance/
+          if-no-files-found: error
+          retention-days: 30
