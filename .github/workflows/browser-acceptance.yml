@@ -1,0 +1,87 @@
+name: Interactive Viewer Acceptance
+
+on:
+  pull_request:
+    paths:
+      - "experiments/robot_models/browser_acceptance.py"
+      - ".github/workflows/browser-acceptance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  chromium:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Resolve an unexpired real native recording
+        id: recording
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          root = 'https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY']
+          def get(path):
+              request = urllib.request.Request(root + path, headers={
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+              })
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return json.load(response)
+          runs = get('/actions/workflows/navigation-scenario.yml/runs?status=success&per_page=10')
+          for run in runs['workflow_runs']:
+              artifacts = get('/actions/runs/' + str(run['id']) + '/artifacts')['artifacts']
+              artifact = next((a for a in artifacts if a['name'] == 'navigation-suite-results'
+                               and not a['expired']), None)
+              if artifact is not None:
+                  evidence = {k: run[k] for k in ('id', 'head_sha', 'html_url', 'created_at')}
+                  evidence['artifact_id'] = artifact['id']
+                  evidence['artifact_digest'] = artifact.get('digest')
+                  Path('artifacts').mkdir(exist_ok=True)
+                  Path('artifacts/browser-source.json').write_text(json.dumps(evidence, indent=2))
+                  with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+                      stream.write('run_id=' + str(run['id']) + '\n')
+                  break
+          else:
+              raise SystemExit('No unexpired successful navigation recording available')
+          PY
+      - name: Download that recording without changing it
+        uses: actions/download-artifact@v4
+        with:
+          name: navigation-suite-results
+          run-id: ${{ steps.recording.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: artifacts/browser-source
+      - name: Install isolated browser test tools
+        run: |
+          python -m pip install -e . playwright==1.55.0
+          python -m playwright install --with-deps chromium
+      - name: Exercise actual browser interactions
+        run: python experiments/robot_models/browser_acceptance.py --suite artifacts/browser-source/suite-result.json --output artifacts/browser-acceptance
+      - name: Preserve screenshots and machine-readable result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interactive-viewer-acceptance
+          path: |
+            artifacts/browser-acceptance/
+            artifacts/browser-source.json
+          if-no-files-found: error
+          retention-days: 30

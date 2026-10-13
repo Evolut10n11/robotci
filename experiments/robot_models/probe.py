@@ -128,7 +128,7 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
                 # Same measured 0.25 rad arm motion in every variant.
                 target[qindices[0]] += 0.25 * min(1.0, (float(data.time) - 1.0) / 0.5)
             data.ctrl[:] = initial_ctrl
-            for actuator, joint, qadr, vadr, position in mappings:
+            for actuator, _joint, qadr, vadr, position in mappings:
                 if position:
                     control = target[qadr]
                 else:
@@ -172,6 +172,8 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
                     render_data.qvel[:] = data.qvel
                     render_data.time = data.time
                     mujoco.mj_forward(model, render_data)
+                    if base_adr is not None:
+                        camera.lookat[:2] = data.qpos[base_adr:base_adr + 2]
                     renderer.update_scene(render_data, camera=camera)
                     image = Image.fromarray(renderer.render())
                     draw = ImageDraw.Draw(image)
@@ -233,7 +235,8 @@ def main() -> int:
     if output.exists():
         parser.error("output already exists; choose a fresh directory to preserve evidence")
     output.mkdir(parents=True)
-    sha = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
+    command = ["git", "-C", str(source), "rev-parse", "HEAD"]
+    sha = subprocess.check_output(command, text=True).strip()
     if sha != MENAGERIE_SHA:
         raise ValueError("model checkout does not match the pinned Menagerie revision")
     dirty = subprocess.check_output(
