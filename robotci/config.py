@@ -13,9 +13,7 @@ from robotci.visual_profiles import ROBOT_VISUAL_PROFILES, RobotVisualProfile
 RuntimeName = Literal["auto", "native", "docker"]
 _SCENARIO_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 _WINDOWS_RESERVED_NAMES = {"con", "prn", "aux", "nul"} | {
-    f"{prefix}{number}"
-    for prefix in ("com", "lpt")
-    for number in range(1, 10)
+    f"{prefix}{number}" for prefix in ("com", "lpt") for number in range(1, 10)
 }
 
 
@@ -93,6 +91,7 @@ class RobotConfig:
     """Presentation metadata; this does not select a simulator or robot controller."""
 
     visual_profile: RobotVisualProfile = "rover"
+    model: str | None = None
 
 
 @dataclass(frozen=True)
@@ -171,13 +170,10 @@ def _parse_scenario(value: object, index: int) -> ScenarioConfig:
 
     clean_name = name.strip()
     if not _SCENARIO_NAME_RE.fullmatch(clean_name):
-        raise ConfigError(
-            f"{prefix}.name must use only letters, numbers, '_' or '-'"
-        )
+        raise ConfigError(f"{prefix}.name must use only letters, numbers, '_' or '-'")
     if clean_name.casefold() in _WINDOWS_RESERVED_NAMES:
         raise ConfigError(
-            f"{prefix}.name '{clean_name}' is reserved on Windows; "
-            "choose a portable scenario name"
+            f"{prefix}.name '{clean_name}' is reserved on Windows; choose a portable scenario name"
         )
 
     if "start" not in data:
@@ -228,11 +224,17 @@ def _parse_scenario(value: object, index: int) -> ScenarioConfig:
 
 def _parse_robot(value: object) -> RobotConfig:
     data = _require_mapping(value, "config.robot")
-    _reject_unknown_keys(data, allowed={"visual_profile"}, name="config.robot")
-    profile = data.get("visual_profile", "rover")
+    from robotci.model_import import CATALOG
+
+    _reject_unknown_keys(data, allowed={"visual_profile", "model"}, name="config.robot")
+    model = data.get("model")
+    if model is not None and (not isinstance(model, str) or model not in CATALOG):
+        raise ConfigError("config.robot.model must identify a bundled robot model")
+    fallback = CATALOG[model]["profile"] if model else "rover"
+    profile = data.get("visual_profile", fallback)
     if not isinstance(profile, str) or profile not in ROBOT_VISUAL_PROFILES:
         raise ConfigError("config.robot.visual_profile must be one of: rover, quadruped, humanoid")
-    return RobotConfig(visual_profile=cast(RobotVisualProfile, profile))
+    return RobotConfig(visual_profile=cast(RobotVisualProfile, profile), model=model)
 
 
 def load_config(path: str | Path = "robotci.yaml") -> RobotCIConfig:
@@ -272,10 +274,7 @@ def load_config(path: str | Path = "robotci.yaml") -> RobotCIConfig:
     if not raw_scenarios:
         raise ConfigError("config.scenarios must contain at least one scenario")
 
-    scenarios = tuple(
-        _parse_scenario(value, index)
-        for index, value in enumerate(raw_scenarios)
-    )
+    scenarios = tuple(_parse_scenario(value, index) for index, value in enumerate(raw_scenarios))
     seen_names: dict[str, int] = {}
     for index, scenario in enumerate(scenarios):
         key = scenario.name.casefold()

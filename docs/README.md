@@ -10,6 +10,7 @@
 | [Nav2 Loopback example](../examples/nav2-loopback/README.md) | Three bundled navigation routes |
 | [Project onboarding](onboarding.md) | Initialize a configuration in an existing project |
 | [Baselines](baselines.md) | Capture, inspect, replace, and compare local baselines |
+| [Импорт модели робота](robot-model-import.md) | URDF/MJCF, авто-определение и локальные модели Go2/G1/Panda |
 | [Replay viewer](replay-viewer.md) | Open synthetic demos and recorded trajectories |
 | [Support bundle](support-bundle.md) | Collect and review compact diagnostics |
 | [Post-run acceptance](validation/postrun-acceptance.md) | Recheck recorded suites, baseline/gate/report/replay consumers, and explicit synthetic controls |

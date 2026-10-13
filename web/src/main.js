@@ -35,6 +35,10 @@ const state = {
   mode: location.hash === "#compare" ? "compare" : "replay",
   view: "3d",
   visualProfile: null,
+  robotDescription: null,
+  robotTemplate: null,
+  robotImportSerial: 0,
+  catalogModels: new Map(),
   focusedRobot: false,
   time: 0,
   duration: 0,
@@ -237,13 +241,20 @@ function renderScenarioList() {
 function renderProfiles() {
   const replay = state.scenario?.candidate.replay;
   const selected = visualProfile(replay, state.visualProfile);
+  const imported = state.robotDescription ?? (state.visualProfile === null ? state.catalogModels.get(replay?.robot.model)?.description : null);
   $("profile-list").innerHTML = ROBOT_PROFILES.map(({ id, label, description }) =>
-    `<button class="profile-card" data-profile="${id}" aria-pressed="${selected === id}" aria-label="${label}">${profileIllustration(id)}<span class="profile-name">${label}</span><span class="profile-caption">${description}</span></button>`).join("");
+    `<button class="profile-card" data-profile="${id}" aria-pressed="${!imported && selected === id}" aria-label="${label}">${profileIllustration(id)}<span class="profile-name">${label}</span><span class="profile-caption">${description}</span></button>`).join("");
   $("profile-source").textContent = state.visualProfile
     ? "Предпросмотр · запись не меняется"
     : replay?.robot.visual_profile ? "Профиль из записи" : "Ровер по умолчанию";
-  $("profile-reset").disabled = state.visualProfile === null;
-  $("robot-kind").textContent = ROBOT_PROFILES.find(({ id }) => id === selected).label;
+  $("profile-reset").disabled = state.visualProfile === null && !state.robotTemplate;
+  $("robot-kind").textContent = imported?.name ?? ROBOT_PROFILES.find(({ id }) => id === selected).label;
+  $("imported-model-summary").hidden = !imported;
+  if (imported) {
+    const missing = state.robotTemplate?.userData.missingMeshes?.length ?? 0;
+    $("imported-model-summary").textContent = `${imported.name} · ${imported.link_count} звеньев · ${imported.joint_count} суставов. Опорная поза, не телеметрия суставов.${missing ? ` Недоступны меши: ${missing}; показан частичный каркас.` : ""}`;
+    $("profile-source").textContent = "Своя модель в 3D · 2D использует условный маркер · результаты не меняются";
+  }
   const runtime = replay?.runtime ?? state.scenario?.candidate.runtime;
   $("runtime-label").textContent = ({ deterministic_demo: "Демонстрация", ros2_nav2: "ROS 2 · Nav2", ros2: "ROS 2", docker: "Docker" })[runtime] ?? runtime ?? "Среда не указана";
 }
@@ -376,15 +387,29 @@ async function mountViewport() {
   }
   try {
     if (state.view === "3d") {
+      const robotModels = {};
+      if (!state.robotTemplate && state.visualProfile === null) {
+        const ids = [...new Set(Object.values(runs).map((r) => r?.robot.model).filter(Boolean))];
+        if (ids.length) {
+          const { loadCatalogRobot } = await import("./robot-import-panel.js");
+          for (const id of ids) {
+            if (!state.catalogModels.has(id)) state.catalogModels.set(id, await loadCatalogRobot(id));
+          }
+          for (const [key, replay] of Object.entries(runs)) {
+            if (replay?.robot.model) robotModels[key] = state.catalogModels.get(replay.robot.model).model;
+          }
+          renderProfiles();
+        }
+      }
       const { SceneView } = await import("./scene-view.js");
       if (version !== state.renderVersion) return;
-      state.renderer = new SceneView($("viewport"), runs, { visualProfile: state.visualProfile });
-    } else state.renderer = new TopView($("viewport"), runs, { visualProfile: state.visualProfile });
+      state.renderer = new SceneView($("viewport"), runs, { visualProfile: state.visualProfile, robotModel: state.robotTemplate, robotModels });
+    } else state.renderer = new TopView($("viewport"), runs, { visualProfile: state.visualProfile, robotModel: state.robotTemplate });
   } catch {
     if (version !== state.renderVersion) return;
     state.view = "top";
     $("viewport").replaceChildren();
-    state.renderer = new TopView($("viewport"), runs, { visualProfile: state.visualProfile });
+    state.renderer = new TopView($("viewport"), runs, { visualProfile: state.visualProfile, robotModel: state.robotTemplate });
     $("top-button").setAttribute("aria-pressed", "true");
     $("scene-button").setAttribute("aria-pressed", "false");
     const fallbackNotice = "3D недоступен в этом браузере. Открыт вид сверху.";
@@ -444,6 +469,7 @@ function acceptSession(session) {
   for (const scenario of session.scenarios)
     for (const key of ["candidate", "baseline"])
       if (scenario[key]?.replay) validateReplay(scenario[key].replay);
+  void clearImportedRobot();
   state.session = session;
   state.visualProfile = null;
   state.focusedRobot = false;
@@ -509,14 +535,16 @@ $("profile-list").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-profile]");
   if (!button || !state.scenario) return;
   stop();
+  await clearImportedRobot();
   state.visualProfile = button.dataset.profile;
   state.focusedRobot = true;
   renderProfiles();
   $("profile-list").querySelector(`[data-profile="${state.visualProfile}"]`)?.focus();
   await mountViewport();
 });
-$("profile-reset").addEventListener("click", () => {
+$("profile-reset").addEventListener("click", async () => {
   if (!state.scenario) return;
+  await clearImportedRobot();
   state.visualProfile = null;
   renderProfiles();
   void mountViewport();
@@ -528,6 +556,26 @@ $("top-button").addEventListener("click", () => {
 $("scene-button").addEventListener("click", () => {
   state.view = "3d";
   void mountViewport();
+});
+async function clearImportedRobot() {
+  state.robotImportSerial++;
+  const template = state.robotTemplate;
+  state.robotTemplate = null;
+  state.robotDescription = null;
+  if (template) { const { disposeModel } = await import("./description-model.js"); disposeModel(template); }
+}
+$("robot-import-button").addEventListener("click", async () => {
+  stop();
+  const { openRobotImport } = await import("./robot-import-panel.js");
+  openRobotImport({ onApply: async ({ description, model }) => {
+    await clearImportedRobot();
+    state.robotDescription = description;
+    state.robotTemplate = model;
+    state.view = "3d";
+    state.focusedRobot = true;
+    renderProfiles();
+    await mountViewport();
+  } });
 });
 $("open-button").addEventListener("click", openDialog);
 $("help-button").addEventListener("click", () => {

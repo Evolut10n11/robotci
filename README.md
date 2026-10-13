@@ -47,6 +47,7 @@ RobotCI проверяет, не стал ли робот хуже выполн�
 | Сравнение с эталоном | Сохранить проверенный запуск под именем, сравнить с ним новую версию и выявить ухудшения по настраиваемым порогам |
 | Интеграция с CI | Сформировать JSON, Markdown и JUnit-отчёты; через GitHub Action завершить проверку с ошибкой при обнаружении регрессии |
 | Визуальный разбор | Открыть запись траектории в локальном интерфейсе на русском, посмотреть её в 2D/3D и синхронно сравнить два запуска |
+| Импорт робота | Вставить URDF/MJCF, определить приблизительный тип по структуре и показать собственную геометрию или явно выбранную модель из локального каталога |
 | Интеграция с AI-агентами | Через MCP читать результаты и, при явном разрешении, запускать, отслеживать, отменять симуляции и сравнивать их с эталоном |
 
 Эталонный запуск называется `baseline`, проверяемая новая версия называется
@@ -83,11 +84,6 @@ robotci view --demo
 
 ## Конфигурация робота и 3D-модель
 
-> Предварительная версия в [PR #104](https://github.com/Evolut10n11/robotci/pull/104).
-> Функция реализована в ветке `feat/robot-description-import`, но ещё не включена
-> в `main`. Инструкции этого раздела относятся к этой ветке; обычная установка
-> из `main` пока не содержит диалог импорта и поле `robot.model`.
-
 В просмотрщике можно вставить описание робота, а не выбирать только условный
 силуэт. Приложение разбирает звенья и суставы, определяет приблизительный тип
 конструкции и показывает доступную геометрию. Если данных недостаточно,
@@ -95,15 +91,9 @@ robotci view --demo
 
 ### Попробовать без ROS и Docker
 
-Для проверки предварительной версии используйте отдельный каталог, не меняя
-рабочий checkout проекта. Нужен Python 3.12:
+После [установки](#start-here) откройте локальное демо на свободном порту:
 
 ```powershell
-git clone --branch feat/robot-description-import --single-branch https://github.com/Evolut10n11/robotci.git robotci-model-preview
-cd robotci-model-preview
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e .
 robotci view --demo --port 0
 ```
 
@@ -158,8 +148,8 @@ Xacro и внешние include не выполняются; нужен гото
 Panda не переключает симулятор и не создаёт контроллер этого робота.
 
 Поддерживаемые конструкции, работа с локальными мешами и ограничения описаны
-в [руководстве по импорту](https://github.com/Evolut10n11/robotci/blob/f829a3d3e2d5a5861bfcc8b3a18712aa98ac245c/docs/robot-model-import.md).
-[Протокол проверки импорта](https://github.com/Evolut10n11/robotci/blob/f829a3d3e2d5a5861bfcc8b3a18712aa98ac245c/docs/validation/robot-model-import-2026-10-13.md)
+в [руководстве по импорту](docs/robot-model-import.md).
+[Протокол проверки импорта](docs/validation/robot-model-import-2026-10-13.md)
 содержит проверку сборки моделей и браузерных действий.
 
 ### Что проверено в физическом симуляторе
@@ -199,7 +189,7 @@ Docker с Linux-контейнерами или отдельный Ubuntu runner
 | Направление | Планируемое развитие |
 | --- | --- |
 | Внешние пилоты и надёжность | Проверить полный цикл на проектах других команд, собрать результаты и ограничения; расширить измеренные Nav2/Gazebo-проверки на новые маршруты и окружения |
-| Новые роботы и симуляторы | На основе отдельных MuJoCo-экспериментов с Go2, G1 и Panda проработать полноценные адаптеры, суставную телеметрию и контроллеры. Визуальный импорт подготовлен в PR #104; поддержка исполнения этих роботов всем продуктом пока не заявляется |
+| Новые роботы и симуляторы | На основе отдельных MuJoCo-экспериментов с Go2, G1 и Panda проработать полноценные адаптеры, суставную телеметрию и контроллеры. Визуальный импорт уже доступен, поддержка их исполнения всем продуктом пока не заявляется |
 | Визуальная диагностика и AI | Развивать контекст карты и событий в replay по задачам пользователей; поверх существующего MCP исследовать диагностику причин регрессий, связь с изменениями кода и интеграции LangGraph/LangChain. Итоговый вердикт останется детерминированным |
 | Командная работа | После подтверждения потребности в пилотах проработать общие эталоны, постоянную историю запусков, динамику метрик между изменениями и совместные правила проверки |
 
@@ -232,6 +222,7 @@ is implemented; external validation is in progress. Start with simulation.
 | Gate a change | Named local baselines, compatibility checks, deterministic thresholds, and blocking exit codes |
 | Review results in CI | JSON, Markdown, JUnit, and a reusable GitHub Action |
 | Inspect a run | 2D/3D replay with robot visual profiles, synchronized comparison, observed stuck/recovery events, and six read-only MCP tools |
+| Import a robot | Bounded URDF/MJCF inspection, approximate structural classification, local OBJ/STL geometry, and bundled Go2/G1/Panda reference models |
 | Orchestrate a simulation | Explicitly enabled MCP start/status/cancel/compare tools with isolated evidence and owned runtime cleanup |
 
 Navigation success alone is not enough. A robot can reach its goal and still take
@@ -296,12 +287,6 @@ an actual run.
 
 ### Import a robot description
 
-> Preview in [PR #104](https://github.com/Evolut10n11/robotci/pull/104), not yet
-> included in `main`. This section describes `feat/robot-description-import`;
-> use the separate preview checkout shown in the Russian section above.
-> The standard `main` installation does not yet include this import dialog or
-> accept `robot.model`.
-
 Open **«Описание робота»**, paste URDF/MJCF or choose a local description file,
 then click **«Распознать и встроить»**. Select a folder to provide local OBJ/STL
 meshes. The viewer builds the supported description's structure and reports
@@ -316,7 +301,7 @@ catalog recognition requires an exact pinned description match, not a brand name
 This is reference-pose visualization, not dynamics, joint animation or an automatic
 controller. Controller-only YAML cannot determine physical geometry. Existing
 `robot.visual_profile` remains an approximate presentation fallback, not an exact
-robot identity. See the [import guide](https://github.com/Evolut10n11/robotci/blob/f829a3d3e2d5a5861bfcc8b3a18712aa98ac245c/docs/robot-model-import.md) and
+robot identity. See the [import guide](docs/robot-model-import.md) and
 [visual profile contract](docs/contracts.md#robot-visual-profile).
 
 ### Run your first suite
@@ -404,7 +389,7 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 | --- | --- |
 | M0–M7: execution, metrics, regression, reproducibility, CI, public alpha | Implemented |
 | M8: real-world validation | In progress; external evidence pending |
-| M9: visual replay | Local workbench with visual profiles, playback, 2D/3D, synchronized comparison and suite gate evidence; description import and bundled reference models are in PR #104 |
+| M9: visual replay | Local workbench with description import, bundled reference models, playback, 2D/3D, synchronized comparison, and suite gate evidence |
 | M10: additional robot adapters | Bounded Go2/G1/Panda MuJoCo probes exist; production adapters and joint-trajectory integration remain future work |
 | M11: agent integration | Six inspection tools, four opt-in managed simulation tools and a reference MCP workflow |
 | Nav2 / Gazebo acceptance | Experimental setup succeeded in two separately fingerprinted internal experiments; each passed 20/20 baseline gates and both controls, and detected the real speed regression |
@@ -437,5 +422,5 @@ for repository structure, checks, and the branch lifecycle.
 Found a problem? [Open a bug report](https://github.com/Evolut10n11/robotci/issues/new?template=bug_report.yml).
 Tried a real project? [Share pilot feedback](https://github.com/Evolut10n11/robotci/issues/new?template=public_alpha_feedback.yml).
 
-RobotCI code is licensed under [Apache 2.0](LICENSE). The model catalog in PR #104
-retains upstream licenses alongside its assets in [the preview catalog](https://github.com/Evolut10n11/robotci/blob/f829a3d3e2d5a5861bfcc8b3a18712aa98ac245c/robotci/model_catalog).
+RobotCI code is licensed under [Apache 2.0](LICENSE). Bundled robot models retain
+their upstream licenses alongside the assets in [the local catalog](robotci/model_catalog).

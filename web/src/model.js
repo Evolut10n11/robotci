@@ -77,6 +77,8 @@ export function validateReplay(replay) {
   if (number(replay.duration_sec, "Длительность") <= 0)
     fail("Длительность должна быть больше нуля.");
   string(object(replay.robot, "Робот").type, "Тип робота");
+  if (Object.hasOwn(replay.robot, "model") && !["unitree_go2", "unitree_g1", "franka_emika_panda"].includes(replay.robot.model))
+    throw new Error("Неизвестная модель робота в записи.");
   if (Object.hasOwn(replay.robot, "visual_profile") &&
       !ROBOT_PROFILES.some(({ id }) => id === replay.robot.visual_profile))
     fail("Визуальный профиль робота: ожидается rover, quadruped или humanoid.");

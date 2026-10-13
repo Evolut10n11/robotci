@@ -1,0 +1,2166 @@
+{
+  "schema_version": 1,
+  "format": "MJCF",
+  "name": "go2",
+  "nodes": [
+    {
+      "name": "base",
+      "parent": null,
+      "pos": [
+        0,
+        0,
+        0.27
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/base_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/base_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/base_2.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/base_3.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/base_4.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.3762,
+            0.0935,
+            0.114
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0.285,
+            0,
+            0.01
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.05,
+            0.09
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            0.293,
+            0,
+            -0.06
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.047
+          ]
+        }
+      ],
+      "floating_base": true
+    },
+    {
+      "name": "FL_hip",
+      "parent": "base",
+      "pos": [
+        0.1934,
+        0.0465,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "FL_hip_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -1.0472,
+            1.0472
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.9,
+            0.95,
+            0.95,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hip_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hip_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0,
+            0.08,
+            0
+          ],
+          "quat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865475
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.046,
+            0.04
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FL_thigh",
+      "parent": "FL_hip",
+      "pos": [
+        0,
+        0.0955,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "FL_thigh_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -1.5708,
+            3.4907
+          ],
+          "value": 0.9,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.9,
+            0.95,
+            0.95,
+            1
+          ],
+          "collision": false,
+          "file": "assets/thigh_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/thigh_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0,
+            0,
+            -0.1065
+          ],
+          "quat": [
+            0,
+            0.7071067811865475,
+            0,
+            0.7071067811865475
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.213,
+            0.0245,
+            0.034
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FL_calf",
+      "parent": "FL_thigh",
+      "pos": [
+        0,
+        0,
+        -0.213
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "FL_calf_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -2.7227,
+            -0.83776
+          ],
+          "value": -1.8,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/calf_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/calf_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0.008,
+            0,
+            -0.06
+          ],
+          "quat": [
+            0,
+            -0.10480695627989212,
+            0,
+            0.9944925851484991
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.012,
+            0.12
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0.02,
+            0,
+            -0.148
+          ],
+          "quat": [
+            0,
+            0.02499738790938183,
+            0,
+            0.9996875164758776
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.011,
+            0.065
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            -0.213
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/foot.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            -0.002,
+            0,
+            -0.213
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.022
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FR_hip",
+      "parent": "base",
+      "pos": [
+        0.1934,
+        -0.0465,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "FR_hip_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -1.0472,
+            1.0472
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0.9999999989269139,
+            0,
+            0,
+            0.00004632679995028736
+          ],
+          "rgba": [
+            0.9,
+            0.95,
+            0.95,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hip_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0.9999999989269139,
+            0,
+            0,
+            0.00004632679995028736
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hip_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0,
+            -0.08,
+            0
+          ],
+          "quat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865475
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.046,
+            0.04
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FR_thigh",
+      "parent": "FR_hip",
+      "pos": [
+        0,
+        -0.0955,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "FR_thigh_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -1.5708,
+            3.4907
+          ],
+          "value": 0.9,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.9,
+            0.95,
+            0.95,
+            1
+          ],
+          "collision": false,
+          "file": "assets/thigh_mirror_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/thigh_mirror_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0,
+            0,
+            -0.1065
+          ],
+          "quat": [
+            0,
+            0.7071067811865475,
+            0,
+            0.7071067811865475
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.213,
+            0.0245,
+            0.034
+          ]
+        }
+      ]
+    },
+    {
+      "name": "FR_calf",
+      "parent": "FR_thigh",
+      "pos": [
+        0,
+        0,
+        -0.213
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "FR_calf_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -2.7227,
+            -0.83776
+          ],
+          "value": -1.8,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/calf_mirror_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/calf_mirror_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0.01,
+            0,
+            -0.06
+          ],
+          "quat": [
+            0,
+            -0.09983341658375151,
+            0,
+            0.9950041652843545
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.013,
+            0.12
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0.02,
+            0,
+            -0.148
+          ],
+          "quat": [
+            0,
+            0.02499738790938183,
+            0,
+            0.9996875164758776
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.011,
+            0.065
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            -0.213
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/foot.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            -0.002,
+            0,
+            -0.213
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.022
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RL_hip",
+      "parent": "base",
+      "pos": [
+        -0.1934,
+        0.0465,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "RL_hip_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -1.0472,
+            1.0472
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0.9999999989269139,
+            0,
+            0.00004632679995028736
+          ],
+          "rgba": [
+            0.9,
+            0.95,
+            0.95,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hip_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0.9999999989269139,
+            0,
+            0.00004632679995028736
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hip_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0,
+            0.08,
+            0
+          ],
+          "quat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865475
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.046,
+            0.04
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RL_thigh",
+      "parent": "RL_hip",
+      "pos": [
+        0,
+        0.0955,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "RL_thigh_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -0.5236,
+            4.5379
+          ],
+          "value": 0.9,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.9,
+            0.95,
+            0.95,
+            1
+          ],
+          "collision": false,
+          "file": "assets/thigh_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/thigh_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0,
+            0,
+            -0.1065
+          ],
+          "quat": [
+            0,
+            0.7071067811865475,
+            0,
+            0.7071067811865475
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.213,
+            0.0245,
+            0.034
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RL_calf",
+      "parent": "RL_thigh",
+      "pos": [
+        0,
+        0,
+        -0.213
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "RL_calf_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -2.7227,
+            -0.83776
+          ],
+          "value": -1.8,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/calf_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/calf_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0.01,
+            0,
+            -0.06
+          ],
+          "quat": [
+            0,
+            -0.09983341658375151,
+            0,
+            0.9950041652843545
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.013,
+            0.12
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0.02,
+            0,
+            -0.148
+          ],
+          "quat": [
+            0,
+            0.02499738790938183,
+            0,
+            0.9996875164758776
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.011,
+            0.065
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            -0.213
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/foot.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            -0.002,
+            0,
+            -0.213
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.022
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RR_hip",
+      "parent": "base",
+      "pos": [
+        -0.1934,
+        -0.0465,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "RR_hip_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -1.0472,
+            1.0472
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0.0000463267999005747,
+            0.0000463267999005747,
+            -0.9999999978538276,
+            2.1461699953939492e-9
+          ],
+          "rgba": [
+            0.9,
+            0.95,
+            0.95,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hip_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0.0000463267999005747,
+            0.0000463267999005747,
+            -0.9999999978538276,
+            2.1461699953939492e-9
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hip_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0,
+            -0.08,
+            0
+          ],
+          "quat": [
+            0.7071067811865475,
+            0,
+            0,
+            0.7071067811865475
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.046,
+            0.04
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RR_thigh",
+      "parent": "RR_hip",
+      "pos": [
+        0,
+        -0.0955,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "RR_thigh_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -0.5236,
+            4.5379
+          ],
+          "value": 0.9,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.9,
+            0.95,
+            0.95,
+            1
+          ],
+          "collision": false,
+          "file": "assets/thigh_mirror_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/thigh_mirror_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0,
+            0,
+            -0.1065
+          ],
+          "quat": [
+            0,
+            0.7071067811865475,
+            0,
+            0.7071067811865475
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.213,
+            0.0245,
+            0.034
+          ]
+        }
+      ]
+    },
+    {
+      "name": "RR_calf",
+      "parent": "RR_thigh",
+      "pos": [
+        0,
+        0,
+        -0.213
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "RR_calf_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -2.7227,
+            -0.83776
+          ],
+          "value": -1.8,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.671705,
+            0.692426,
+            0.77427,
+            1
+          ],
+          "collision": false,
+          "file": "assets/calf_mirror_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/calf_mirror_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0.01,
+            0,
+            -0.06
+          ],
+          "quat": [
+            0,
+            -0.09983341658375151,
+            0,
+            0.9950041652843545
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.013,
+            0.12
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0.02,
+            0,
+            -0.148
+          ],
+          "quat": [
+            0,
+            0.02499738790938183,
+            0,
+            0.9996875164758776
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.011,
+            0.065
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            -0.213
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/foot.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            -0.002,
+            0,
+            -0.213
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.022
+          ]
+        }
+      ]
+    }
+  ],
+  "source_sha256": "554e7b8c08a455487850f3566c96f74f17c6566f636b0a6034e7a87044e6df7b",
+  "visual_only": true,
+  "simulation_ready": false,
+  "classification": {
+    "kind": "quadruped",
+    "profile": "quadruped",
+    "confidence": "high",
+    "reasons": [
+      "Найдены четыре коленных и тазобедренных цепочки."
+    ]
+  },
+  "identification": "declared_catalog",
+  "model_id": "unitree_go2",
+  "warnings": [
+    "Показана опорная поза home/stand из MJCF, не записанное движение суставов."
+  ],
+  "joint_count": 12,
+  "link_count": 13,
+  "catalog_asset": "unitree_go2.glb.gz",
+  "provenance": {
+    "repository": "google-deepmind/mujoco_menagerie",
+    "revision": "0059d4335f8156206f63a35662313385f7ad6d74",
+    "file": "unitree_go2/go2.xml",
+    "pose": "upstream home/stand",
+    "source_tree_sha256": "816e87b927c2dcf8da25a3886ae73bd025f6a0da8bcbff2de64e592c4820fc62"
+  },
+  "geometry": {
+    "triangles": 398432,
+    "dimensions_m": [
+      0.732052646314103,
+      0.3240260016322136,
+      0.38827404127188525
+    ],
+    "glb_gzip_sha256": "fe3edf2f7bf0b4bc8113c6489e9b1244b4e2ab7097d722cd0a0e2641735fa049"
+  },
+  "reference_frames": {
+    "base": {
+      "position": [
+        0,
+        0,
+        0.27
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "FL_hip": {
+      "position": [
+        0.1934,
+        0.0465,
+        0.27
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "FL_thigh": {
+      "position": [
+        0.1934,
+        0.14200000000000002,
+        0.27
+      ],
+      "quaternion_xyzw": [
+        0,
+        0.4349655341112302,
+        0,
+        0.900447102352677
+      ]
+    },
+    "FL_calf": {
+      "position": [
+        0.026551368249346036,
+        0.14200000000000002,
+        0.1375970767583485
+      ],
+      "quaternion_xyzw": [
+        0,
+        -0.4349655341112301,
+        0,
+        0.900447102352677
+      ]
+    },
+    "FR_hip": {
+      "position": [
+        0.1934,
+        -0.0465,
+        0.27
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "FR_thigh": {
+      "position": [
+        0.1934,
+        -0.14200000000000002,
+        0.27
+      ],
+      "quaternion_xyzw": [
+        0,
+        0.4349655341112302,
+        0,
+        0.900447102352677
+      ]
+    },
+    "FR_calf": {
+      "position": [
+        0.026551368249346036,
+        -0.14200000000000002,
+        0.1375970767583485
+      ],
+      "quaternion_xyzw": [
+        0,
+        -0.4349655341112301,
+        0,
+        0.900447102352677
+      ]
+    },
+    "RL_hip": {
+      "position": [
+        -0.1934,
+        0.0465,
+        0.27
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "RL_thigh": {
+      "position": [
+        -0.1934,
+        0.14200000000000002,
+        0.27
+      ],
+      "quaternion_xyzw": [
+        0,
+        0.4349655341112302,
+        0,
+        0.900447102352677
+      ]
+    },
+    "RL_calf": {
+      "position": [
+        -0.3602486317506539,
+        0.14200000000000002,
+        0.1375970767583485
+      ],
+      "quaternion_xyzw": [
+        0,
+        -0.4349655341112301,
+        0,
+        0.900447102352677
+      ]
+    },
+    "RR_hip": {
+      "position": [
+        -0.1934,
+        -0.0465,
+        0.27
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "RR_thigh": {
+      "position": [
+        -0.1934,
+        -0.14200000000000002,
+        0.27
+      ],
+      "quaternion_xyzw": [
+        0,
+        0.4349655341112302,
+        0,
+        0.900447102352677
+      ]
+    },
+    "RR_calf": {
+      "position": [
+        -0.3602486317506539,
+        -0.14200000000000002,
+        0.1375970767583485
+      ],
+      "quaternion_xyzw": [
+        0,
+        -0.4349655341112301,
+        0,
+        0.900447102352677
+      ]
+    }
+  }
+}

@@ -7,9 +7,10 @@ import { poseAt, trajectorySegments } from "./playback.js";
 import { trajectoryBounds } from "./model.js";
 import { COLORS } from "./top-view.js";
 import { createRobotModel } from "./robot-models.js";
+import { cloneReferenceModel } from "./description-model.js";
 
 export class SceneView {
-  constructor(host, recordings, { visualProfile = null } = {}) {
+  constructor(host, recordings, { visualProfile = null, robotModel = null, robotModels = {} } = {}) {
     this.host = host;
     try {
       this.recordings = Object.entries(recordings).filter(([, replay]) => replay);
@@ -27,6 +28,7 @@ export class SceneView {
       this.renderer.domElement.setAttribute("aria-label", "Модель робота и записанные траектории в 3D. Модель условная; движения суставов не записаны. Перетаскивание поворачивает камеру, колесо меняет масштаб.");
       this.renderer.domElement.setAttribute("role", "img");
       host.append(this.renderer.domElement);
+      if (robotModel || Object.keys(robotModels).length) this.renderer.domElement.setAttribute("aria-label", "Импортированная модель робота в опорной позе. Движения суставов не записаны. Перетаскивание поворачивает камеру.");
       this.controls = new OrbitControls(this.camera, this.renderer.domElement);
       this.controls.minDistance = 0.55;
       this.controls.maxPolarAngle = Math.PI / 2 - 0.015;
@@ -96,7 +98,8 @@ export class SceneView {
           this.lineMaterials.push(material);
           this.scene.add(line);
         }
-        const robot = createRobotModel(visualProfile ?? replay.robot.visual_profile ?? "rover", {
+        const described = robotModel ?? robotModels[source];
+        const robot = described ? cloneReferenceModel(described, source === "baseline") : createRobotModel(visualProfile ?? replay.robot.visual_profile ?? "rover", {
           color: COLORS[source], ghost: source === "baseline",
         });
         this.scene.add(robot);

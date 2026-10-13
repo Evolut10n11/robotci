@@ -378,3 +378,13 @@ input[type="file"]::file-selector-button { min-height: 44px; border: 1px solid #
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* Robot import reuses the existing inspector/dialog hierarchy. */
+.model-import-button { width: 100%; margin: 10px 0; }
+.robot-import-dialog { width: min(680px, calc(100vw - 32px)); max-height: 90vh; overflow: auto; }
+.robot-preset-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.robot-text-label, .robot-entry-label { display: grid; gap: 8px; margin: 14px 0; font-size: 13px; }
+.robot-text-label textarea { width: 100%; min-height: 150px; padding: 12px; border: 1px solid #ccd5df; border-radius: 8px; font: 12px/1.6 ui-monospace, monospace; resize: vertical; }
+.robot-import-result { padding: 12px 14px; border: 1px solid #c9d8cf; background: #f5f9f6; border-radius: 8px; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.robot-import-result p { margin: 6px 0; }
+#imported-model-summary { overflow-wrap: anywhere; padding: 8px 0; }

@@ -3,6 +3,7 @@ from __future__ import annotations
 import errno
 import json
 import math
+import secrets
 import socket
 import webbrowser
 from collections.abc import Callable
@@ -128,9 +129,13 @@ def validate_replay(payload: object) -> dict[str, Any]:
         raise ViewerError("replay.robot.type must be a non-empty string")
     profile = robot.get("visual_profile", "rover")
     if not isinstance(profile, str) or profile not in ROBOT_VISUAL_PROFILES:
-        raise ViewerError(
-            "replay.robot.visual_profile must be one of: rover, quadruped, humanoid"
-        )
+        raise ViewerError("replay.robot.visual_profile must be one of: rover, quadruped, humanoid")
+
+    if "model" in robot:
+        from robotci.model_import import CATALOG
+
+        if not isinstance(robot["model"], str) or robot["model"] not in CATALOG:
+            raise ViewerError("replay.robot.model must identify a bundled visual model")
 
     world = _require_mapping(replay.get("world"), "replay.world")
     frame = world.get("frame")
@@ -266,6 +271,8 @@ def _handler_for(
     encoded_replay = json.dumps(replay, separators=(",", ":"), allow_nan=False).encode("utf-8")
     encoded_session = json.dumps(session, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
+    model_token = secrets.token_urlsafe(32)
+
     class ReplayHandler(SimpleHTTPRequestHandler):
         def __init__(self, *args: Any, **kwargs: Any) -> None:
             super().__init__(*args, directory=str(VIEWER_ASSETS_DIR), **kwargs)
@@ -278,8 +285,88 @@ def _handler_for(
             self.end_headers()
             self.wfile.write(body)
 
+        def _local_model_request(self) -> bool:
+            try:
+                host = urlsplit("http://" + self.headers.get("Host", ""))
+                if (
+                    host.hostname not in {"127.0.0.1", "localhost", "::1"}
+                    or host.port != self.server.server_address[1]
+                    or host.username is not None
+                    or host.password is not None
+                ):
+                    return False
+                origin = self.headers.get("Origin")
+                return origin is None or origin == f"http://{host.netloc}"
+            except ValueError:
+                return False
+
+        def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+            from robotci.model_import import ModelImportError, inspect_description
+
+            if urlsplit(self.path).path != "/api/robot-model/inspect":
+                self.send_error(404)
+                return
+            if not self._local_model_request() or not secrets.compare_digest(
+                self.headers.get("X-RobotCI-Model-Token", "").encode("utf-8"),
+                model_token.encode("ascii"),
+            ):
+                self._send_json(b'{"error":"Local model session required"}', 403)
+                return
+            try:
+                size = int(self.headers.get("Content-Length", "0"))
+                if (
+                    not 0 < size <= 4 * 1024 * 1024
+                    or self.headers.get("Transfer-Encoding") is not None
+                    or self.headers.get_content_type() != "application/json"
+                ):
+                    raise ModelImportError("Нужен JSON-запрос размером не более 4 МиБ.")
+                self.connection.settimeout(5)
+                raw = self.rfile.read(size)
+                if len(raw) != size:
+                    raise ModelImportError("Неполный запрос.")
+                value = json.loads(
+                    raw.decode("utf-8"),
+                    object_pairs_hook=_strict_object,
+                    parse_constant=_reject_constant,
+                )
+                if not isinstance(value, dict) or set(value) != {"text"}:
+                    raise ModelImportError("Ожидалось единственное поле text.")
+                report = inspect_description(value["text"])
+                self._send_json(json.dumps(report, ensure_ascii=False, allow_nan=False).encode())
+            except (ValueError, UnicodeError, OSError, RecursionError) as exc:
+                message = (
+                    str(exc)
+                    if isinstance(exc, ModelImportError)
+                    else "Некорректный запрос импорта."
+                )
+                self._send_json(json.dumps({"error": message}, ensure_ascii=False).encode(), 400)
+
         def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
             path = urlsplit(self.path).path
+            if path.startswith("/api/robot-model/"):
+                from robotci.model_import import CATALOG, CATALOG_DIR
+
+                if not self._local_model_request():
+                    self._send_json(b'{"error":"Local model session required"}', 403)
+                    return
+                if path == "/api/robot-model/catalog":
+                    self._send_json(json.dumps({"models": CATALOG, "token": model_token}).encode())
+                    return
+                model_id = path.removeprefix("/api/robot-model/asset/")
+                if model_id in CATALOG:
+                    asset = CATALOG_DIR / f"{model_id}.glb.gz"
+                    if asset.is_file():
+                        body = asset.read_bytes()
+                        self.send_response(200)
+                        self.send_header("Content-Type", "model/gltf-binary")
+                        self.send_header("Content-Encoding", "gzip")
+                        self.send_header("Content-Length", str(len(body)))
+                        self.send_header("Cache-Control", "no-cache")
+                        self.end_headers()
+                        self.wfile.write(body)
+                        return
+                self.send_error(404)
+                return
             if path == "/api/replay":
                 self._send_json(encoded_replay, status=200 if replay is not None else 404)
                 return
