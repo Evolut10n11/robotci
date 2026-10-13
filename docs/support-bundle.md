@@ -62,6 +62,29 @@ robotci-doctor --runtime-optional
 robotci-doctor --require-ros --output .robotci/doctor.json
 ```
 
+## Which runtime is checked
+
+By default, support-bundle readiness follows `runtime` in the validated config:
+`auto` allows the runner's native/Docker fallback; `native` and `docker` require
+that exact backend. An available alternative does not turn an unavailable
+configured backend into a PASS. `config.runtime` records the requested mode,
+while `doctor.runtime.selected` records the resolved backend or `none`.
+
+`--require-ros` explicitly overrides that selection with strict native ROS
+readiness, including the current shell's ROS2 Jazzy/Nav2 checks. In this mode,
+PASS describes native readiness, not the readiness of a configured Docker
+backend. Without this flag, the native probe can source the packaged ROS setup
+just as the runner does, even when the invoking shell has not sourced ROS.
+
+`--runtime-optional` still checks the configured backend, but unavailable runtime
+checks are nonblocking. An inventory PASS is not proof that simulations can run;
+inspect `doctor.runtime.ok` and `doctor.runtime.selected`. Invalid/missing config
+still makes the bundle FAIL. The standalone `robotci-doctor` remains an
+independent environment check and does not read `robotci.yaml`.
+
+These checks report prerequisites; they do not execute a navigation scenario or
+certify a successful simulation.
+
 ## What it contains
 
 The JSON bundle is schema-versioned and contains only compact setup information:

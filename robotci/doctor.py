@@ -5,6 +5,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 
+from robotci.config import RuntimeName
 from robotci.native_runtime import REQUIRED_ROS_PACKAGES
 from robotci.platform import current_platform
 from robotci.runner import RuntimeUnavailableError, select_runtime
@@ -65,15 +66,21 @@ def get_docker_status() -> tuple[bool, str]:
     return True, "docker daemon is available"
 
 
-def _selected_runtime(*, strict_native_ros: bool) -> str:
-    requested = "native" if strict_native_ros else "auto"
+def _selected_runtime(*, strict_native_ros: bool, runtime: RuntimeName = "auto") -> str:
+    requested = "native" if strict_native_ros else runtime
     try:
         return select_runtime(requested)
     except RuntimeUnavailableError:
         return "none"
 
 
-def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
+def run_doctor_checks(
+    *, require_ros: bool | None = None, runtime: RuntimeName = "auto"
+) -> list[CheckResult]:
+    """Check the requested backend; explicit strict ROS mode takes precedence."""
+    if runtime not in ("auto", "native", "docker"):
+        raise ValueError("unsupported runtime; expected auto, native, or docker")
+
     results: list[CheckResult] = []
     platform_info = current_platform()
 
@@ -152,7 +159,7 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
         and ros_distro == "jazzy"
         and all(prefix is not None for prefix in package_prefixes.values())
     )
-    selected_runtime = _selected_runtime(strict_native_ros=strict_native_ros)
+    selected_runtime = _selected_runtime(strict_native_ros=strict_native_ros, runtime=runtime)
 
     if strict_native_ros:
         runtime_ready = native_ready and selected_runtime == "native"
@@ -163,14 +170,24 @@ def run_doctor_checks(*, require_ros: bool | None = None) -> list[CheckResult]:
         )
     elif selected_runtime == "native":
         runtime_ready = True
-        runtime_message = "auto runtime will use native ROS2 Jazzy/Nav2"
+        runtime_message = (
+            "auto runtime will use native ROS2 Jazzy/Nav2"
+            if runtime == "auto"
+            else "selected native ROS2 Jazzy/Nav2 runtime is ready"
+        )
     elif selected_runtime == "docker":
         runtime_ready = True
-        runtime_message = "auto runtime will use Docker"
+        runtime_message = (
+            "auto runtime will use Docker"
+            if runtime == "auto"
+            else "selected Docker runtime is ready"
+        )
     else:
         runtime_ready = False
         runtime_message = (
             "no usable runtime found; install ROS2 Jazzy/Nav2 on Linux or start Docker"
+            if runtime == "auto"
+            else f"selected {runtime} runtime is unavailable"
         )
 
     results.append(
