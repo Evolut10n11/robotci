@@ -17,7 +17,7 @@
 
 # RobotCI
 
-[Описание на русском](#о-проекте) · [English overview and quickstart](#english-overview)
+[Описание на русском](#о-проекте) · [Импорт робота](#конфигурация-робота-и-3d-модель) · [English overview and quickstart](#english-overview)
 
 ## О проекте
 
@@ -47,6 +47,7 @@ RobotCI проверяет, не стал ли робот хуже выполн�
 | Сравнение с эталоном | Сохранить проверенный запуск под именем, сравнить с ним новую версию и выявить ухудшения по настраиваемым порогам |
 | Интеграция с CI | Сформировать JSON, Markdown и JUnit-отчёты; через GitHub Action завершить проверку с ошибкой при обнаружении регрессии |
 | Визуальный разбор | Открыть запись траектории в локальном интерфейсе на русском, посмотреть её в 2D/3D и синхронно сравнить два запуска |
+| Импорт робота | Вставить URDF/MJCF, определить приблизительный тип по структуре и показать собственную геометрию или явно выбранную модель из локального каталога |
 | Интеграция с AI-агентами | Через MCP читать результаты и, при явном разрешении, запускать, отслеживать, отменять симуляции и сравнивать их с эталоном |
 
 Эталонный запуск называется `baseline`, проверяемая новая версия называется
@@ -81,6 +82,85 @@ robotci view --demo
 Установка описана [ниже](#start-here). Демо использует синтетические данные и не
 выдаёт вердикт о качестве реального робота.
 
+## Конфигурация робота и 3D-модель
+
+В просмотрщике можно вставить описание робота, а не выбирать только условный
+силуэт. Приложение разбирает звенья и суставы, определяет приблизительный тип
+конструкции и показывает доступную геометрию. Если данных недостаточно,
+оно сообщает об этом, а не подменяет робота похожей моделью.
+
+### Попробовать без ROS и Docker
+
+После [установки](#start-here) откройте локальное демо на свободном порту:
+
+```powershell
+robotci view --demo --port 0
+```
+
+В окне **«Описание робота»** вставьте следующий текст и нажмите
+**«Распознать и встроить»**:
+
+```yaml
+robot:
+  model: unitree_go2
+```
+
+Это готовый пример для диалога выбора модели, не полный файл сценариев.
+В 3D появится каталожная модель Go2; данные демо при этом останутся синтетическими.
+
+| Робот | Идентификатор для `robot.model` | Представление |
+| --- | --- | --- |
+| Unitree Go2 | `unitree_go2` | Четвероногий робот |
+| Unitree G1 | `unitree_g1` | Гуманоид |
+| Franka Emika Panda | `franka_emika_panda` | Манипулятор с захватом |
+
+Каталог содержит исходную геометрию моделей из закреплённой версии MuJoCo
+Menagerie, собранную в опорной позе. Модели и лицензии включены в пакет;
+при просмотре они не скачиваются из интернета.
+
+### Свой робот и автоматическое распознавание
+
+Вместо YAML можно вставить URDF/MJCF, выбрать файл описания или папку с ним
+и локальными OBJ/STL. Приложение показывает число звеньев и суставов,
+приблизительный тип и предупреждения о недостающих данных.
+
+Точное совпадение с закреплённым описанием MJCF позволяет автоматически выбрать
+каталожную модель. Для других поддерживаемых описаний строится собственная
+структура с доступной геометрией. Одного названия `Go2` или `G1` для подстановки
+каталога недостаточно; `robot.model` является явным выбором пользователя.
+
+Если файлов геометрии нет, отображаются доступные примитивы или кинематический
+каркас с предупреждением о неполной модели. Произвольный YAML с одними
+параметрами контроллера не описывает форму робота: потребуется URDF/MJCF.
+Xacro и внешние include не выполняются; нужен готовый развёрнутый XML.
+
+### Модель в новых записях
+
+Добавьте поле `robot.model` в секцию `robot` существующего валидного
+`robotci.yaml`. Следующий запуск сохранит выбранную модель в метаданных replay,
+и просмотрщик подставит её автоматически. Для разового просмотра достаточно
+диалога; кнопка **«Из записи»** отменяет ручной выбор. Сам импорт не переписывает
+сохранённые записи: траектории, метрики и официальный вердикт не меняются.
+
+Импорт отвечает за отображение, а не за управление: модель сохраняет опорную
+позу суставов и перемещается по записанной траектории. Движения ног или захватов
+не выводятся из Nav2-координат; 2D-маркер остаётся условным. Выбор Go2, G1 или
+Panda не переключает симулятор и не создаёт контроллер этого робота.
+
+Поддерживаемые конструкции, работа с локальными мешами и ограничения описаны
+в [руководстве по импорту](docs/robot-model-import.md).
+[Протокол проверки импорта](docs/validation/robot-model-import-2026-10-13.md)
+содержит проверку сборки моделей и браузерных действий.
+
+### Что проверено в физическом симуляторе
+
+Отдельный [эксперимент с моделями](experiments/robot_models/README.md) проверяет
+Go2, G1 и Panda в MuJoCo: удержание позы, точность управления суставами и
+реакцию на ослабление регулятора. Это реальные расчёты физики моделей,
+но не испытания оборудования, обученная ходьба или готовые адаптеры RobotCI.
+[Измеренные результаты](docs/validation/model-probes-2026-10-13.md) учитываются
+отдельно от визуального импорта и основного Nav2-процесса.
+
 ## Текущее состояние и ограничения
 
 Текущая версия: публичная альфа `0.1.0a1`. Основной цикл от запуска сценариев до
@@ -101,12 +181,6 @@ Docker с Linux-контейнерами или отдельный Ubuntu runner
 или воспроизведение движений их суставов. RobotCI также не является системой
 сертификации безопасности и не заменяет испытания на физическом оборудовании.
 
-В просмотрщике доступен [импорт описания робота](docs/robot-model-import.md):
-URDF/MJCF или YAML с `robot.model`. Каталог включает реальные оболочки Go2, G1 и
-Panda; для своего робота можно выбрать локальные меши. Распознавание и опорная
-геометрия не означают готовность контроллера, запись суставных движений или
-поддержку этой физической модели в Nav2.
-
 ## Что планируется дальше
 
 Ближайший приоритет: подтвердить полезность основного сценария на внешних проектах,
@@ -115,7 +189,7 @@ Panda; для своего робота можно выбрать локальн
 | Направление | Планируемое развитие |
 | --- | --- |
 | Внешние пилоты и надёжность | Проверить полный цикл на проектах других команд, собрать результаты и ограничения; расширить измеренные Nav2/Gazebo-проверки на новые маршруты и окружения |
-| Новые роботы и симуляторы | Добавлять адаптеры за пределами Nav2. Unitree Go2 с MuJoCo рассматривается как кандидат для первого такого эксперимента; Isaac Sim/Lab и другие ROS 2-роботы остаются возможными дальнейшими направлениями |
+| Новые роботы и симуляторы | На основе отдельных MuJoCo-экспериментов с Go2, G1 и Panda проработать полноценные адаптеры, суставную телеметрию и контроллеры. Визуальный импорт уже доступен, поддержка их исполнения всем продуктом пока не заявляется |
 | Визуальная диагностика и AI | Развивать контекст карты и событий в replay по задачам пользователей; поверх существующего MCP исследовать диагностику причин регрессий, связь с изменениями кода и интеграции LangGraph/LangChain. Итоговый вердикт останется детерминированным |
 | Командная работа | После подтверждения потребности в пилотах проработать общие эталоны, постоянную историю запусков, динамику метрик между изменениями и совместные правила проверки |
 
@@ -148,6 +222,7 @@ is implemented; external validation is in progress. Start with simulation.
 | Gate a change | Named local baselines, compatibility checks, deterministic thresholds, and blocking exit codes |
 | Review results in CI | JSON, Markdown, JUnit, and a reusable GitHub Action |
 | Inspect a run | 2D/3D replay with robot visual profiles, synchronized comparison, observed stuck/recovery events, and six read-only MCP tools |
+| Import a robot | Bounded URDF/MJCF inspection, approximate structural classification, local OBJ/STL geometry, and bundled Go2/G1/Panda reference models |
 | Orchestrate a simulation | Explicitly enabled MCP start/status/cancel/compare tools with isolated evidence and owned runtime cleanup |
 
 Navigation success alone is not enough. A robot can reach its goal and still take
@@ -210,10 +285,23 @@ If port 8765 is busy, pass `--port 8766` or `--port 0` to choose a free port.
 The demo is synthetic and has no gate verdict. Open a recorded replay to inspect
 an actual run.
 
-The workbench includes rover, quadruped, and humanoid visual models. Set
-`robot.visual_profile` in `robotci.yaml` to choose the model for new recordings,
-or preview another model in the viewer. This changes the display; execution
-continues to use the configured Nav2 runtime. See the
+### Import a robot description
+
+Open **«Описание робота»**, paste URDF/MJCF or choose a local description file,
+then click **«Распознать и встроить»**. Select a folder to provide local OBJ/STL
+meshes. The viewer builds the supported description's structure and reports
+missing geometry instead of silently substituting a catalog robot.
+
+To explicitly select a bundled model, paste `robot: {model: unitree_go2}`.
+Available identifiers are `unitree_go2`, `unitree_g1`, and `franka_emika_panda`.
+Set the same `robot.model` field in an existing valid `robotci.yaml` to carry the
+selection into new recordings. Catalog geometry is packaged locally; automatic
+catalog recognition requires an exact pinned description match, not a brand name.
+
+This is reference-pose visualization, not dynamics, joint animation or an automatic
+controller. Controller-only YAML cannot determine physical geometry. Existing
+`robot.visual_profile` remains an approximate presentation fallback, not an exact
+robot identity. See the [import guide](docs/robot-model-import.md) and
 [visual profile contract](docs/contracts.md#robot-visual-profile).
 
 ### Run your first suite
@@ -301,8 +389,8 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 | --- | --- |
 | M0–M7: execution, metrics, regression, reproducibility, CI, public alpha | Implemented |
 | M8: real-world validation | In progress; external evidence pending |
-| M9: visual replay | Local workbench with robot visual profiles, playback, 2D/3D, synchronized comparison, and suite gate evidence |
-| M10: additional robot adapters | Planned; Unitree Go2 + MuJoCo is a candidate |
+| M9: visual replay | Local workbench with description import, bundled reference models, playback, 2D/3D, synchronized comparison, and suite gate evidence |
+| M10: additional robot adapters | Bounded Go2/G1/Panda MuJoCo probes exist; production adapters and joint-trajectory integration remain future work |
 | M11: agent integration | Six inspection tools, four opt-in managed simulation tools and a reference MCP workflow |
 | Nav2 / Gazebo acceptance | Experimental setup succeeded in two separately fingerprinted internal experiments; each passed 20/20 baseline gates and both controls, and detected the real speed regression |
 | M12: team capabilities | Requires evidence from external pilots |
@@ -334,4 +422,5 @@ for repository structure, checks, and the branch lifecycle.
 Found a problem? [Open a bug report](https://github.com/Evolut10n11/robotci/issues/new?template=bug_report.yml).
 Tried a real project? [Share pilot feedback](https://github.com/Evolut10n11/robotci/issues/new?template=public_alpha_feedback.yml).
 
-Licensed under [Apache 2.0](LICENSE).
+RobotCI code is licensed under [Apache 2.0](LICENSE). Bundled robot models retain
+their upstream licenses alongside the assets in [the local catalog](robotci/model_catalog).
