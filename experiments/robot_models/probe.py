@@ -48,7 +48,8 @@ def compare(baseline: dict, candidate: dict, repeatable: bool) -> str:
         return "CANDIDATE_NUMERICAL_ERROR"
     if not qualified(candidate):
         return "DETECTED_POSTURE_OR_TRACKING_LOSS"
-    threshold = max(baseline["joint_rmse_rad"] * 1.25, baseline["joint_rmse_rad"] + 0.01)
+    error = baseline["joint_rmse_rad"]
+    threshold = max(error * 1.25, error + 0.01)
     return (
         "DETECTED_TRACKING_REGRESSION"
         if candidate["joint_rmse_rad"] > threshold
@@ -69,8 +70,7 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
     else:
         mujoco.mj_resetData(model, data)
     mujoco.mj_forward(model, data)
-    initial_qpos = data.qpos.copy()
-    initial_ctrl = data.ctrl.copy()
+    initial_qpos, initial_ctrl = data.qpos.copy(), data.ctrl.copy()
     free = np.flatnonzero(model.jnt_type == mujoco.mjtJoint.mjJNT_FREE)
     base_adr = int(model.jnt_qposadr[free[0]]) if len(free) else None
     base_body = int(model.jnt_bodyid[free[0]]) if len(free) else None
@@ -78,7 +78,7 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
     mappings = []
     for actuator in range(model.nu):
         if model.actuator_trntype[actuator] != mujoco.mjtTrn.mjTRN_JOINT:
-            continue  # The Panda's coupled gripper stays at its upstream keyframe control.
+            continue  # The coupled gripper keeps the upstream keyframe control.
         joint = int(model.actuator_trnid[actuator, 0])
         if model.jnt_type[joint] != mujoco.mjtJoint.mjJNT_HINGE:
             continue
@@ -87,26 +87,28 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
         if position:
             if model.actuator_biasprm[actuator, 1] >= 0:
                 raise ValueError("unsupported affine actuator, expected a position servo")
-            # Scale proportional gain and its position feedback, not damping or setpoint.
+            # Scale P gain and position feedback, not damping or the target.
             model.actuator_gainprm[actuator, 0] *= gain_scale
             model.actuator_biasprm[actuator, 1] *= gain_scale
         elif model.actuator_biastype[actuator] != mujoco.mjtBias.mjBIAS_NONE:
             raise ValueError("unsupported actuator bias")
         mappings.append((actuator, joint, qadr, vadr, bool(position)))
     if not mappings or height <= 0:
-        raise ValueError("model requires actuated hinge joints and a valid initial pose")
+        raise ValueError("expected actuated hinge joints and a valid initial pose")
     qindices = [entry[2] for entry in mappings]
     dt = float(model.opt.timestep)
+    if not math.isfinite(dt) or dt <= 0:
+        raise ValueError("invalid timestep")
     count = round(DURATION / dt)
-    if dt <= 0 or count < 1 or count > 100000:
-        raise ValueError("unsupported simulation timestep")
-    sample_every = max(1, round(0.05 / dt))
-    frame_every = max(1, round(0.1 / dt))
+    if count < 1 or count > 100000:
+        raise ValueError("unsupported simulation step budget")
+    sample_every, frame_every = max(1, round(0.05 / dt)), max(1, round(0.1 / dt))
     trace, velocities, controls, times, errors = [], [], [], [], []
     min_ratio, max_tilt, max_violation, max_contacts = 1.0, 0.0, 0.0, 0
     finite = True
     renderer = writer = None
     render_error = None
+    render_data = mujoco.MjData(model)  # Never forward/render the measured data.
     if render:
         try:
             renderer = mujoco.Renderer(model, height=480, width=640)
@@ -123,7 +125,7 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
         for step in range(count):
             target = initial_qpos.copy()
             if base_adr is None and data.time >= 1.0:
-                # Real arm setpoint change, same 0.25 rad motion in every variant.
+                # Same measured 0.25 rad arm motion in every variant.
                 target[qindices[0]] += 0.25 * min(1.0, (float(data.time) - 1.0) / 0.5)
             data.ctrl[:] = initial_ctrl
             for actuator, joint, qadr, vadr, position in mappings:
@@ -142,7 +144,6 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
                 data.ctrl[actuator] = control
             data.xfrc_applied[:] = 0
             if base_body is not None and 2.0 <= data.time < 2.2:
-                # Same 0.1-body-weight horizontal force pulse; never on hardware.
                 data.xfrc_applied[base_body, 0] = float(model.body_mass.sum()) * 9.81 * 0.1
             mujoco.mj_step(model, data)
             if not all(np.isfinite(arr).all() for arr in (data.qpos, data.qvel, data.ctrl)):
@@ -151,8 +152,8 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
             if base_adr is not None:
                 min_ratio = min(min_ratio, float(data.qpos[base_adr + 2]) / height)
                 quat = data.qpos[base_adr + 3:base_adr + 7]
-                tilt = math.degrees(math.acos(float(np.clip(1 - 2 * (quat[1]**2 + quat[2]**2), -1, 1))))
-                max_tilt = max(max_tilt, tilt)
+                cosine = float(np.clip(1 - 2 * (quat[1]**2 + quat[2]**2), -1, 1))
+                max_tilt = max(max_tilt, math.degrees(math.acos(cosine)))
             for _, joint, qadr, _, _ in mappings:
                 if model.jnt_limited[joint]:
                     lo, hi = model.jnt_range[joint]
@@ -167,15 +168,21 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
                 controls.append(data.ctrl.copy())
             if renderer is not None and writer is not None and step % frame_every == 0:
                 try:
-                    mujoco.mj_forward(model, data)
-                    renderer.update_scene(data, camera=camera)
+                    render_data.qpos[:] = data.qpos
+                    render_data.qvel[:] = data.qvel
+                    render_data.time = data.time
+                    mujoco.mj_forward(model, render_data)
+                    renderer.update_scene(render_data, camera=camera)
                     image = Image.fromarray(renderer.render())
                     draw = ImageDraw.Draw(image)
-                    draw.text((12, 12), f"{scene.parent.name} | {label} | t={data.time:.2f}s", fill="white")
-                    draw.text((12, 32), "SIMULATION - posture/servo probe, NOT a walking policy", fill="white")
+                    text = f"{scene.parent.name} | {label} | t={data.time:.2f}s"
+                    draw.text((12, 12), text, fill="white")
+                    text = "SIMULATION - posture/servo probe, NOT a walking policy"
+                    draw.text((12, 32), text, fill="white")
                     writer.append_data(np.asarray(image))
                     if step == 0 or step >= count - frame_every:
-                        image.save(out / f"{label}-{'start' if step == 0 else 'end'}.png")
+                        phase = "start" if step == 0 else "end"
+                        image.save(out / f"{label}-{phase}.png")
                 except Exception as exc:
                     render_error = f"{type(exc).__name__}: {exc}"
                     writer.close()
@@ -186,7 +193,7 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
         if renderer is not None:
             renderer.close()
     warnings = [int(w.number) for w in data.warning]
-    valid = finite and step == count - 1 and not any(warnings)
+    valid = finite and step == count - 1 and not any(warnings) and bool(errors)
     metrics = {
         "engine_valid": bool(valid), "simulated_seconds": float(data.time),
         "steps": step + 1, "warning_counts": warnings,
@@ -205,7 +212,9 @@ def episode(scene: Path, out: Path, label: str, gain_scale: float, render: bool)
                   "controlled_hinges": len(mappings), "mass_kg": float(model.body_mass.sum()),
                   "timestep_s": dt, "initial_keyframe": 0 if model.nkey else None},
     }
-    print(json.dumps({"model": scene.parent.name, **result}, allow_nan=False), flush=True)
+    payload = json.dumps(result, indent=2, allow_nan=False)
+    (out / f"{label}.json").write_text(payload + "\n", encoding="utf-8")
+    print(scene.parent.name, label, json.dumps(metrics, allow_nan=False), flush=True)
     return result, np.asarray(trace)
 
 
@@ -218,8 +227,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--render", action="store_true")
     args = parser.parse_args()
-    source = args.models_root.resolve(strict=True)
-    output = args.output.resolve()
+    source, output = args.models_root.resolve(strict=True), args.output.resolve()
     if output == source or source in output.parents:
         parser.error("output must not be inside the model snapshot")
     if output.exists():
@@ -228,6 +236,11 @@ def main() -> int:
     sha = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
     if sha != MENAGERIE_SHA:
         raise ValueError("model checkout does not match the pinned Menagerie revision")
+    dirty = subprocess.check_output(
+        ["git", "-C", str(source), "status", "--porcelain", "--", *MODELS], text=True
+    )
+    if dirty.strip():
+        raise ValueError("model checkout has local modifications")
     summary = {
         "schema_version": 1, "kind": "robot_model_physics_probe",
         "not_a_robotci_navigation_gate": True, "menagerie_commit": sha,
@@ -243,12 +256,12 @@ def main() -> int:
     for name in MODELS:
         dest = output / name
         dest.mkdir()
+        runs, traces = [], []
         try:
             before = manifest(source / name)
             if "LICENSE" not in before or "scene.xml" not in before:
                 raise ValueError("model snapshot is missing its scene or license")
             (dest / "LICENSE").write_bytes((source / name / "LICENSE").read_bytes())
-            runs, traces = [], []
             for index in range(5):
                 label = f"baseline-{index + 1}" if index < 3 else f"candidate-{index - 2}"
                 result, trace = episode(
@@ -257,22 +270,31 @@ def main() -> int:
                 )
                 runs.append(result)
                 traces.append(trace)
-            delta = max(float(np.max(np.abs(traces[0] - item))) for item in traces[1:3])
-            candidate_delta = float(np.max(np.abs(traces[3] - traces[4])))
-            after = manifest(source / name)
-            if before != after:
+            equal_shapes = all(item.shape == traces[0].shape for item in traces[1:3])
+            delta = (
+                max(float(np.max(np.abs(traces[0] - item))) for item in traces[1:3])
+                if equal_shapes else None
+            )
+            candidate_delta = (
+                float(np.max(np.abs(traces[3] - traces[4])))
+                if traces[3].shape == traces[4].shape else None
+            )
+            if before != manifest(source / name):
                 raise ValueError("source model files changed during the experiment")
             entry = {
                 "name": name, "execution_complete": True, "source_files": before,
                 "source_unchanged": True, "baseline_max_qpos_delta": delta,
                 "candidate_max_qpos_delta": candidate_delta, "episodes": runs,
-                "finding": compare(runs[0]["metrics"], runs[3]["metrics"], delta <= 1e-10),
+                "finding": compare(
+                    runs[0]["metrics"], runs[3]["metrics"], delta is not None and delta <= 1e-10
+                ),
             }
         except Exception as exc:
-            entry = {"name": name, "execution_complete": False,
+            entry = {"name": name, "execution_complete": False, "episodes": runs,
                      "error": f"{type(exc).__name__}: {exc}"}
         summary["models"].append(entry)
-        (output / "summary.json").write_text(json.dumps(summary, indent=2, allow_nan=False) + "\n")
+        payload = json.dumps(summary, indent=2, allow_nan=False)
+        (output / "summary.json").write_text(payload + "\n", encoding="utf-8")
     return 0 if all(item["execution_complete"] for item in summary["models"]) else 1
 
 
