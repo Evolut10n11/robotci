@@ -6,9 +6,10 @@ import platform
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import cast
 
 from robotci import __version__
-from robotci.config import ConfigError, load_config
+from robotci.config import ConfigError, RuntimeName, load_config
 from robotci.doctor import REQUIRED_ROS_PACKAGES, CheckResult, run_doctor_checks
 from robotci.doctor_report import build_report
 
@@ -95,9 +96,15 @@ def build_support_bundle(
 ) -> dict[str, object]:
     """Build a compact diagnostics bundle without project paths or scenario names."""
 
-    checks = _redact_doctor_checks(run_doctor_checks(require_ros=require_ros))
-    doctor = build_report(checks)
     config = _config_report(config_path)
+    runtime = config["runtime"]
+    if runtime in ("native", "docker"):
+        checks = run_doctor_checks(require_ros=require_ros, runtime=cast(RuntimeName, runtime))
+    else:
+        # Invalid configs still get environment diagnostics, but never a PASS
+        # bundle. Keep the default auto call compatible with existing callers.
+        checks = run_doctor_checks(require_ros=require_ros)
+    doctor = build_report(_redact_doctor_checks(checks))
 
     return {
         "schema_version": SCHEMA_VERSION,
