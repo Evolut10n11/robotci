@@ -12,6 +12,7 @@
 | [Baselines](baselines.md) | Capture, inspect, replace, and compare local baselines |
 | [Replay viewer](replay-viewer.md) | Open synthetic demos and recorded trajectories |
 | [Support bundle](support-bundle.md) | Collect and review compact diagnostics |
+| [Post-run acceptance](validation/postrun-acceptance.md) | Recheck recorded suites, baseline/gate/report/replay consumers, and explicit synthetic controls |
 
 ## Contracts and integrations
 

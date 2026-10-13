@@ -8,6 +8,8 @@ on:
       - "robotci/viewer*.py"
       - "robotci/entrypoint.py"
       - "tests/test_view*.py"
+      - "scripts/verify_postrun_acceptance.py"
+      - "tests/test_postrun_acceptance.py"
       - ".github/workflows/viewer-ui.yml"
   push:
     branches: [main]
@@ -17,6 +19,8 @@ on:
       - "robotci/viewer*.py"
       - "robotci/entrypoint.py"
       - "tests/test_view*.py"
+      - "scripts/verify_postrun_acceptance.py"
+      - "tests/test_postrun_acceptance.py"
       - ".github/workflows/viewer-ui.yml"
 
 permissions:
