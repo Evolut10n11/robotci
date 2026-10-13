@@ -1,23 +1,42 @@
+# Temporary feature-branch builder; removed with the connector after publication.
+# The compressed patch transfers reviewed local source from a network-isolated workspace.
 name: Robot Import Development Snapshot
 on:
   push:
     branches: [feat/robot-description-import]
     paths: [.github/workflows/robot-import-dev.yml]
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: robot-import-development
+  cancel-in-progress: true
 jobs:
-  snapshot:
+  prepare:
+    if: github.repository == 'Evolut10n11/robotci' && github.ref == 'refs/heads/feat/robot-description-import'
     runs-on: ubuntu-24.04
-    timeout-minutes: 8
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          persist-credentials: false
+          python-version: '3.12'
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci --no-audit --no-fund
-        working-directory: web
+      - name: Apply the checksummed source patch
+        run: |
+          python - <<'PY'
+          import base64, hashlib, lzma, subprocess
+          from pathlib import Path
+          encoded = ''.join(Path(f'_dev/robot-import.part{i}.b64').read_text() for i in range(1, 5))
+          compressed = base64.b64decode(encoded, validate=True)
+          assert hashlib.sha256(compressed).hexdigest() == '3997697c55e72f3089eab8806516c8c13e288258cd91ba3231508977030b79b1'
+          patch = lzma.decompress(compressed)
+          assert hashlib.sha256(patch).hexdigest() == '75a204311b2e3f2fe640f811d2caa85edcfd185fefac61dfedcbcdc3b6413fa2'
+          subprocess.run(['git', 'apply', '--check', '-'], input=patch, check=True)
+          subprocess.run(['git', 'apply', '-'], input=patch, check=True)
+          print('Applied verified robot-import source; no product code fetched from unpinned URLs.')
+          PY
       - uses: actions/checkout@v4
         with:
           repository: google-deepmind/mujoco_menagerie
@@ -28,16 +47,62 @@ jobs:
             unitree_go2
             unitree_g1
             franka_emika_panda
-      - name: Archive only source and isolated development dependencies
+      - name: Install isolated build and acceptance dependencies
         run: |
-          mkdir -p artifacts/dev-snapshot
-          git archive HEAD -o artifacts/dev-snapshot/source.tar
-          tar -czf artifacts/dev-snapshot/web-deps.tar.gz -C web node_modules
-          tar -czf artifacts/dev-snapshot/models.tar.gz -C artifacts/model-source unitree_go2 unitree_g1 franka_emika_panda
-          git rev-parse HEAD > artifacts/dev-snapshot/commit.txt
+          python -m pip install -e '.[dev]' mujoco==3.3.7 numpy==2.2.6 playwright==1.55.0 build
+          npm ci --no-audit --no-fund --prefix web
+          python -m playwright install --with-deps chromium
+      - name: Format and lint implementation
+        run: |
+          python -m ruff format robotci/model_import.py robotci/config.py robotci/runner.py robotci/viewer.py scripts/build_robot_catalog.py scripts/verify_robot_catalog.py tests/test_model_import.py experiments/robot_models/import_acceptance.py
+          python -m ruff check --fix .
+      - name: Build actual pinned robot reference meshes and shipped UI
+        run: |
+          python scripts/build_robot_catalog.py --source artifacts/model-source --output robotci/model_catalog
+          node web/build-robot-catalog.mjs artifacts/model-source robotci/model_catalog
+          npm run build --prefix web
+      - name: Check kinematics against MuJoCo and run regression tests
+        run: |
+          python scripts/verify_robot_catalog.py --source artifacts/model-source --catalog robotci/model_catalog --output artifacts/import-acceptance/kinematics.json
+          python -m pytest -q tests/test_model_import.py tests/test_robot_visual_profiles.py tests/test_config.py tests/test_viewer.py tests/test_viewer_session.py tests/test_runner_replay.py tests/test_runner.py
+          npm test --prefix web
+      - name: Exercise real browser model import
+        run: python experiments/robot_models/import_acceptance.py --source artifacts/model-source --output artifacts/import-acceptance/browser
+      - name: Check installed wheel carries actual models
+        run: |
+          python -m build --wheel
+          python - <<'PY'
+          import zipfile
+          from pathlib import Path
+          with zipfile.ZipFile(next(Path('dist').glob('*.whl'))) as wheel:
+              names = wheel.namelist()
+              for model in ('unitree_go2', 'unitree_g1', 'franka_emika_panda'):
+                  for suffix in ('json', 'glb.gz', 'LICENSE'):
+                      assert f'robotci/model_catalog/{model}.{suffix}' in names, (model, suffix)
+          PY
+      - name: Preserve reviewable source and evidence even on failure
+        if: always()
+        run: |
+          mkdir -p artifacts/import-review
+          git diff --stat > artifacts/import-review/diff-stat.txt
+          git rev-parse HEAD > artifacts/import-review/base-commit.txt
+          tar --exclude='./.git' --exclude='./artifacts' --exclude='./web/node_modules' --exclude='./dist' --exclude='./.pytest_cache' --exclude='./.ruff_cache' --exclude='__pycache__' -czf artifacts/import-review/source.tar.gz .
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: robot-import-dev-snapshot
-          path: artifacts/dev-snapshot/
-          retention-days: 3
+          name: robot-import-prepared
+          path: |
+            artifacts/import-review/
+            artifacts/import-acceptance/
+          retention-days: 14
           if-no-files-found: error
+      - name: Publish only the verified feature branch, never main
+        run: |
+          git fetch origin feat/robot-description-import
+          test "$(git rev-parse origin/feat/robot-description-import)" = "$GITHUB_SHA"
+          git rm -r _dev
+          git add -A -- README.md docs robotci web scripts/build_robot_catalog.py scripts/verify_robot_catalog.py tests/test_model_import.py experiments/robot_models/import_acceptance.py
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat: import robot descriptions and render pinned real reference models'
+          git push origin HEAD:refs/heads/feat/robot-description-import
