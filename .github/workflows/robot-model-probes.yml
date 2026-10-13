@@ -3,7 +3,8 @@ name: Robot Model Probes
 on:
   pull_request:
     paths:
-      - "experiments/robot_models/**"
+      - "experiments/robot_models/probe.py"
+      - "experiments/robot_models/requirements.txt"
       - "tests/test_robot_model_probe.py"
       - ".github/workflows/robot-model-probes.yml"
   workflow_dispatch:

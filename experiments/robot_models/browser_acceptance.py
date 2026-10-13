@@ -70,6 +70,8 @@ def main() -> int:
                 page.goto(serve(demo_session()), wait_until="networkidle")
                 expect(page.locator("#source-badge")).to_have_text("Демонстрационные данные")
                 expect(page.locator("#session-footnote")).to_contain_text("без проверки регрессий")
+                # The shipped viewer starts in 3D; select 2D rather than assume a default.
+                page.locator("#top-button").click()
                 expect(page.locator(".trajectory-svg")).to_be_visible()
                 passed("Russian demo and synthetic gate disclaimer")
                 page.screenshot(path=str(output / "demo-2d.png"), full_page=True)
