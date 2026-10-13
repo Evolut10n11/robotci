@@ -46,6 +46,8 @@ def main() -> None:
                 "29 суставов", timeout=60000
             )
             expect(page.locator("#viewport canvas")).to_have_count(1)
+            expect(page.locator('.profile-card[aria-pressed="true"]')).to_have_count(0)
+            report["checks"].append("imported model is distinct from conditional profiles")
             page.locator("#focus-button").click()
             page.screenshot(path=str(args.output / "auto-g1-from-recording.png"))
             report["checks"].append("automatic model selection from recording metadata")

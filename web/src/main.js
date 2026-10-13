@@ -243,7 +243,7 @@ function renderProfiles() {
   const selected = visualProfile(replay, state.visualProfile);
   const imported = state.robotDescription ?? (state.visualProfile === null ? state.catalogModels.get(replay?.robot.model)?.description : null);
   $("profile-list").innerHTML = ROBOT_PROFILES.map(({ id, label, description }) =>
-    `<button class="profile-card" data-profile="${id}" aria-pressed="${selected === id}" aria-label="${label}">${profileIllustration(id)}<span class="profile-name">${label}</span><span class="profile-caption">${description}</span></button>`).join("");
+    `<button class="profile-card" data-profile="${id}" aria-pressed="${!imported && selected === id}" aria-label="${label}">${profileIllustration(id)}<span class="profile-name">${label}</span><span class="profile-caption">${description}</span></button>`).join("");
   $("profile-source").textContent = state.visualProfile
     ? "Предпросмотр · запись не меняется"
     : replay?.robot.visual_profile ? "Профиль из записи" : "Ровер по умолчанию";
