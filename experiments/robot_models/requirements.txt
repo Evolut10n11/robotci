@@ -1,0 +1,6 @@
+# Isolated experiment only; not RobotCI core dependencies.
+mujoco==3.3.7
+numpy==2.2.6
+Pillow==11.3.0
+imageio==2.37.0
+imageio-ffmpeg==0.6.0
