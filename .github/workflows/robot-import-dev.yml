@@ -1,5 +1,4 @@
-# Temporary feature-branch builder; removed with the connector after publication.
-# The compressed patch transfers reviewed local source from a network-isolated workspace.
+# Temporary feature-branch verification; removed before the final pull request.
 name: Robot Import Development Snapshot
 on:
   push:
@@ -14,7 +13,7 @@ jobs:
   prepare:
     if: github.repository == 'Evolut10n11/robotci' && github.ref == 'refs/heads/feat/robot-description-import'
     runs-on: ubuntu-24.04
-    timeout-minutes: 18
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,26 +22,24 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Apply the checksummed source patch
+      - name: Separate imported models from conditional profile selection
         run: |
           python - <<'PY'
-          import base64, hashlib, lzma, subprocess
           from pathlib import Path
-          encoded = ''.join(Path(f'_dev/robot-import.part{i}.b64').read_text() for i in range(1, 5))
-          compressed = base64.b64decode(encoded, validate=True)
-          assert hashlib.sha256(compressed).hexdigest() == '3997697c55e72f3089eab8806516c8c13e288258cd91ba3231508977030b79b1'
-          patch = lzma.decompress(compressed)
-          assert hashlib.sha256(patch).hexdigest() == '75a204311b2e3f2fe640f811d2caa85edcfd185fefac61dfedcbcdc3b6413fa2'
-          subprocess.run(['git', 'apply', '--check', '-'], input=patch, check=True)
-          subprocess.run(['git', 'apply', '-'], input=patch, check=True)
-          # Keep the malformed-box fixture, but split its long literal for Ruff.
-          path = Path('tests/test_model_import.py')
+          path = Path('web/src/main.js')
           text = path.read_text()
-          old = "'<robot name=\"r\"><link name=\"b\"><visual><geometry><box/></geometry></visual></link></robot>'"
-          new = "'<robot name=\"r\"><link name=\"b\"><visual><geometry>'\n        '<box/></geometry></visual></link></robot>'"
+          old = 'aria-pressed="${selected === id}"'
           assert text.count(old) == 1
+          path.write_text(text.replace(old, 'aria-pressed="${!imported && selected === id}"'))
+          path = Path('experiments/robot_models/import_acceptance.py')
+          text = path.read_text()
+          old = '            page.locator("#focus-button").click()'
+          assert text.count(old) == 1
+          new = '''            expect(page.locator('.profile-card[aria-pressed="true"]')).to_have_count(0)
+                      report["checks"].append("imported model is distinct from conditional profiles")
+                      page.locator("#focus-button").click()'''
+          new = new.replace('\n                      ', '\n            ')
           path.write_text(text.replace(old, new))
-          print('Applied verified source and literal-only formatting correction.')
           PY
       - uses: actions/checkout@v4
         with:
@@ -54,40 +51,35 @@ jobs:
             unitree_go2
             unitree_g1
             franka_emika_panda
-      - name: Install isolated build and acceptance dependencies
+      - name: Install isolated acceptance dependencies
         run: |
           python -m pip install -e '.[dev]' mujoco==3.3.7 numpy==2.2.6 playwright==1.55.0 build
           npm ci --no-audit --no-fund --prefix web
           python -m playwright install --with-deps chromium
-      - name: Format and lint implementation
+      - name: Lint and rebuild shipped UI
         run: |
-          python -m ruff format robotci/model_import.py robotci/config.py robotci/runner.py robotci/viewer.py scripts/build_robot_catalog.py scripts/verify_robot_catalog.py tests/test_model_import.py experiments/robot_models/import_acceptance.py
-          python -m ruff check --fix .
-      - name: Build actual pinned robot reference meshes and shipped UI
-        run: |
-          python scripts/build_robot_catalog.py --source artifacts/model-source --output robotci/model_catalog
-          node web/build-robot-catalog.mjs artifacts/model-source robotci/model_catalog
+          python -m ruff format experiments/robot_models/import_acceptance.py
+          python -m ruff check .
           npm run build --prefix web
-      - name: Check kinematics against MuJoCo and run regression tests
+      - name: Verify reference frames and regression tests
         run: |
           python scripts/verify_robot_catalog.py --source artifacts/model-source --catalog robotci/model_catalog --output artifacts/import-acceptance/kinematics.json
           python -m pytest -q tests/test_model_import.py tests/test_robot_visual_profiles.py tests/test_config.py tests/test_viewer.py tests/test_viewer_session.py tests/test_runner_replay.py tests/test_runner.py
           npm test --prefix web
       - name: Exercise real browser model import
         run: python experiments/robot_models/import_acceptance.py --source artifacts/model-source --output artifacts/import-acceptance/browser
-      - name: Check installed wheel carries actual models
+      - name: Verify wheel model inclusion
         run: |
           python -m build --wheel
           python - <<'PY'
           import zipfile
           from pathlib import Path
           with zipfile.ZipFile(next(Path('dist').glob('*.whl'))) as wheel:
-              names = wheel.namelist()
               for model in ('unitree_go2', 'unitree_g1', 'franka_emika_panda'):
                   for suffix in ('json', 'glb.gz', 'LICENSE'):
-                      assert f'robotci/model_catalog/{model}.{suffix}' in names, (model, suffix)
+                      assert f'robotci/model_catalog/{model}.{suffix}' in wheel.namelist()
           PY
-      - name: Preserve reviewable source and evidence even on failure
+      - name: Preserve source and evidence for review
         if: always()
         run: |
           mkdir -p artifacts/import-review
@@ -103,13 +95,12 @@ jobs:
             artifacts/import-acceptance/
           retention-days: 14
           if-no-files-found: error
-      - name: Publish only the verified feature branch, never main
+      - name: Publish verified source to the same feature branch only
         run: |
           git fetch origin feat/robot-description-import
           test "$(git rev-parse origin/feat/robot-description-import)" = "$GITHUB_SHA"
-          git rm -r _dev
-          git add -A -- README.md docs robotci web scripts/build_robot_catalog.py scripts/verify_robot_catalog.py tests/test_model_import.py experiments/robot_models/import_acceptance.py
+          git add web/src/main.js robotci/viewer_assets experiments/robot_models/import_acceptance.py
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'feat: import robot descriptions and render pinned real reference models'
+          git commit -m 'fix: distinguish imported robot from generic visual profiles'
           git push origin HEAD:refs/heads/feat/robot-description-import
