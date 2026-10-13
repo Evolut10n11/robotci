@@ -9,7 +9,7 @@ from pathlib import Path
 
 from robotci import __version__
 from robotci.config import ConfigError, load_config
-from robotci.doctor import REQUIRED_ROS_PACKAGES, run_doctor_checks
+from robotci.doctor import REQUIRED_ROS_PACKAGES, CheckResult, run_doctor_checks
 from robotci.doctor_report import build_report
 
 SCHEMA_VERSION = 1
@@ -18,6 +18,15 @@ _CONFIG_READ_ERROR_MESSAGE = (
     "RobotCI config could not be read; check file access locally and retry"
 )
 _PACKAGE_INSTALLED_MESSAGE = "package is installed"
+# Messages in local doctor checks may contain environment values, OS error text,
+# or paths. Share only controlled text, never the original diagnostic strings.
+_CHECK_MESSAGES = {
+    "platform": ("platform is not supported", "platform is supported"),
+    "ros2": ("ros2 command is unavailable", "ros2 command is available"),
+    "ROS_DISTRO": ("ROS2 Jazzy is not selected", "ROS2 Jazzy is selected"),
+    "docker": ("Docker daemon is unavailable", "Docker daemon is available"),
+    "runtime": ("runtime is not ready", "runtime is ready"),
+}
 
 
 def _config_report(config_path: Path) -> dict[str, object]:
@@ -51,26 +60,31 @@ def _config_report(config_path: Path) -> dict[str, object]:
     }
 
 
-def _redact_doctor_report(report: dict[str, object]) -> dict[str, object]:
-    """Remove host filesystem locations that are useful locally but unnecessary for support."""
+def _redact_doctor_checks(checks: list[CheckResult]) -> list[CheckResult]:
+    """Project local diagnostics onto shareable fields without mutating the originals."""
 
-    checks = report.get("checks")
-    if not isinstance(checks, list):
-        return report
+    redacted: list[CheckResult] = []
+    for check in checks:
+        name = check.name
+        if name in REQUIRED_ROS_PACKAGES:
+            message = _PACKAGE_INSTALLED_MESSAGE if check.ok else "package is unavailable"
+        elif name in _CHECK_MESSAGES:
+            message = _CHECK_MESSAGES[name][check.ok]
+        else:
+            # A future/custom check may use a private identifier as its name.
+            name = "unknown"
+            message = "additional check passed" if check.ok else "additional check failed"
 
-    redacted_checks: list[object] = []
-    for item in checks:
-        if not isinstance(item, dict):
-            redacted_checks.append(item)
-            continue
-
-        check = dict(item)
-        if check.get("name") in REQUIRED_ROS_PACKAGES and check.get("ok") is True:
-            check["message"] = _PACKAGE_INSTALLED_MESSAGE
-        redacted_checks.append(check)
-
-    redacted = dict(report)
-    redacted["checks"] = redacted_checks
+        # Only the runtime check has a value consumed by build_report. Do not
+        # propagate arbitrary values added by future local diagnostics.
+        value = (
+            check.value
+            if name == "runtime" and check.value in ("native", "docker", "none")
+            else None
+        )
+        redacted.append(
+            CheckResult(name, check.ok, message, blocking=check.blocking, value=value)
+        )
     return redacted
 
 
@@ -81,7 +95,8 @@ def build_support_bundle(
 ) -> dict[str, object]:
     """Build a compact diagnostics bundle without project paths or scenario names."""
 
-    doctor = _redact_doctor_report(build_report(run_doctor_checks(require_ros=require_ros)))
+    checks = _redact_doctor_checks(run_doctor_checks(require_ros=require_ros))
+    doctor = build_report(checks)
     config = _config_report(config_path)
 
     return {
