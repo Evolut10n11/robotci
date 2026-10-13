@@ -14,6 +14,7 @@
 | [Replay viewer](replay-viewer.md) | Open synthetic demos and recorded trajectories |
 | [Support bundle](support-bundle.md) | Collect and review compact diagnostics |
 | [Post-run acceptance](validation/postrun-acceptance.md) | Recheck recorded suites, baseline/gate/report/replay consumers, and explicit synthetic controls |
+| [Техническая приёмка альфы](validation/alpha-acceptance-2026-10-13.md) | Проверенная сборка, реальное изменение контроллера, импорт моделей и границы готовности |
 
 ## Contracts and integrations
 
