@@ -62,9 +62,6 @@ def _record_exit(directory: Path, run_id: str, code: int, error: str | None) -> 
         "finished_at": time.time(),
         "cleanup_error": error,
     }
-    staged = directory / ".worker.json.tmp"
-    staged.write_text(json.dumps(payload) + "\n", encoding="utf-8")
-    staged.replace(directory / "worker.json")
     # Parent validation alone can publish COMPLETED. If the owning server died,
     # retained state must not remain RUNNING or claim a PASS from partial output.
     metadata = json.loads((directory / "run.json").read_text(encoding="utf-8"))
@@ -84,6 +81,12 @@ def _record_exit(directory: Path, run_id: str, code: int, error: str | None) -> 
     staged = directory / ".worker-run.json.tmp"
     staged.write_text(json.dumps(metadata, allow_nan=False, indent=2) + "\n", encoding="utf-8")
     staged.replace(directory / "run.json")
+    # Publish the worker exit marker last. Its presence must not precede the
+    # retained fail-closed state, including when the owning server has died.
+    # This does not release the worker lease or replace parent validation.
+    staged = directory / ".worker.json.tmp"
+    staged.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+    staged.replace(directory / "worker.json")
 
 
 def main() -> int:
