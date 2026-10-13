@@ -35,7 +35,14 @@ jobs:
           assert hashlib.sha256(patch).hexdigest() == '75a204311b2e3f2fe640f811d2caa85edcfd185fefac61dfedcbcdc3b6413fa2'
           subprocess.run(['git', 'apply', '--check', '-'], input=patch, check=True)
           subprocess.run(['git', 'apply', '-'], input=patch, check=True)
-          print('Applied verified robot-import source; no product code fetched from unpinned URLs.')
+          # Keep the malformed-box fixture, but split its long literal for Ruff.
+          path = Path('tests/test_model_import.py')
+          text = path.read_text()
+          old = "'<robot name=\"r\"><link name=\"b\"><visual><geometry><box/></geometry></visual></link></robot>'"
+          new = "'<robot name=\"r\"><link name=\"b\"><visual><geometry>'\n        '<box/></geometry></visual></link></robot>'"
+          assert text.count(old) == 1
+          path.write_text(text.replace(old, new))
+          print('Applied verified source and literal-only formatting correction.')
           PY
       - uses: actions/checkout@v4
         with:
