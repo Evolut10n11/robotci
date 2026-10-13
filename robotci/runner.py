@@ -91,7 +91,10 @@ class RuntimeWatchdogError(RuntimeUnavailableError):
 
 
 def _runtime_budget(
-    timeout_sec: float, *, docker: bool = False, build_image: bool = False,
+    timeout_sec: float,
+    *,
+    docker: bool = False,
+    build_image: bool = False,
 ) -> float:
     """Budget both possible attempts, then bound Docker build/finalization.
 
@@ -108,9 +111,11 @@ def _runtime_budget(
         raise ConfigError("timeout must be finite and greater than zero") from exc
     if not math.isfinite(navigation_timeout) or navigation_timeout <= 0:
         raise ConfigError("timeout must be finite and greater than zero")
-    budget = RUNTIME_ATTEMPTS * (
-        RUNTIME_SETUP_ALLOWANCE_SEC + navigation_timeout + RUNTIME_CLEANUP_ALLOWANCE_SEC
-    ) + RUNTIME_RETRY_ALLOWANCE_SEC
+    budget = (
+        RUNTIME_ATTEMPTS
+        * (RUNTIME_SETUP_ALLOWANCE_SEC + navigation_timeout + RUNTIME_CLEANUP_ALLOWANCE_SEC)
+        + RUNTIME_RETRY_ALLOWANCE_SEC
+    )
     if docker:
         budget += DOCKER_FINALIZE_ALLOWANCE_SEC
         if build_image:
@@ -319,7 +324,11 @@ def _run_docker(
     try:
         completed = run_runtime_process(command, cwd=runtime_root, timeout=runtime_budget)
     except (
-        subprocess.TimeoutExpired, RuntimeProcessCancelled, KeyboardInterrupt, SystemExit, OSError,
+        subprocess.TimeoutExpired,
+        RuntimeProcessCancelled,
+        KeyboardInterrupt,
+        SystemExit,
+        OSError,
     ) as exc:
         # Killing Compose's client does not stop a container in the daemon.
         # A per-run name scopes force-removal to this one runtime, on Windows too.
@@ -338,7 +347,9 @@ def _run_docker(
             cleanup_error = f"; Docker container removal failed: {cleanup_exc}"
         if cleanup_error:
             _LOGGER.warning(
-                "Cannot confirm removal of Docker runtime %s%s", container_name, cleanup_error,
+                "Cannot confirm removal of Docker runtime %s%s",
+                container_name,
+                cleanup_error,
             )
         _clear_result_artifacts(host_result)
         _clear_result_artifacts(output)
@@ -422,8 +433,11 @@ def _result_matches_task(
 
 
 def _finalize_result(
-    path: Path, scenario: ScenarioConfig, exit_code: int,
-    *, runtime_error: RuntimeWatchdogError | None = None,
+    path: Path,
+    scenario: ScenarioConfig,
+    exit_code: int,
+    *,
+    runtime_error: RuntimeWatchdogError | None = None,
 ) -> tuple[int, ScenarioStatus, float]:
     """Keep process, scenario artifact and suite verdicts consistent, failing closed."""
     try:
@@ -472,7 +486,8 @@ def _finalize_result(
         "runtime_exit_code": exit_code,
         "error": (
             str(runtime_error)
-            if runtime_error else "missing, invalid or inconsistent runtime result"
+            if runtime_error
+            else "missing, invalid or inconsistent runtime result"
         ),
     }
     try:
@@ -487,7 +502,9 @@ def _finalize_result(
     return 3, "INFRA_ERROR", 0.0
 
 
-def _annotate_replay_visual_profile(result_path: Path, profile: RobotVisualProfile) -> None:
+def _annotate_replay_visual_profile(
+    result_path: Path, profile: RobotVisualProfile, model: str | None = None
+) -> None:
     """Attach display metadata without changing or inventing navigation evidence."""
     replay_path = default_replay_path(result_path)
     try:
@@ -495,9 +512,16 @@ def _annotate_replay_visual_profile(result_path: Path, profile: RobotVisualProfi
             return
         replay = load_replay(replay_path)
         replay_matches_result(replay, load_result(result_path))
-        if replay["robot"].get("visual_profile") == profile:
+        if (
+            replay["robot"].get("visual_profile") == profile
+            and replay["robot"].get("model") == model
+        ):
             return
         replay["robot"] = {**replay["robot"], "visual_profile": profile}
+        if model is None:
+            replay["robot"].pop("model", None)
+        else:
+            replay["robot"]["model"] = model
         # Keep a valid original intact if annotation or replacement fails.
         with tempfile.TemporaryDirectory(prefix=".robotci-replay-", dir=replay_path.parent) as temp:
             staged = Path(temp) / replay_path.name
@@ -509,7 +533,8 @@ def _annotate_replay_visual_profile(result_path: Path, profile: RobotVisualProfi
     except (ViewerError, ResultSchemaError, OSError, UnicodeError) as exc:
         _LOGGER.warning(
             "Cannot save replay visual profile for %s: %s. Navigation result is unchanged.",
-            replay_path, exc,
+            replay_path,
+            exc,
         )
 
 
@@ -555,9 +580,12 @@ def run_scenario(
         exit_code = 3
 
     exit_code, _, _ = _finalize_result(
-        result_path, definition, exit_code, runtime_error=runtime_error,
+        result_path,
+        definition,
+        exit_code,
+        runtime_error=runtime_error,
     )
-    _annotate_replay_visual_profile(result_path, config.robot.visual_profile)
+    _annotate_replay_visual_profile(result_path, config.robot.visual_profile, config.robot.model)
     return exit_code, selected, result_path
 
 
@@ -618,7 +646,10 @@ def run_suite(
         try:
             if selected == "native":
                 exit_code = _run_native(
-                    runtime_root, definition, result_path, effective_timeout,
+                    runtime_root,
+                    definition,
+                    result_path,
+                    effective_timeout,
                 )
             else:
                 exit_code = _run_docker(
@@ -634,9 +665,14 @@ def run_suite(
             exit_code = 3
 
         normalized_exit, status, duration = _finalize_result(
-            result_path, definition, exit_code, runtime_error=runtime_error,
+            result_path,
+            definition,
+            exit_code,
+            runtime_error=runtime_error,
         )
-        _annotate_replay_visual_profile(result_path, config.robot.visual_profile)
+        _annotate_replay_visual_profile(
+            result_path, config.robot.visual_profile, config.robot.model
+        )
         final_exit_code = max(final_exit_code, normalized_exit)
         scenario_results.append(
             SuiteScenarioResult(
@@ -659,9 +695,7 @@ def run_suite(
             f"cannot verify reproducible runtime environment: {exc}"
         ) from exc
     if verified_execution.fingerprint != execution.fingerprint:
-        raise RuntimeUnavailableError(
-            "runtime environment changed during suite execution"
-        )
+        raise RuntimeUnavailableError("runtime environment changed during suite execution")
 
     suite_status = cast(ScenarioStatus, _STATUS_BY_EXIT[final_exit_code])
     suite = SuiteResult(

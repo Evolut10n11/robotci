@@ -1,0 +1,2752 @@
+{
+  "schema_version": 1,
+  "format": "MJCF",
+  "name": "panda",
+  "nodes": [
+    {
+      "name": "link0",
+      "parent": null,
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.901961,
+            0.921569,
+            0.929412,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.901961,
+            0.921569,
+            0.929412,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_2.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_3.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.901961,
+            0.921569,
+            0.929412,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_4.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_5.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_7.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_8.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_9.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.901961,
+            0.921569,
+            0.929412,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_10.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link0_11.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/link0.stl",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "link1",
+      "parent": "link0",
+      "pos": [
+        0,
+        0,
+        0.333
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "joint1",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -2.8973,
+            2.8973
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/link1.stl",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "link2",
+      "parent": "link1",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "quat": [
+        -0.7071067811865475,
+        0,
+        0,
+        0.7071067811865475
+      ],
+      "joints": [
+        {
+          "name": "joint2",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -1.7628,
+            1.7628
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link2.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/link2.stl",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "link3",
+      "parent": "link2",
+      "pos": [
+        0,
+        -0.316,
+        0
+      ],
+      "quat": [
+        0.7071067811865475,
+        0,
+        0,
+        0.7071067811865475
+      ],
+      "joints": [
+        {
+          "name": "joint3",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -2.8973,
+            2.8973
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link3_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link3_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link3_2.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link3_3.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/link3.stl",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "link4",
+      "parent": "link3",
+      "pos": [
+        0.0825,
+        0,
+        0
+      ],
+      "quat": [
+        0.7071067811865475,
+        0,
+        0,
+        0.7071067811865475
+      ],
+      "joints": [
+        {
+          "name": "joint4",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -3.0718,
+            -0.0698
+          ],
+          "value": -1.57079,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link4_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link4_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link4_2.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link4_3.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/link4.stl",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "link5",
+      "parent": "link4",
+      "pos": [
+        -0.0825,
+        0.384,
+        0
+      ],
+      "quat": [
+        -0.7071067811865475,
+        0,
+        0,
+        0.7071067811865475
+      ],
+      "joints": [
+        {
+          "name": "joint5",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -2.8973,
+            2.8973
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link5_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link5_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link5_2.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/link5_collision_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/link5_collision_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/link5_collision_2.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "link6",
+      "parent": "link5",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "quat": [
+        0.7071067811865475,
+        0,
+        0,
+        0.7071067811865475
+      ],
+      "joints": [
+        {
+          "name": "joint6",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -0.0175,
+            3.7525
+          ],
+          "value": 1.57079,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.901961,
+            0.921569,
+            0.929412,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_2.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_3.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_4.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_5.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_6.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.039216,
+            0.541176,
+            0.780392,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_7.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.039216,
+            0.541176,
+            0.780392,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_8.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_9.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_10.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_11.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0,
+            1,
+            0,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_12.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_13.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_14.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_15.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link6_16.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/link6.stl",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "link7",
+      "parent": "link6",
+      "pos": [
+        0.088,
+        0,
+        0
+      ],
+      "quat": [
+        0.7071067811865475,
+        0,
+        0,
+        0.7071067811865475
+      ],
+      "joints": [
+        {
+          "name": "joint7",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -2.8973,
+            2.8973
+          ],
+          "value": -0.7853,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link7_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link7_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link7_2.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link7_3.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link7_4.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link7_5.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link7_6.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/link7_7.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/link7.stl",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "hand",
+      "parent": "link7",
+      "pos": [
+        0,
+        0,
+        0.107
+      ],
+      "quat": [
+        0,
+        0,
+        -0.38268341623423263,
+        0.9238795391929064
+      ],
+      "joints": [],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.901961,
+            0.921569,
+            0.929412,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hand_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hand_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hand_2.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hand_3.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.901961,
+            0.921569,
+            0.929412,
+            1
+          ],
+          "collision": false,
+          "file": "assets/hand_4.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/hand.stl",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_finger",
+      "parent": "hand",
+      "pos": [
+        0,
+        0,
+        0.0584
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "finger_joint1",
+          "type": "prismatic",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            0,
+            0.04
+          ],
+          "value": 0.04,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.901961,
+            0.921569,
+            0.929412,
+            1
+          ],
+          "collision": false,
+          "file": "assets/finger_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/finger_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/finger_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0,
+            0.0055,
+            0.0445
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.017,
+            0.008,
+            0.017
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0.0055,
+            0.002,
+            0.05
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.006,
+            0.004,
+            0.006
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            -0.0055,
+            0.002,
+            0.05
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.006,
+            0.004,
+            0.006
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0.0055,
+            0.002,
+            0.0395
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.006,
+            0.004,
+            0.007
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            -0.0055,
+            0.002,
+            0.0395
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.006,
+            0.004,
+            0.007
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_finger",
+      "parent": "hand",
+      "pos": [
+        0,
+        0,
+        0.0584
+      ],
+      "quat": [
+        0,
+        0,
+        1,
+        0
+      ],
+      "joints": [
+        {
+          "name": "finger_joint2",
+          "type": "prismatic",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            0,
+            0.04
+          ],
+          "value": 0.04,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.901961,
+            0.921569,
+            0.929412,
+            1
+          ],
+          "collision": false,
+          "file": "assets/finger_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.25,
+            0.25,
+            0.25,
+            1
+          ],
+          "collision": false,
+          "file": "assets/finger_1.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/finger_0.obj",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0,
+            0.0055,
+            0.0445
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.017,
+            0.008,
+            0.017
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0.0055,
+            0.002,
+            0.05
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.006,
+            0.004,
+            0.006
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            -0.0055,
+            0.002,
+            0.05
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.006,
+            0.004,
+            0.006
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            0.0055,
+            0.002,
+            0.0395
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.006,
+            0.004,
+            0.007
+          ]
+        },
+        {
+          "type": "box",
+          "pos": [
+            -0.0055,
+            0.002,
+            0.0395
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.006,
+            0.004,
+            0.007
+          ]
+        }
+      ]
+    }
+  ],
+  "source_sha256": "aaff86d413a908a2ac7e407363f997b341298baa2e906d71b8c3b658769dc3c2",
+  "visual_only": true,
+  "simulation_ready": false,
+  "classification": {
+    "kind": "manipulator",
+    "profile": "rover",
+    "confidence": "medium",
+    "reasons": [
+      "Обнаружена длинная последовательная цепь суставов."
+    ]
+  },
+  "identification": "declared_catalog",
+  "model_id": "franka_emika_panda",
+  "warnings": [
+    "Показана опорная поза home/stand из MJCF, не записанное движение суставов.",
+    "Equality/tendon-ограничения не решаются в статическом предпросмотре."
+  ],
+  "joint_count": 9,
+  "link_count": 11,
+  "catalog_asset": "franka_emika_panda.glb.gz",
+  "provenance": {
+    "repository": "google-deepmind/mujoco_menagerie",
+    "revision": "0059d4335f8156206f63a35662313385f7ad6d74",
+    "file": "franka_emika_panda/panda.xml",
+    "pose": "upstream home/stand",
+    "source_tree_sha256": "8dd045f59c9e770bc78d5908f9b32bf75f168ad8778ed2f86cfd7184f76b3607"
+  },
+  "geometry": {
+    "triangles": 134888,
+    "dimensions_m": [
+      0.8235476040987416,
+      0.2593269944190978,
+      0.8131654270910055
+    ],
+    "glb_gzip_sha256": "79571f3722939b483fc140da6e1d6209a05228cda796e91c463cec054dfc17b6"
+  },
+  "reference_frames": {
+    "link0": {
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "link1": {
+      "position": [
+        0,
+        0,
+        0.333
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "link2": {
+      "position": [
+        0,
+        0,
+        0.333
+      ],
+      "quaternion_xyzw": [
+        -0.7071067811865475,
+        0,
+        0,
+        0.7071067811865476
+      ]
+    },
+    "link3": {
+      "position": [
+        0,
+        -7.01660951563099e-17,
+        0.649
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "link4": {
+      "position": [
+        0.0825,
+        -7.01660951563099e-17,
+        0.649
+      ],
+      "quaternion_xyzw": [
+        0.5000015816962222,
+        0.49999841829877406,
+        -0.49999841829877417,
+        0.5000015816962224
+      ]
+    },
+    "link5": {
+      "position": [
+        0.46649947803173564,
+        -5.1846875795382926e-17,
+        0.731502429487589
+      ],
+      "quaternion_xyzw": [
+        -5.229441852486302e-32,
+        0.7071045443232223,
+        -1.5700874918494427e-16,
+        0.7071090180427967
+      ]
+    },
+    "link6": {
+      "position": [
+        0.46649947803173564,
+        -5.1846875795382926e-17,
+        0.731502429487589
+      ],
+      "quaternion_xyzw": [
+        0.7071067811865475,
+        1.1978854817838865e-21,
+        8.984141113379152e-22,
+        0.7071067811865476
+      ]
+    },
+    "link7": {
+      "position": [
+        0.5544994780317356,
+        -5.1846875795382926e-17,
+        0.731502429487589
+      ],
+      "quaternion_xyzw": [
+        0.9238983141513943,
+        0.3826380863272912,
+        -8.496268344680638e-17,
+        2.0514598794251682e-16
+      ]
+    },
+    "hand": {
+      "position": [
+        0.5544994780317356,
+        -9.936442124933958e-17,
+        0.6245024294875892
+      ],
+      "quaternion_xyzw": [
+        0.7071414986822362,
+        0.7070720619862173,
+        -1.5700063840487823e-16,
+        1.5701575687432654e-16
+      ]
+    },
+    "left_finger": {
+      "position": [
+        0.5944994778388774,
+        -0.000003927932684853873,
+        0.5661024294875892
+      ],
+      "quaternion_xyzw": [
+        0.7071414986822362,
+        0.7070720619862173,
+        -1.5700063840487823e-16,
+        1.5701575687432654e-16
+      ]
+    },
+    "right_finger": {
+      "position": [
+        0.5144994782245939,
+        0.000003927932684603275,
+        0.5661024294875892
+      ],
+      "quaternion_xyzw": [
+        -0.7070720619862173,
+        0.7071414986822362,
+        -1.5701575687432654e-16,
+        -1.5700063840487823e-16
+      ]
+    }
+  }
+}

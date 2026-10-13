@@ -1,0 +1,3469 @@
+{
+  "schema_version": 1,
+  "format": "MJCF",
+  "name": "g1_29dof_rev_1_0",
+  "nodes": [
+    {
+      "name": "pelvis",
+      "parent": null,
+      "pos": [
+        0,
+        0,
+        0.79
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": false,
+          "file": "assets/pelvis.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/pelvis_contour_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/pelvis_contour_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ],
+      "floating_base": true
+    },
+    {
+      "name": "left_hip_pitch_link",
+      "parent": "pelvis",
+      "pos": [
+        0,
+        0.064452,
+        -0.1027
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "left_hip_pitch_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -2.5307,
+            2.8798
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_hip_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": true,
+          "file": "assets/left_hip_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_hip_roll_link",
+      "parent": "left_hip_pitch_link",
+      "pos": [
+        0,
+        0.052,
+        -0.030465
+      ],
+      "quat": [
+        0,
+        -0.08733857244071258,
+        0,
+        0.996178685660368
+      ],
+      "joints": [
+        {
+          "name": "left_hip_roll_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -0.5236,
+            2.9671
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_hip_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/left_hip_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_hip_yaw_link",
+      "parent": "left_hip_roll_link",
+      "pos": [
+        0.025001,
+        0,
+        -0.12412
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "left_hip_yaw_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -2.7576,
+            2.7576
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_hip_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/left_hip_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_knee_link",
+      "parent": "left_hip_yaw_link",
+      "pos": [
+        -0.078273,
+        0.0021489,
+        -0.17734
+      ],
+      "quat": [
+        0,
+        0.08733857244071258,
+        0,
+        0.996178685660368
+      ],
+      "joints": [
+        {
+          "name": "left_knee_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -0.087267,
+            2.8798
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_knee_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/left_knee_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_ankle_pitch_link",
+      "parent": "left_knee_link",
+      "pos": [
+        0,
+        -0.000094445,
+        -0.30001
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "left_ankle_pitch_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -0.87267,
+            0.5236
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_ankle_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/left_ankle_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_ankle_roll_link",
+      "parent": "left_ankle_pitch_link",
+      "pos": [
+        0,
+        0,
+        -0.017558
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "left_ankle_roll_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -0.2618,
+            0.2618
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_ankle_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            -0.05,
+            0.025,
+            -0.03
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.005
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            -0.05,
+            -0.025,
+            -0.03
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.005
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            0.12,
+            0.03,
+            -0.03
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.005
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            0.12,
+            -0.03,
+            -0.03
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.005
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_hip_pitch_link",
+      "parent": "pelvis",
+      "pos": [
+        0,
+        -0.064452,
+        -0.1027
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "right_hip_pitch_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -2.5307,
+            2.8798
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_hip_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": true,
+          "file": "assets/right_hip_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_hip_roll_link",
+      "parent": "right_hip_pitch_link",
+      "pos": [
+        0,
+        -0.052,
+        -0.030465
+      ],
+      "quat": [
+        0,
+        -0.08733857244071258,
+        0,
+        0.996178685660368
+      ],
+      "joints": [
+        {
+          "name": "right_hip_roll_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -2.9671,
+            0.5236
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_hip_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/right_hip_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_hip_yaw_link",
+      "parent": "right_hip_roll_link",
+      "pos": [
+        0.025001,
+        0,
+        -0.12412
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "right_hip_yaw_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -2.7576,
+            2.7576
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_hip_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/right_hip_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_knee_link",
+      "parent": "right_hip_yaw_link",
+      "pos": [
+        -0.078273,
+        -0.0021489,
+        -0.17734
+      ],
+      "quat": [
+        0,
+        0.08733857244071258,
+        0,
+        0.996178685660368
+      ],
+      "joints": [
+        {
+          "name": "right_knee_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -0.087267,
+            2.8798
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_knee_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/right_knee_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_ankle_pitch_link",
+      "parent": "right_knee_link",
+      "pos": [
+        0,
+        0.000094445,
+        -0.30001
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "right_ankle_pitch_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -0.87267,
+            0.5236
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_ankle_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/right_ankle_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_ankle_roll_link",
+      "parent": "right_ankle_pitch_link",
+      "pos": [
+        0,
+        0,
+        -0.017558
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "right_ankle_roll_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -0.2618,
+            0.2618
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_ankle_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            -0.05,
+            0.025,
+            -0.03
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.005
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            -0.05,
+            -0.025,
+            -0.03
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.005
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            0.12,
+            0.03,
+            -0.03
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.005
+          ]
+        },
+        {
+          "type": "sphere",
+          "pos": [
+            0.12,
+            -0.03,
+            -0.03
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.005
+          ]
+        }
+      ]
+    },
+    {
+      "name": "waist_yaw_link",
+      "parent": "pelvis",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "waist_yaw_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -2.618,
+            2.618
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/waist_yaw_link_rev_1_0.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "waist_roll_link",
+      "parent": "waist_yaw_link",
+      "pos": [
+        -0.0039635,
+        0,
+        0.044
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "waist_roll_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -0.52,
+            0.52
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/waist_roll_link_rev_1_0.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "torso_link",
+      "parent": "waist_roll_link",
+      "pos": [
+        0,
+        0,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "waist_pitch_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -0.52,
+            0.52
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/torso_link_rev_1_0.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/torso_link_rev_1_0.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0.0039635,
+            0,
+            -0.044
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": false,
+          "file": "assets/logo_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0.0039635,
+            0,
+            -0.044
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": true,
+          "file": "assets/logo_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0.0039635,
+            0,
+            -0.044
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": false,
+          "file": "assets/head_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0.0039635,
+            0,
+            -0.044
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.2,
+            0.2,
+            0.2,
+            1
+          ],
+          "collision": true,
+          "file": "assets/head_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_shoulder_pitch_link",
+      "parent": "torso_link",
+      "pos": [
+        0.0039563,
+        0.10022,
+        0.24778
+      ],
+      "quat": [
+        0.13920101962535997,
+        0.00001387220195578278,
+        -0.00009868681391343435,
+        0.9902641396131312
+      ],
+      "joints": [
+        {
+          "name": "left_shoulder_pitch_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -3.0892,
+            2.6704
+          ],
+          "value": 0.2,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_shoulder_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0,
+            0.04,
+            -0.01
+          ],
+          "quat": [
+            0,
+            0.7071067811865475,
+            0,
+            0.7071067811865475
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.03,
+            0.05
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_shoulder_roll_link",
+      "parent": "left_shoulder_pitch_link",
+      "pos": [
+        0,
+        0.038,
+        -0.013831
+      ],
+      "quat": [
+        -0.13917203079821713,
+        0,
+        0,
+        0.9902682191424201
+      ],
+      "joints": [
+        {
+          "name": "left_shoulder_roll_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -1.5882,
+            2.2515
+          ],
+          "value": 0.2,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_shoulder_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            -0.004,
+            0.006,
+            -0.053
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.03,
+            0.03
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_shoulder_yaw_link",
+      "parent": "left_shoulder_roll_link",
+      "pos": [
+        0,
+        0.00624,
+        -0.1032
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "left_shoulder_yaw_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -2.618,
+            2.618
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_shoulder_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/left_shoulder_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_elbow_link",
+      "parent": "left_shoulder_yaw_link",
+      "pos": [
+        0.015783,
+        0,
+        -0.080518
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "left_elbow_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -1.0472,
+            2.0944
+          ],
+          "value": 1.28,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_elbow_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/left_elbow_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_wrist_roll_link",
+      "parent": "left_elbow_link",
+      "pos": [
+        0.1,
+        0.00188791,
+        -0.01
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "left_wrist_roll_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -1.97222,
+            1.97222
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_wrist_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/left_wrist_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_wrist_pitch_link",
+      "parent": "left_wrist_roll_link",
+      "pos": [
+        0.038,
+        0,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "left_wrist_pitch_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -1.61443,
+            1.61443
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_wrist_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/left_wrist_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "left_wrist_yaw_link",
+      "parent": "left_wrist_pitch_link",
+      "pos": [
+        0.046,
+        0,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "left_wrist_yaw_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -1.61443,
+            1.61443
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_wrist_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/left_wrist_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0.0415,
+            0.003,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/left_rubber_hand.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_shoulder_pitch_link",
+      "parent": "torso_link",
+      "pos": [
+        0.0039563,
+        -0.10021,
+        0.24778
+      ],
+      "quat": [
+        -0.13920101962535997,
+        0.00001387220195578278,
+        0.00009868681391343435,
+        0.9902641396131312
+      ],
+      "joints": [
+        {
+          "name": "right_shoulder_pitch_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -3.0892,
+            2.6704
+          ],
+          "value": 0.2,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_shoulder_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            0,
+            -0.04,
+            -0.01
+          ],
+          "quat": [
+            0,
+            0.7071067811865475,
+            0,
+            0.7071067811865475
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.03,
+            0.05
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_shoulder_roll_link",
+      "parent": "right_shoulder_pitch_link",
+      "pos": [
+        0,
+        -0.038,
+        -0.013831
+      ],
+      "quat": [
+        0.13917203079821713,
+        0,
+        0,
+        0.9902682191424201
+      ],
+      "joints": [
+        {
+          "name": "right_shoulder_roll_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -2.2515,
+            1.5882
+          ],
+          "value": -0.2,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_shoulder_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "cylinder",
+          "pos": [
+            -0.004,
+            -0.006,
+            -0.053
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": true,
+          "size": [
+            0.03,
+            0.03
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_shoulder_yaw_link",
+      "parent": "right_shoulder_roll_link",
+      "pos": [
+        0,
+        -0.00624,
+        -0.1032
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "right_shoulder_yaw_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -2.618,
+            2.618
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_shoulder_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/right_shoulder_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_elbow_link",
+      "parent": "right_shoulder_yaw_link",
+      "pos": [
+        0.015783,
+        0,
+        -0.080518
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "right_elbow_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -1.0472,
+            2.0944
+          ],
+          "value": 1.28,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_elbow_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/right_elbow_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_wrist_roll_link",
+      "parent": "right_elbow_link",
+      "pos": [
+        0.1,
+        -0.00188791,
+        -0.01
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "right_wrist_roll_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "range": [
+            -1.97222,
+            1.97222
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_wrist_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/right_wrist_roll_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_wrist_pitch_link",
+      "parent": "right_wrist_roll_link",
+      "pos": [
+        0.038,
+        0,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "right_wrist_pitch_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            1,
+            0
+          ],
+          "range": [
+            -1.61443,
+            1.61443
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_wrist_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/right_wrist_pitch_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    },
+    {
+      "name": "right_wrist_yaw_link",
+      "parent": "right_wrist_pitch_link",
+      "pos": [
+        0.046,
+        0,
+        0
+      ],
+      "quat": [
+        0,
+        0,
+        0,
+        1
+      ],
+      "joints": [
+        {
+          "name": "right_wrist_yaw_joint",
+          "type": "revolute",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            1
+          ],
+          "range": [
+            -1.61443,
+            1.61443
+          ],
+          "value": 0,
+          "ref": 0
+        }
+      ],
+      "visuals": [
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_wrist_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0,
+            0,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.65,
+            0.7,
+            0.76,
+            1
+          ],
+          "collision": true,
+          "file": "assets/right_wrist_yaw_link.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "type": "mesh",
+          "pos": [
+            0.0415,
+            -0.003,
+            0
+          ],
+          "quat": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "rgba": [
+            0.7,
+            0.7,
+            0.7,
+            1
+          ],
+          "collision": false,
+          "file": "assets/right_rubber_hand.STL",
+          "scale": [
+            1,
+            1,
+            1
+          ]
+        }
+      ]
+    }
+  ],
+  "source_sha256": "2652469e61949738d0fe94b20572f326c25522f2f57070e94c0335ffb938dea8",
+  "visual_only": true,
+  "simulation_ready": false,
+  "classification": {
+    "kind": "humanoid",
+    "profile": "humanoid",
+    "confidence": "high",
+    "reasons": [
+      "Найдены две ноги и две плечевые цепочки."
+    ]
+  },
+  "identification": "declared_catalog",
+  "model_id": "unitree_g1",
+  "warnings": [
+    "Показана опорная поза home/stand из MJCF, не записанное движение суставов."
+  ],
+  "joint_count": 29,
+  "link_count": 30,
+  "catalog_asset": "unitree_g1.glb.gz",
+  "provenance": {
+    "repository": "google-deepmind/mujoco_menagerie",
+    "revision": "0059d4335f8156206f63a35662313385f7ad6d74",
+    "file": "unitree_g1/g1.xml",
+    "pose": "upstream home/stand",
+    "source_tree_sha256": "47aa256de1a3a56c2d86967471cf47f5e4aabd6559adbb3b8536c213c368d3f3"
+  },
+  "geometry": {
+    "triangles": 393270,
+    "dimensions_m": [
+      0.2214533537765111,
+      0.5558985286696898,
+      1.322845490691504
+    ],
+    "glb_gzip_sha256": "466615300ad47a6bd57c0823ecd1a373b33d4dd475f3396ba9f96bc2843b44bd"
+  },
+  "reference_frames": {
+    "pelvis": {
+      "position": [
+        0,
+        0,
+        0.79
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "left_hip_pitch_link": {
+      "position": [
+        0,
+        0.064452,
+        0.6873
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "left_hip_roll_link": {
+      "position": [
+        0,
+        0.116452,
+        0.6568350000000001
+      ],
+      "quaternion_xyzw": [
+        0,
+        -0.0873385724407126,
+        0,
+        0.996178685660368
+      ]
+    },
+    "left_hip_yaw_link": {
+      "position": [
+        0.04621766101673839,
+        0.116452,
+        0.5389589964575409
+      ],
+      "quaternion_xyzw": [
+        0,
+        -0.0873385724407126,
+        0,
+        0.996178685660368
+      ]
+    },
+    "left_knee_link": {
+      "position": [
+        -0.0000023309048882216854,
+        0.1186009,
+        0.35070424757782526
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "left_ankle_pitch_link": {
+      "position": [
+        -0.0000023309048882216854,
+        0.118506455,
+        0.05069424757782526
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "left_ankle_roll_link": {
+      "position": [
+        -0.0000023309048882216854,
+        0.118506455,
+        0.033136247577825254
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "right_hip_pitch_link": {
+      "position": [
+        0,
+        -0.064452,
+        0.6873
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "right_hip_roll_link": {
+      "position": [
+        0,
+        -0.116452,
+        0.6568350000000001
+      ],
+      "quaternion_xyzw": [
+        0,
+        -0.0873385724407126,
+        0,
+        0.996178685660368
+      ]
+    },
+    "right_hip_yaw_link": {
+      "position": [
+        0.04621766101673839,
+        -0.116452,
+        0.5389589964575409
+      ],
+      "quaternion_xyzw": [
+        0,
+        -0.0873385724407126,
+        0,
+        0.996178685660368
+      ]
+    },
+    "right_knee_link": {
+      "position": [
+        -0.0000023309048882216854,
+        -0.1186009,
+        0.35070424757782526
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "right_ankle_pitch_link": {
+      "position": [
+        -0.0000023309048882216854,
+        -0.118506455,
+        0.05069424757782526
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "right_ankle_roll_link": {
+      "position": [
+        -0.0000023309048882216854,
+        -0.118506455,
+        0.033136247577825254
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "waist_yaw_link": {
+      "position": [
+        0,
+        0,
+        0.79
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "waist_roll_link": {
+      "position": [
+        -0.0039635,
+        0,
+        0.8340000000000001
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "torso_link": {
+      "position": [
+        -0.0039635,
+        0,
+        0.8340000000000001
+      ],
+      "quaternion_xyzw": [
+        0,
+        0,
+        0,
+        1
+      ]
+    },
+    "left_shoulder_pitch_link": {
+      "position": [
+        -0.000007199999999999741,
+        0.10022,
+        1.0817800000000002
+      ],
+      "quaternion_xyzw": [
+        0.13851544657999235,
+        0.0988752553391381,
+        0.013798719599019979,
+        0.9853155587312084
+      ]
+    },
+    "left_shoulder_roll_link": {
+      "position": [
+        -0.002747421520430346,
+        0.14048496151158363,
+        1.0792264492388715
+      ],
+      "quaternion_xyzw": [
+        0.09937354693315893,
+        0.0982510056837334,
+        0.017704820334788048,
+        0.9900293820836689
+      ]
+    },
+    "left_shoulder_yaw_link": {
+      "position": [
+        -0.023284277090114453,
+        0.16654496779925904,
+        0.9813066287958363
+      ],
+      "quaternion_xyzw": [
+        0.09937354693315893,
+        0.0982510056837334,
+        0.017704820334788048,
+        0.9900293820836689
+      ]
+    },
+    "left_elbow_link": {
+      "position": [
+        -0.023763406197866953,
+        0.18296949887219405,
+        0.900918466562008
+      ],
+      "quaternion_xyzw": [
+        0.06913386244692682,
+        0.670047748661981,
+        0.07354639050513127,
+        0.7354233148465221
+      ]
+    },
+    "left_wrist_roll_link": {
+      "position": [
+        -0.024624401521869357,
+        0.20493234375016497,
+        0.8028345415993193
+      ],
+      "quaternion_xyzw": [
+        0.06913386244692682,
+        0.670047748661981,
+        0.07354639050513127,
+        0.7354233148465221
+      ]
+    },
+    "left_wrist_pitch_link": {
+      "position": [
+        -0.02115675385716187,
+        0.21256355840854044,
+        0.765770543130303
+      ],
+      "quaternion_xyzw": [
+        0.06913386244692682,
+        0.670047748661981,
+        0.07354639050513127,
+        0.7354233148465221
+      ]
+    },
+    "left_wrist_yaw_link": {
+      "position": [
+        -0.016959075105147544,
+        0.22180134457394232,
+        0.720903597615178
+      ],
+      "quaternion_xyzw": [
+        0.06913386244692682,
+        0.670047748661981,
+        0.07354639050513127,
+        0.7354233148465221
+      ]
+    },
+    "right_shoulder_pitch_link": {
+      "position": [
+        -0.000007199999999999741,
+        -0.10021,
+        1.0817800000000002
+      ],
+      "quaternion_xyzw": [
+        -0.13851544657999235,
+        0.0988752553391381,
+        -0.013798719599019979,
+        0.9853155587312084
+      ]
+    },
+    "right_shoulder_roll_link": {
+      "position": [
+        -0.002747421520430346,
+        -0.14047496151158362,
+        1.0792264492388715
+      ],
+      "quaternion_xyzw": [
+        -0.09937354693315893,
+        0.0982510056837334,
+        -0.017704820334788048,
+        0.9900293820836689
+      ]
+    },
+    "right_shoulder_yaw_link": {
+      "position": [
+        -0.023284277090114453,
+        -0.16653496779925903,
+        0.9813066287958363
+      ],
+      "quaternion_xyzw": [
+        -0.09937354693315893,
+        0.0982510056837334,
+        -0.017704820334788048,
+        0.9900293820836689
+      ]
+    },
+    "right_elbow_link": {
+      "position": [
+        -0.023763406197866953,
+        -0.18295949887219404,
+        0.900918466562008
+      ],
+      "quaternion_xyzw": [
+        -0.06913386244692682,
+        0.670047748661981,
+        -0.07354639050513127,
+        0.7354233148465221
+      ]
+    },
+    "right_wrist_roll_link": {
+      "position": [
+        -0.024624401521869357,
+        -0.20492234375016496,
+        0.8028345415993193
+      ],
+      "quaternion_xyzw": [
+        -0.06913386244692682,
+        0.670047748661981,
+        -0.07354639050513127,
+        0.7354233148465221
+      ]
+    },
+    "right_wrist_pitch_link": {
+      "position": [
+        -0.02115675385716187,
+        -0.21255355840854043,
+        0.765770543130303
+      ],
+      "quaternion_xyzw": [
+        -0.06913386244692682,
+        0.670047748661981,
+        -0.07354639050513127,
+        0.7354233148465221
+      ]
+    },
+    "right_wrist_yaw_link": {
+      "position": [
+        -0.016959075105147544,
+        -0.2217913445739423,
+        0.720903597615178
+      ],
+      "quaternion_xyzw": [
+        -0.06913386244692682,
+        0.670047748661981,
+        -0.07354639050513127,
+        0.7354233148465221
+      ]
+    }
+  }
+}
