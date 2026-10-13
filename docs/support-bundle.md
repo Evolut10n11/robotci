@@ -68,10 +68,19 @@ The JSON bundle is schema-versioned and contains only compact setup information:
 
 - RobotCI version;
 - operating-system family and Python version;
-- the same runtime-readiness checks used by `robotci doctor`, with ROS package installation paths redacted;
+- the same runtime-readiness checks used by `robotci doctor`, with share-safe messages instead of raw local diagnostics;
 - `doctor.runtime.adapter_override`, a boolean indicating a selected native runtime with a nonempty adapter override;
 - config validity, selected runtime, scenario count, and a safe config failure code;
 - an overall PASS/FAIL verdict.
+
+Doctor check messages are rebuilt from a fixed vocabulary before both the checks
+and runtime summary are serialized. The `ROS_DISTRO` check indicates whether
+Jazzy is selected, never the actual environment-variable value. Docker failures
+report unavailability without copying exception text or filenames. ROS package
+checks report availability without installation prefixes. Unknown check names
+become `unknown`, and only `native`, `docker`, `none`, or null are exposed as the
+selected runtime. Check outcomes, blocking flags, readiness verdicts, and CLI
+exit codes are preserved; detailed local diagnostics remain in `robotci-doctor`.
 
 `doctor.runtime.adapter_override` is `true` only when native is selected and `ROBOTCI_ATTEMPT_SCRIPT` is nonempty. The standalone doctor report includes the same flag; neither report includes the override value or adapter path.
 
@@ -90,15 +99,16 @@ The bundle does not include:
 - repository or project paths;
 - the external adapter script path or its environment-variable value;
 - ROS package installation prefixes or other local runtime filesystem locations emitted by package discovery;
+- raw doctor messages, including Docker exception details and `ROS_DISTRO` values;
 - scenario names, poses, routes, or maps;
 - source code or configuration contents;
-- environment variables;
+- environment-variable values;
 - credentials or tokens;
 - bag files, replay files, logs, or simulation artifacts.
 
 Config validation failures are intentionally summarized rather than embedding parser details or local file paths. Run `robotci validate` locally when the detailed config error is needed.
 
-The standalone `robotci-doctor` report remains a local diagnostic and may contain system-level ROS package locations. Use `robotci-support-bundle` when the artifact is intended to be shared outside the machine.
+The standalone `robotci-doctor` report remains a local diagnostic and may contain system-level ROS package locations, environment-derived text, and operating-system error details. Use `robotci-support-bundle` when the artifact is intended to be shared outside the machine.
 
 ## Pilot workflow
 
