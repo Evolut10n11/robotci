@@ -5,6 +5,11 @@ For exact implementation history, see
 
 ## Unreleased
 
+- Offline `robotci model list/inspect` for URDF/MJCF/catalog descriptions and
+  `robotci lerobot inspect` for v2.1/v3.0 dataset metadata and explicit pretrained
+  feature schemas. No hardware, training, or policy-performance verdict is implied.
+- URDF mimic joints resolve a consistent bounded reference pose, including the
+  unmodified Bullet Panda gripper description.
 - M8 pilot evidence register/report, aligned feedback criteria, and an internal
   Clearpath preflight. External validation remains in progress.
 - Reorganized project overview, documentation index, contract reference, MCP
