@@ -1,0 +1,3 @@
+# Viewer/model-inspection selection; not a complete navigation suite.
+robot:
+  model: unitree_g1

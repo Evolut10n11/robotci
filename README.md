@@ -48,6 +48,7 @@ RobotCI проверяет, не стал ли робот хуже выполн�
 | Интеграция с CI | Сформировать JSON, Markdown и JUnit-отчёты; через GitHub Action завершить проверку с ошибкой при обнаружении регрессии |
 | Визуальный разбор | Открыть запись траектории в локальном интерфейсе на русском, посмотреть её в 2D/3D и синхронно сравнить два запуска |
 | Импорт робота | Вставить URDF/MJCF, определить приблизительный тип по структуре и показать собственную геометрию или явно выбранную модель из локального каталога |
+| Проверка перед запуском | Через CLI разобрать URDF/MJCF и проверить совместимость метаданных LeRobot с feature-схемой политики без ROS, GPU и оборудования |
 | Интеграция с AI-агентами | Через MCP читать результаты и, при явном разрешении, запускать, отслеживать, отменять симуляции и сравнивать их с эталоном |
 
 Эталонный запуск называется `baseline`, проверяемая новая версия называется
@@ -152,6 +153,33 @@ Panda не переключает симулятор и не создаёт ко
 [Протокол проверки импорта](docs/validation/robot-model-import-2026-10-13.md)
 содержит проверку сборки моделей и браузерных действий.
 
+### Проверить описание из командной строки
+
+```powershell
+robotci model list
+robotci model inspect examples/robot-models/go2.yaml --json
+robotci model inspect examples/robot-models/mimic-gripper.urdf
+```
+
+Можно передать собственный URDF/MJCF или YAML с `robot.model`. Команда выводит
+тип конструкции, число звеньев/суставов, происхождение каталожной модели и
+предупреждения. URDF `mimic` поддерживает связанные суставы, включая пальцы
+захвата Panda, в согласованной опорной позе. CLI читает только описание;
+проверка файлов геометрии и управление роботом в него не входят.
+
+### LeRobot: проверить датасет и конфигурацию политики
+
+```powershell
+robotci lerobot inspect examples/lerobot-preflight/dataset --policy examples/lerobot-preflight/policy --robot-type so101_follower --fps 30
+```
+
+Первый шаг интеграции LeRobot проверяет локальные `meta/info.json` v2.1/v3.0 и
+явную feature-схему сохранённой политики ACT, Diffusion или SmolVLA: размеры
+состояния/действий, наличие камер и порядок осей изображения. `--json` выдаёт
+отчёт с хешами входов; несовместимость возвращает код 3. Пример выше содержит
+синтетические метаданные, без эпизодов и весов. `VALID` означает только
+согласованность проверенных метаданных. [Руководство и границы](docs/lerobot.md).
+
 ### Что проверено в физическом симуляторе
 
 Отдельный [эксперимент с моделями](experiments/robot_models/README.md) проверяет
@@ -223,6 +251,7 @@ is implemented; external validation is in progress. Start with simulation.
 | Review results in CI | JSON, Markdown, JUnit, and a reusable GitHub Action |
 | Inspect a run | 2D/3D replay with robot visual profiles, synchronized comparison, observed stuck/recovery events, and six read-only MCP tools |
 | Import a robot | Bounded URDF/MJCF inspection, approximate structural classification, local OBJ/STL geometry, and bundled Go2/G1/Panda reference models |
+| Inspect configurations offline | `model list/inspect` for descriptions and `lerobot inspect` for local dataset/policy feature preflight; no hardware or ML dependencies |
 | Orchestrate a simulation | Explicitly enabled MCP start/status/cancel/compare tools with isolated evidence and owned runtime cleanup |
 
 Navigation success alone is not enough. A robot can reach its goal and still take
