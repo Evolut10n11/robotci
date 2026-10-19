@@ -1,0 +1,7814 @@
+{
+  "artifact_type": "lerobot_pusht_trajectory",
+  "initial_observation": {
+    "agent_pos": [
+      153.0,
+      301.0
+    ],
+    "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+  },
+  "schema_version": 1,
+  "seed": 1002,
+  "steps": [
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.56561279296875,
+        308.2587890625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 1,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.79620361328125,
+        318.0638122558594
+      ],
+      "reward": 0.2564979325910711,
+      "step": 2,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.80880737304688,
+        329.54998779296875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 3,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.9166717529297,
+        342.08001708984375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 4,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.7057342529297,
+        352.74261474609375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 5,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        167.07200622558594,
+        360.867431640625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 6,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        176.45999145507812,
+        367.94158935546875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 7,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        195.3219757080078,
+        377.7882385253906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 8,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.4871368408203,
+        306.5081787109375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 9,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.4157257080078,
+        316.7635192871094
+      ],
+      "reward": 0.2564979325910711,
+      "step": 10,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.68296813964844,
+        333.15338134765625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 11,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.19845581054688,
+        342.49456787109375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 12,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.9859161376953,
+        352.0275573730469
+      ],
+      "reward": 0.2564979325910711,
+      "step": 13,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        166.24139404296875,
+        360.5101013183594
+      ],
+      "reward": 0.2564979325910711,
+      "step": 14,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        179.04055786132812,
+        369.8951110839844
+      ],
+      "reward": 0.2564979325910711,
+      "step": 15,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        197.45433044433594,
+        378.9737243652344
+      ],
+      "reward": 0.2564979325910711,
+      "step": 16,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.59158325195312,
+        307.60137939453125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 17,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.9044952392578,
+        318.72119140625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 18,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.03353881835938,
+        333.4815673828125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 19,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.9602508544922,
+        345.2667236328125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 20,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.16392517089844,
+        355.7745666503906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 21,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        170.1204833984375,
+        364.5548095703125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 22,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        182.2932586669922,
+        372.6899108886719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 23,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        201.83877563476562,
+        382.3359069824219
+      ],
+      "reward": 0.2564979325910711,
+      "step": 24,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.84808349609375,
+        308.8232421875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 25,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.0529022216797,
+        318.3529357910156
+      ],
+      "reward": 0.2564979325910711,
+      "step": 26,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.9810028076172,
+        330.84271240234375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 27,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.81544494628906,
+        341.4236145019531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 28,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.0699920654297,
+        351.4094543457031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 29,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        164.8015899658203,
+        359.91595458984375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 30,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        171.85459899902344,
+        369.1114807128906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 31,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        192.98475646972656,
+        378.96746826171875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 32,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        152.80886840820312,
+        308.79034423828125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 33,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.60841369628906,
+        319.4210205078125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 34,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        162.0365447998047,
+        334.1215515136719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 35,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        162.25381469726562,
+        345.008056640625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 36,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        162.84117126464844,
+        354.41912841796875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 37,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        167.32382202148438,
+        362.48858642578125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 38,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        175.89260864257812,
+        370.39898681640625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 39,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        193.92308044433594,
+        378.8299255371094
+      ],
+      "reward": 0.2564979325910711,
+      "step": 40,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.23765563964844,
+        308.5057373046875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 41,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.54466247558594,
+        320.0876770019531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 42,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.24349975585938,
+        332.6912841796875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 43,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.3458251953125,
+        344.2764892578125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 44,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.78244018554688,
+        353.3590087890625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 45,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        167.59046936035156,
+        361.2465515136719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 46,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        181.12225341796875,
+        370.9385070800781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 47,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        201.7874755859375,
+        380.6180419921875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 48,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.65394592285156,
+        310.35186767578125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 49,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.932861328125,
+        322.4641418457031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 50,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.40528869628906,
+        333.8703918457031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 51,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.35345458984375,
+        343.796142578125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 52,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.88070678710938,
+        352.97637939453125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 53,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        166.72474670410156,
+        362.15667724609375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 54,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        183.234619140625,
+        373.6076354980469
+      ],
+      "reward": 0.2564979325910711,
+      "step": 55,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        201.12222290039062,
+        380.3805236816406
+      ],
+      "reward": 0.2564979325910711,
+      "step": 56,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.2783203125,
+        307.9260559082031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 57,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.8480987548828,
+        317.3562316894531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 58,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.6827392578125,
+        329.50927734375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 59,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.47964477539062,
+        339.5796203613281
+      ],
+      "reward": 0.2564979325910711,
+      "step": 60,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        163.78265380859375,
+        349.4088134765625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 61,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        169.71246337890625,
+        358.6951599121094
+      ],
+      "reward": 0.2564979325910711,
+      "step": 62,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        176.14173889160156,
+        366.7041931152344
+      ],
+      "reward": 0.2564979325910711,
+      "step": 63,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        194.2444305419922,
+        375.5813903808594
+      ],
+      "reward": 0.2564979325910711,
+      "step": 64,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.220458984375,
+        309.8808288574219
+      ],
+      "reward": 0.2564979325910711,
+      "step": 65,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.18739318847656,
+        320.7283020019531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 66,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.2460174560547,
+        330.8525085449219
+      ],
+      "reward": 0.2564979325910711,
+      "step": 67,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.52955627441406,
+        344.946044921875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 68,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        164.40748596191406,
+        356.3218078613281
+      ],
+      "reward": 0.2564979325910711,
+      "step": 69,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        172.30003356933594,
+        364.3013916015625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 70,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        180.48741149902344,
+        370.951171875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 71,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        195.3245086669922,
+        377.8097229003906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 72,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.61642456054688,
+        310.2154235839844
+      ],
+      "reward": 0.2564979325910711,
+      "step": 73,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.05447387695312,
+        321.399169921875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 74,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.4716033935547,
+        332.2640380859375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 75,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.34030151367188,
+        342.70751953125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 76,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        163.6829376220703,
+        353.7677001953125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 77,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        171.3460693359375,
+        363.1378479003906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 78,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        183.61605834960938,
+        372.4185791015625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 79,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        201.3587646484375,
+        380.8409729003906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 80,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.30311584472656,
+        310.56829833984375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 81,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.14639282226562,
+        323.4125061035156
+      ],
+      "reward": 0.2564979325910711,
+      "step": 82,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.00897216796875,
+        332.00738525390625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 83,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.81594848632812,
+        342.9685363769531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 84,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        163.1411590576172,
+        353.0956115722656
+      ],
+      "reward": 0.2564979325910711,
+      "step": 85,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        170.86241149902344,
+        364.4145202636719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 86,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        182.32473754882812,
+        373.454833984375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 87,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        200.76507568359375,
+        380.473388671875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 88,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.5453338623047,
+        308.6241149902344
+      ],
+      "reward": 0.2564979325910711,
+      "step": 89,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.09429931640625,
+        320.43951416015625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 90,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.79232788085938,
+        332.0609436035156
+      ],
+      "reward": 0.2564979325910711,
+      "step": 91,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.58984375,
+        342.2416076660156
+      ],
+      "reward": 0.2564979325910711,
+      "step": 92,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        162.04910278320312,
+        350.0592956542969
+      ],
+      "reward": 0.2564979325910711,
+      "step": 93,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        166.99859619140625,
+        357.77276611328125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 94,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        178.25961303710938,
+        369.4797668457031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 95,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        195.658935546875,
+        378.42132568359375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 96,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.5926971435547,
+        310.8525390625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 97,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.33590698242188,
+        323.1914367675781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 98,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.19021606445312,
+        333.45172119140625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 99,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.9798126220703,
+        341.3080749511719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 100,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        163.63352966308594,
+        351.8583984375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 101,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        171.58724975585938,
+        362.2741394042969
+      ],
+      "reward": 0.2564979325910711,
+      "step": 102,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        185.7930145263672,
+        371.76812744140625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 103,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        203.74032592773438,
+        378.6006164550781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 104,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.00914001464844,
+        309.86767578125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 105,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.8279266357422,
+        320.4488525390625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 106,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.280029296875,
+        330.43438720703125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 107,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.4073028564453,
+        343.5087585449219
+      ],
+      "reward": 0.2564979325910711,
+      "step": 108,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        163.083740234375,
+        355.91009521484375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 109,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        170.56199645996094,
+        363.5096435546875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 110,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        183.5978546142578,
+        371.0661315917969
+      ],
+      "reward": 0.2564979325910711,
+      "step": 111,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        203.33319091796875,
+        379.7291564941406
+      ],
+      "reward": 0.2564979325910711,
+      "step": 112,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.1611328125,
+        310.2981262207031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 113,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.65992736816406,
+        320.2740478515625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 114,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.1999053955078,
+        331.8939514160156
+      ],
+      "reward": 0.2564979325910711,
+      "step": 115,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.7367401123047,
+        339.881591796875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 116,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.45654296875,
+        349.1806945800781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 117,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        166.68154907226562,
+        360.498779296875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 118,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        177.17013549804688,
+        370.6825866699219
+      ],
+      "reward": 0.2564979325910711,
+      "step": 119,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        194.09573364257812,
+        378.492431640625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 120,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.142822265625,
+        306.8335876464844
+      ],
+      "reward": 0.2564979325910711,
+      "step": 121,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.0615997314453,
+        317.8791809082031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 122,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.02560424804688,
+        330.0028381347656
+      ],
+      "reward": 0.2564979325910711,
+      "step": 123,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.44244384765625,
+        340.38702392578125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 124,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.8836669921875,
+        349.1711730957031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 125,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        163.04635620117188,
+        357.8650207519531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 126,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        173.44375610351562,
+        369.9940185546875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 127,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        189.60842895507812,
+        376.5997009277344
+      ],
+      "reward": 0.2564979325910711,
+      "step": 128,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.54464721679688,
+        310.2896728515625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 129,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.11465454101562,
+        321.8484802246094
+      ],
+      "reward": 0.2564979325910711,
+      "step": 130,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.0321044921875,
+        333.3560791015625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 131,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.4770050048828,
+        343.98382568359375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 132,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        163.45204162597656,
+        354.46356201171875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 133,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        171.4431915283203,
+        362.80169677734375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 134,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        186.49053955078125,
+        372.47686767578125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 135,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        204.9645538330078,
+        380.22491455078125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 136,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        152.27061462402344,
+        308.5384521484375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 137,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.12322998046875,
+        321.6758117675781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 138,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.50445556640625,
+        333.991455078125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 139,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.4036865234375,
+        342.53961181640625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 140,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.47488403320312,
+        352.38336181640625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 141,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        167.56199645996094,
+        361.0331115722656
+      ],
+      "reward": 0.2564979325910711,
+      "step": 142,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        179.04684448242188,
+        370.5882873535156
+      ],
+      "reward": 0.2564979325910711,
+      "step": 143,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        199.83067321777344,
+        381.41082763671875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 144,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.20150756835938,
+        310.8165588378906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 145,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.199462890625,
+        319.15594482421875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 146,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.1464080810547,
+        329.8094177246094
+      ],
+      "reward": 0.2564979325910711,
+      "step": 147,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.84890747070312,
+        340.7311096191406
+      ],
+      "reward": 0.2564979325910711,
+      "step": 148,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.72557067871094,
+        349.6127624511719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 149,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        168.35374450683594,
+        358.4375305175781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 150,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        181.50184631347656,
+        368.15081787109375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 151,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        197.46800231933594,
+        375.96954345703125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 152,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        149.8587188720703,
+        305.7015075683594
+      ],
+      "reward": 0.2564979325910711,
+      "step": 153,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.19837951660156,
+        315.81689453125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 154,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        153.23849487304688,
+        327.8899841308594
+      ],
+      "reward": 0.2564979325910711,
+      "step": 155,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        151.80101013183594,
+        339.0603942871094
+      ],
+      "reward": 0.2564979325910711,
+      "step": 156,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.60040283203125,
+        347.9622497558594
+      ],
+      "reward": 0.2564979325910711,
+      "step": 157,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        162.0301513671875,
+        356.95648193359375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 158,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        171.52322387695312,
+        366.975341796875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 159,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        187.53030395507812,
+        377.2051086425781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 160,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.13636779785156,
+        307.674560546875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 161,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.25048828125,
+        320.14544677734375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 162,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.82981872558594,
+        332.421630859375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 163,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.76882934570312,
+        341.697998046875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 164,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        164.0515899658203,
+        351.34991455078125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 165,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        169.76934814453125,
+        359.8966979980469
+      ],
+      "reward": 0.2564979325910711,
+      "step": 166,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        179.52175903320312,
+        369.1628723144531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 167,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        196.51573181152344,
+        378.43341064453125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 168,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.15725708007812,
+        307.72332763671875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 169,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.70635986328125,
+        319.52734375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 170,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.5751190185547,
+        331.6778869628906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 171,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.95753479003906,
+        340.92083740234375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 172,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        162.845947265625,
+        350.9281921386719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 173,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        169.48170471191406,
+        360.3634338378906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 174,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        179.0242156982422,
+        369.6535949707031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 175,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        197.2173614501953,
+        377.46307373046875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 176,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        153.30726623535156,
+        308.7457275390625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 177,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.88955688476562,
+        319.7948913574219
+      ],
+      "reward": 0.2564979325910711,
+      "step": 178,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.22549438476562,
+        334.9345703125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 179,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.1145477294922,
+        343.6536865234375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 180,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.53173828125,
+        352.1197509765625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 181,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        164.34190368652344,
+        359.6185607910156
+      ],
+      "reward": 0.2564979325910711,
+      "step": 182,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        174.23313903808594,
+        368.94830322265625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 183,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        193.87977600097656,
+        378.27838134765625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 184,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.96363830566406,
+        308.5507507324219
+      ],
+      "reward": 0.2564979325910711,
+      "step": 185,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.4525604248047,
+        320.6622009277344
+      ],
+      "reward": 0.2564979325910711,
+      "step": 186,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.39859008789062,
+        333.61639404296875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 187,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.05982971191406,
+        346.140625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 188,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        163.20021057128906,
+        356.8264465332031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 189,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        170.5937957763672,
+        364.7840576171875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 190,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        183.4565887451172,
+        374.0711975097656
+      ],
+      "reward": 0.2564979325910711,
+      "step": 191,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        206.75228881835938,
+        383.3193054199219
+      ],
+      "reward": 0.2564979325910711,
+      "step": 192,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.8550262451172,
+        310.084228515625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 193,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.83444213867188,
+        322.6300964355469
+      ],
+      "reward": 0.2564979325910711,
+      "step": 194,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.56285095214844,
+        335.9442443847656
+      ],
+      "reward": 0.2564979325910711,
+      "step": 195,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.55149841308594,
+        345.770751953125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 196,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        166.0211639404297,
+        355.2970275878906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 197,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        177.2998809814453,
+        363.6852111816406
+      ],
+      "reward": 0.2564979325910711,
+      "step": 198,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        189.68106079101562,
+        372.32147216796875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 199,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        207.95175170898438,
+        379.2973327636719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 200,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.90126037597656,
+        307.8127746582031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 201,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.568359375,
+        320.5813903808594
+      ],
+      "reward": 0.2564979325910711,
+      "step": 202,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.59310913085938,
+        332.3282775878906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 203,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.4895477294922,
+        341.1178283691406
+      ],
+      "reward": 0.2564979325910711,
+      "step": 204,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.37628173828125,
+        350.9922790527344
+      ],
+      "reward": 0.2564979325910711,
+      "step": 205,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        166.60484313964844,
+        360.45794677734375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 206,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        180.09054565429688,
+        371.2332458496094
+      ],
+      "reward": 0.2564979325910711,
+      "step": 207,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        198.3272705078125,
+        378.6527099609375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 208,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.40090942382812,
+        309.0470886230469
+      ],
+      "reward": 0.2564979325910711,
+      "step": 209,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.5344696044922,
+        322.51959228515625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 210,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.82289123535156,
+        334.7381591796875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 211,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.5115509033203,
+        343.69207763671875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 212,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        162.51724243164062,
+        352.3786315917969
+      ],
+      "reward": 0.2564979325910711,
+      "step": 213,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        168.39346313476562,
+        362.3293762207031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 214,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        182.16049194335938,
+        372.74853515625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 215,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        199.3861541748047,
+        379.4328918457031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 216,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.0305938720703,
+        308.2127380371094
+      ],
+      "reward": 0.2564979325910711,
+      "step": 217,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.90249633789062,
+        319.1447448730469
+      ],
+      "reward": 0.2564979325910711,
+      "step": 218,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.5472869873047,
+        333.7136535644531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 219,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.8339080810547,
+        343.4099426269531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 220,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        162.00311279296875,
+        354.19671630859375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 221,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        169.41175842285156,
+        363.5090026855469
+      ],
+      "reward": 0.2564979325910711,
+      "step": 222,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        179.4942169189453,
+        371.692138671875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 223,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        198.66554260253906,
+        379.422607421875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 224,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.68350219726562,
+        307.4330749511719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 225,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.96084594726562,
+        317.59088134765625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 226,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.1562042236328,
+        331.728271484375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 227,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.3529052734375,
+        343.0278015136719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 228,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.1199188232422,
+        352.9508056640625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 229,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        168.90060424804688,
+        360.44500732421875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 230,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        182.92095947265625,
+        369.5982360839844
+      ],
+      "reward": 0.2564979325910711,
+      "step": 231,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        200.72515869140625,
+        378.01385498046875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 232,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.2973175048828,
+        307.4740295410156
+      ],
+      "reward": 0.2564979325910711,
+      "step": 233,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.31381225585938,
+        318.796142578125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 234,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.13783264160156,
+        331.4726257324219
+      ],
+      "reward": 0.2564979325910711,
+      "step": 235,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.5860595703125,
+        340.57135009765625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 236,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        160.74029541015625,
+        348.6897888183594
+      ],
+      "reward": 0.2564979325910711,
+      "step": 237,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        165.4801025390625,
+        359.2118835449219
+      ],
+      "reward": 0.2564979325910711,
+      "step": 238,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        175.00228881835938,
+        367.288330078125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 239,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        191.8358612060547,
+        374.8976745605469
+      ],
+      "reward": 0.2564979325910711,
+      "step": 240,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.286865234375,
+        309.52764892578125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 241,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.6970672607422,
+        322.31658935546875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 242,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.39129638671875,
+        335.7117614746094
+      ],
+      "reward": 0.2564979325910711,
+      "step": 243,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.4259033203125,
+        344.16229248046875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 244,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        162.56686401367188,
+        352.97955322265625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 245,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        170.9800567626953,
+        362.2936706542969
+      ],
+      "reward": 0.2564979325910711,
+      "step": 246,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        184.25186157226562,
+        372.1177978515625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 247,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        201.97071838378906,
+        380.7925109863281
+      ],
+      "reward": 0.2564979325910711,
+      "step": 248,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.90878295898438,
+        311.2783203125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 249,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.6524658203125,
+        322.76123046875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 250,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.2854461669922,
+        334.88690185546875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 251,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.57608032226562,
+        345.89166259765625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 252,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        163.75283813476562,
+        355.4644775390625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 253,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        172.54689025878906,
+        364.87969970703125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 254,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        185.45396423339844,
+        373.64276123046875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 255,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        204.59251403808594,
+        380.8252258300781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 256,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.2956085205078,
+        307.9346008300781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 257,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.8477325439453,
+        319.721435546875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 258,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.38116455078125,
+        332.35101318359375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 259,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.84703063964844,
+        342.1845703125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 260,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.02304077148438,
+        350.89801025390625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 261,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        166.61595153808594,
+        361.3958740234375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 262,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        178.686279296875,
+        371.9632568359375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 263,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        194.31985473632812,
+        378.8865966796875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 264,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.71524047851562,
+        309.7039794921875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 265,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.94363403320312,
+        321.8644104003906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 266,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.10594177246094,
+        334.8203430175781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 267,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.07713317871094,
+        345.9025573730469
+      ],
+      "reward": 0.2564979325910711,
+      "step": 268,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        163.54905700683594,
+        358.0494689941406
+      ],
+      "reward": 0.2564979325910711,
+      "step": 269,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        175.59039306640625,
+        367.002197265625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 270,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        189.08226013183594,
+        375.2084655761719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 271,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        204.5196075439453,
+        380.9883117675781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 272,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.20135498046875,
+        309.7228698730469
+      ],
+      "reward": 0.2564979325910711,
+      "step": 273,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.68959045410156,
+        319.748046875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 274,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.03897094726562,
+        331.9732666015625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 275,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.6456298828125,
+        342.6617126464844
+      ],
+      "reward": 0.2564979325910711,
+      "step": 276,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.55465698242188,
+        352.62689208984375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 277,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        166.90567016601562,
+        361.8658752441406
+      ],
+      "reward": 0.2564979325910711,
+      "step": 278,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        178.4163360595703,
+        370.5982971191406
+      ],
+      "reward": 0.2564979325910711,
+      "step": 279,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        198.0713653564453,
+        377.9138488769531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 280,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.44839477539062,
+        310.1045227050781
+      ],
+      "reward": 0.2564979325910711,
+      "step": 281,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.27325439453125,
+        321.72613525390625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 282,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.9207305908203,
+        336.02484130859375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 283,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        158.72329711914062,
+        345.8267517089844
+      ],
+      "reward": 0.2564979325910711,
+      "step": 284,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        162.1747283935547,
+        354.8977355957031
+      ],
+      "reward": 0.2564979325910711,
+      "step": 285,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        171.8375701904297,
+        364.8716735839844
+      ],
+      "reward": 0.2564979325910711,
+      "step": 286,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        185.4930419921875,
+        374.2158203125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 287,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        204.9999237060547,
+        381.4408874511719
+      ],
+      "reward": 0.2564979325910711,
+      "step": 288,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        153.99317932128906,
+        309.513427734375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 289,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.29769897460938,
+        319.513671875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 290,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        159.29995727539062,
+        334.14013671875
+      ],
+      "reward": 0.2564979325910711,
+      "step": 291,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        161.3204345703125,
+        345.7771301269531
+      ],
+      "reward": 0.2564979325910711,
+      "step": 292,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        164.12171936035156,
+        354.2743225097656
+      ],
+      "reward": 0.2564979325910711,
+      "step": 293,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        172.68008422851562,
+        362.49615478515625
+      ],
+      "reward": 0.2564979325910711,
+      "step": 294,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        185.60922241210938,
+        371.2149963378906
+      ],
+      "reward": 0.2564979325910711,
+      "step": 295,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        203.38719177246094,
+        378.8094177246094
+      ],
+      "reward": 0.2564979325910711,
+      "step": 296,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        154.6454315185547,
+        307.9580993652344
+      ],
+      "reward": 0.2564979325910711,
+      "step": 297,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        155.99981689453125,
+        322.18109130859375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 298,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        156.56617736816406,
+        334.06036376953125
+      ],
+      "reward": 0.2564979325910711,
+      "step": 299,
+      "success": false,
+      "terminated": false,
+      "truncated": false
+    },
+    {
+      "action": [
+        153.0,
+        301.0
+      ],
+      "agent_pos": [
+        153.0,
+        301.0
+      ],
+      "observation": {
+        "agent_pos": [
+          153.0,
+          301.0
+        ],
+        "pixels_sha256": "092bf904d71849ae075b3ba19dce4bda003e0fbbf88bac88d9550504a436a66d"
+      },
+      "policy_action": [
+        157.08753967285156,
+        343.564208984375
+      ],
+      "reward": 0.2564979325910711,
+      "step": 300,
+      "success": false,
+      "terminated": false,
+      "truncated": true
+    }
+  ]
+}

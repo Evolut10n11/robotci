@@ -1,5 +1,6 @@
 # Python environments and local configuration
 .venv/
+.venv-lerobot/
 .review-venv/
 venv/
 env/

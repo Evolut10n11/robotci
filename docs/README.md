@@ -11,7 +11,9 @@
 | [Project onboarding](onboarding.md) | Initialize a configuration in an existing project |
 | [Baselines](baselines.md) | Capture, inspect, replace, and compare local baselines |
 | [Импорт модели робота](robot-model-import.md) | URDF/MJCF, авто-определение и локальные модели Go2/G1/Panda |
-| [LeRobot preflight](lerobot.md) | Локальные метаданные датасета и совместимость feature-схемы политики |
+| [LeRobot: preflight и PushT](lerobot.md) | Совместимость метаданных ACT/Diffusion/SmolVLA, отдельный CPU runtime для Diffusion PushT, повторы и регрессионный отчёт |
+| [Эксперимент Diffusion PushT](../experiments/lerobot_pusht/README.md) | Закреплённые зависимости и checkpoint, реальное изменение действий и формат доказательств |
+| [Проверка LeRobot PushT](validation/lerobot-pusht-2026-10-19.md) | Фактические внутренние испытания и ограничения; отдельно от внешних пилотов M8 |
 | [Replay viewer](replay-viewer.md) | Open synthetic demos and recorded trajectories |
 | [Support bundle](support-bundle.md) | Collect and review compact diagnostics |
 | [Post-run acceptance](validation/postrun-acceptance.md) | Recheck recorded suites, baseline/gate/report/replay consumers, and explicit synthetic controls |

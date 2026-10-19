@@ -48,7 +48,8 @@ RobotCI проверяет, не стал ли робот хуже выполн�
 | Интеграция с CI | Сформировать JSON, Markdown и JUnit-отчёты; через GitHub Action завершить проверку с ошибкой при обнаружении регрессии |
 | Визуальный разбор | Открыть запись траектории в локальном интерфейсе на русском, посмотреть её в 2D/3D и синхронно сравнить два запуска |
 | Импорт робота | Вставить URDF/MJCF, определить приблизительный тип по структуре и показать собственную геометрию или явно выбранную модель из локального каталога |
-| Проверка перед запуском | Через CLI разобрать URDF/MJCF и проверить совместимость метаданных LeRobot с feature-схемой политики без ROS, GPU и оборудования |
+| Проверка перед запуском | Через CLI разобрать URDF/MJCF (`static_reference`) и проверить совместимость метаданных LeRobot с feature-схемой ACT, Diffusion или SmolVLA (`metadata_only`) без ROS, GPU и оборудования |
+| LeRobot в симуляции PushT | В отдельном CPU-окружении запустить закреплённую обученную Diffusion-политику, записать эпизоды и сравнить успешность и награду с эталоном; экспериментальный сценарий без ROS и Docker |
 | Интеграция с AI-агентами | Через MCP читать результаты и, при явном разрешении, запускать, отслеживать, отменять симуляции и сравнивать их с эталоном |
 
 Эталонный запуск называется `baseline`, проверяемая новая версия называется
@@ -167,18 +168,60 @@ robotci model inspect examples/robot-models/mimic-gripper.urdf
 захвата Panda, в согласованной опорной позе. CLI читает только описание;
 проверка файлов геометрии и управление роботом в него не входят.
 
-### LeRobot: проверить датасет и конфигурацию политики
+### LeRobot: проверить метаданные и выполнить политику в PushT
 
 ```powershell
 robotci lerobot inspect examples/lerobot-preflight/dataset --policy examples/lerobot-preflight/policy --robot-type so101_follower --fps 30
 ```
 
-Первый шаг интеграции LeRobot проверяет локальные `meta/info.json` v2.1/v3.0 и
+Офлайн-проверка LeRobot читает локальные `meta/info.json` v2.1/v3.0 и
 явную feature-схему сохранённой политики ACT, Diffusion или SmolVLA: размеры
 состояния/действий, наличие камер и порядок осей изображения. `--json` выдаёт
 отчёт с хешами входов; несовместимость возвращает код 3. Пример выше содержит
 синтетические метаданные, без эпизодов и весов. `VALID` означает только
-согласованность проверенных метаданных. [Руководство и границы](docs/lerobot.md).
+согласованность проверенных метаданных.
+
+Для реального исполнения обученной политики добавлен экспериментальный CPU
+сценарий PushT. Создайте отдельное окружение Python 3.12 из корня репозитория;
+эти команды PowerShell не требуют активации окружения, ROS, Docker или GPU:
+
+```powershell
+py -3.12 -m venv .venv-lerobot
+.\.venv-lerobot\Scripts\python.exe -m pip install -r experiments/lerobot_pusht/requirements.txt
+.\.venv-lerobot\Scripts\python.exe -m pip install -e .
+$RobotCIPushT = Join-Path $PWD ".venv-lerobot\Scripts\robotci.exe"
+& $RobotCIPushT lerobot fetch .robotci/lerobot-checkpoints/diffusion-pusht
+& $RobotCIPushT lerobot run .robotci/lerobot-checkpoints/diffusion-pusht --output .robotci/lerobot-pusht/baseline --seed 1000 --seed 1001 --seed 1002 --inference-steps 10
+& $RobotCIPushT lerobot run .robotci/lerobot-checkpoints/diffusion-pusht --output .robotci/lerobot-pusht/unchanged --seed 1000 --seed 1001 --seed 1002 --inference-steps 10
+& $RobotCIPushT lerobot compare .robotci/lerobot-pusht/baseline .robotci/lerobot-pusht/unchanged --output .robotci/lerobot-pusht/reports/unchanged.json --markdown .robotci/lerobot-pusht/reports/unchanged.md
+```
+
+`fetch` явно скачивает около 1,05 ГБ с закреплённой ревизии
+`lerobot/diffusion_pusht`, проверяет размеры и SHA-256 и сохраняет manifest.
+Существующий checkpoint повторно проверяется; веса, каталоги запусков и отчёты
+не перезаписываются. После скачивания `run` использует только локальные файлы.
+
+Код `0` у `run` означает `COMPLETED`, даже если политика не решила ни одного
+эпизода. Качество проверяет `compare`: `0` — `PASS`, `4` — `REGRESSION`,
+`3` — `INFRA_ERROR`. Эталону нужен хотя бы один успех; окружение, версии
+зависимостей и упорядоченные seeds должны совпадать. Первый повтор позволяет
+проверить неизменённую политику, после чего можно сравнить реальное изменение
+действий через `--action-scale 0`. Полный пример и правила сравнения находятся
+в [руководстве LeRobot](docs/lerobot.md).
+
+В примере используются 10 шагов денойзинга вместо 100 из исходного config;
+это самостоятельная проверка RobotCI, а не воспроизведение upstream-бенчмарка.
+Поддерживается один закреплённый Diffusion checkpoint и среда PushT.
+Исполнение ACT/SmolVLA, управление физическим манипулятором и подключение
+PushT-траекторий к Nav2/3D replay в этот сценарий не входят.
+[Протокол внутренних испытаний](docs/validation/lerobot-pusht-2026-10-19.md)
+содержит фактические результаты и ограничения окружения.
+
+В сохранённой CPU-проверке эталон и неизменённый повтор решили по 3 из 3
+эпизодов, сравнение вернуло `PASS`. Кандидат с удержанием позиции решил 0 из 3;
+сравнение обнаружило `REGRESSION`. Это внутренний контроль на трёх seeds;
+исходные [результаты и траектории](experiments/lerobot_pusht/evidence/2026-10-19/manifest.json)
+сохранены отдельно от unit-test fixtures и внешних пилотов.
 
 ### Что проверено в физическом симуляторе
 
@@ -201,8 +244,10 @@ Go2, G1 и Panda в MuJoCo: удержание позы, точность упр
 [журнал проверок](docs/validation/runtime-acceptance.md).
 
 Проверка конфигурации, планирование и просмотр записей доступны на Windows без
-ROS и Docker. Для выполнения симуляций нужен Ubuntu с ROS 2 / Nav2, работающий
-Docker с Linux-контейнерами или отдельный Ubuntu runner.
+ROS и Docker. Для навигационных симуляций нужен Ubuntu с ROS 2 / Nav2, работающий
+Docker с Linux-контейнерами или отдельный Ubuntu runner. Экспериментальный
+LeRobot PushT использует отдельное окружение Python 3.12 и CPU; его установка
+и контракт результатов описаны независимо от Nav2.
 
 Модели ровера, четвероногого робота и гуманоида в просмотрщике меняют только
 визуальное представление. Они не означают поддержку управления этими роботами
@@ -237,6 +282,12 @@ Run repeatable navigation scenarios in simulation, compare a candidate with a
 known-good baseline, and block changes that make robot behavior worse. RobotCI
 records the measurements and produces reports your CI pipeline can act on.
 
+An experimental LeRobot path also evaluates one pinned pretrained Diffusion
+policy in CPU PushT, records per-seed evidence, and gates success-rate and reward
+regressions. Metadata preflight supports ACT, Diffusion and SmolVLA configurations;
+policy execution is limited to the pinned Diffusion PushT profile. See the
+[LeRobot guide](docs/lerobot.md) for isolated setup, repeats and a real action intervention.
+
 **Public alpha · `0.1.0a1`** — available from this repository. The core workflow
 is implemented; external validation is in progress. Start with simulation.
 
@@ -251,7 +302,8 @@ is implemented; external validation is in progress. Start with simulation.
 | Review results in CI | JSON, Markdown, JUnit, and a reusable GitHub Action |
 | Inspect a run | 2D/3D replay with robot visual profiles, synchronized comparison, observed stuck/recovery events, and six read-only MCP tools |
 | Import a robot | Bounded URDF/MJCF inspection, approximate structural classification, local OBJ/STL geometry, and bundled Go2/G1/Panda reference models |
-| Inspect configurations offline | `model list/inspect` for descriptions and `lerobot inspect` for local dataset/policy feature preflight; no hardware or ML dependencies |
+| Inspect configurations offline | `model list/inspect` reports `static_reference`; `lerobot inspect` checks ACT/Diffusion/SmolVLA feature metadata; no hardware or ML dependencies |
+| Evaluate LeRobot in PushT | Explicit pinned-checkpoint download, optional CPU Diffusion execution, episode artifacts and deterministic comparisons; no ROS or Docker required |
 | Orchestrate a simulation | Explicitly enabled MCP start/status/cancel/compare tools with isolated evidence and owned runtime cleanup |
 
 Navigation success alone is not enough. A robot can reach its goal and still take
@@ -346,7 +398,7 @@ For native ROS2 Jazzy/Nav2 on Ubuntu 24.04, follow the
 [runtime setup](docs/quickstart.md#native-runtime-setup) and use
 `robotci run --runtime native`.
 
-| Environment | Core tools | Simulation execution |
+| Environment | Core tools | Nav2 simulation execution |
 | --- | --- | --- |
 | Windows / PowerShell | Supported | Requires a working Linux Docker backend or remote Ubuntu runner |
 | Ubuntu 24.04 | Supported | Native ROS2 Jazzy/Nav2 or Docker |
@@ -420,6 +472,7 @@ Read the [full quickstart](docs/quickstart.md) for an external project and the
 | M8: real-world validation | In progress; external evidence pending |
 | M9: visual replay | Local workbench with description import, bundled reference models, playback, 2D/3D, synchronized comparison, and suite gate evidence |
 | M10: additional robot adapters | Bounded Go2/G1/Panda MuJoCo probes exist; production adapters and joint-trajectory integration remain future work |
+| LeRobot | Offline metadata preflight plus experimental pinned Diffusion PushT execution and comparison; separate artifacts, no physical-robot or ACT/SmolVLA runtime claim |
 | M11: agent integration | Six inspection tools, four opt-in managed simulation tools and a reference MCP workflow |
 | Nav2 / Gazebo acceptance | Experimental setup succeeded in two separately fingerprinted internal experiments; each passed 20/20 baseline gates and both controls, and detected the real speed regression |
 | M12: team capabilities | Requires evidence from external pilots |

@@ -1,0 +1,107 @@
+{
+  "derived_reports": {
+    "acceptance.json": {
+      "directory_paths_relative_to": "manifest_directory",
+      "normalization": "Only runs.*.directory changed from absolute to evidence-relative paths.",
+      "normalized_fields": [
+        "runs.baseline.directory",
+        "runs.degraded.directory",
+        "runs.unchanged.directory"
+      ],
+      "source_sha256": "eed386a5f4cb1f403ab4e392ca637fa56ceb9354ebde2e793c16739d371f8090"
+    },
+    "acceptance.md": {
+      "byte_identical_to_source": true,
+      "source_sha256": "fac50c6ec816b084f44911267b7a0c8372d6fa15706668c718e4995a0aff2ac7"
+    }
+  },
+  "files": {
+    "acceptance.json": {
+      "sha256": "d9e155f900e1ec6c5591bbe1d70b553568ad636ddf4baf61899d610d3c35cb98",
+      "size_bytes": 11595
+    },
+    "acceptance.md": {
+      "sha256": "fac50c6ec816b084f44911267b7a0c8372d6fa15706668c718e4995a0aff2ac7",
+      "size_bytes": 885
+    },
+    "baseline/episode-1000.json": {
+      "sha256": "a9bf6f8a63b083ef1a5182353baf153bc6559c0c82a4e1f926c5cb110a459a6e",
+      "size_bytes": 98155
+    },
+    "baseline/episode-1001.json": {
+      "sha256": "e955225323b196ec5b5e8bdbc22ddffa0ad41623a38f5e4e9805de602a34c364",
+      "size_bytes": 129384
+    },
+    "baseline/episode-1002.json": {
+      "sha256": "3aeb7d3c6d0272b7faa87c41f598bb5c322cc39cfa509ac29a4c4a19b739bf04",
+      "size_bytes": 78445
+    },
+    "baseline/result.json": {
+      "sha256": "5b7101e0b3584647a444a541d082fd2718352cd8e221690822d3c64416c17abd",
+      "size_bytes": 3192
+    },
+    "cli-checks.json": {
+      "sha256": "68717fc449d88aa95e8add9a84b94a1022011f9420f59a378306cfbc180370bd",
+      "size_bytes": 856
+    },
+    "degraded/episode-1000.json": {
+      "sha256": "0ca339e7280d880b0ae7bd00a72a3555d11b1d2873078470ec2cad4596dfeba4",
+      "size_bytes": 157036
+    },
+    "degraded/episode-1001.json": {
+      "sha256": "2b26d8d374a7e76d961a7651c60a97e157adcd1de7871cd2376f9a3bcd0b67ae",
+      "size_bytes": 156758
+    },
+    "degraded/episode-1002.json": {
+      "sha256": "4bf2a16136ba594b059a32c8a353ee76d7b42051a064b27eca44fa4dde882caf",
+      "size_bytes": 161410
+    },
+    "degraded/result.json": {
+      "sha256": "03389bfe76676448bd5faad82fe224320749b99f9b66387feb25cf2603e09da4",
+      "size_bytes": 3228
+    },
+    "reports/degraded.json": {
+      "sha256": "d3e4b0e8484314fafc23391a0ca28794269cd6028ffa3eb71896667eb711bcfe",
+      "size_bytes": 3538
+    },
+    "reports/degraded.md": {
+      "sha256": "40d49fbd92359a613b834dad40f1c341f74f002a91c557221262f9ca118ee405",
+      "size_bytes": 1009
+    },
+    "reports/unchanged.json": {
+      "sha256": "3dceb06709c86cd656a714d00affb23cbf330fa476e2020a7c23a79b0604c7df",
+      "size_bytes": 3211
+    },
+    "reports/unchanged.md": {
+      "sha256": "0737f3b90f60dbcb0951ec68d88e149cae9b8e86e584032ae6f7000c4186c00e",
+      "size_bytes": 790
+    },
+    "unchanged/episode-1000.json": {
+      "sha256": "a9bf6f8a63b083ef1a5182353baf153bc6559c0c82a4e1f926c5cb110a459a6e",
+      "size_bytes": 98155
+    },
+    "unchanged/episode-1001.json": {
+      "sha256": "8400af7ef505b7987be582542efac45713a6f86a2f2524aa351ac3324ee437fd",
+      "size_bytes": 129387
+    },
+    "unchanged/episode-1002.json": {
+      "sha256": "1ae784bc20b2c18d119a55349083a05bd2b7388155f67a36952d97f2bee114b0",
+      "size_bytes": 78447
+    },
+    "unchanged/result.json": {
+      "sha256": "6df9d99525160116f595f005e3f2ef6577678997e7e54dcb94280738953b7e27",
+      "size_bytes": 3193
+    }
+  },
+  "producer_files": {
+    "robotci/lerobot_checkpoint.py": "bcccdd22bc099f033f3c5be74cd72d1bfa117760aa9782d6103544c69f138d05",
+    "robotci/lerobot_cli.py": "9110b1afb28306520bf4d23a059fe77e4050050cd58358c895de2584d4ce081f",
+    "robotci/lerobot_evaluation.py": "8c23d5536e6a0a4f00de1584376a337f1cbfed4a79f0b4424c1110c968e24968",
+    "robotci/lerobot_runner.py": "891a25490258a1537ac855adebcab517293ebf52817f61be8bf64434b26dd57c"
+  },
+  "schema_version": 1,
+  "scope": "measured_cpu_simulation",
+  "verification_files": {
+    "scripts/verify_lerobot_pusht.py": "c73156fc21d986e3c3a55b47fb1c28b46ff63659c95c65a54dd954d8c49e2560"
+  }
+}
