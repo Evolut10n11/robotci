@@ -1,0 +1,3 @@
+# Viewer/model-inspection selection; not a complete navigation suite.
+robot:
+  model: franka_emika_panda

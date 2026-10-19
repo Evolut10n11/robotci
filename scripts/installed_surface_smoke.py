@@ -101,6 +101,8 @@ def _cli_smoke(project: Path, env: dict[str, str]) -> None:
         [robotci, "version"],
         [robotci, "validate", "--config", "robotci.yaml"],
         [robotci, "plan", "--config", "robotci.yaml"],
+        [robotci, "model", "list", "--json"],
+        [robotci, "lerobot", "inspect", "--help"],
         [_installed_command("robotci-init"), "--help"],
         [_installed_command("robotci-baseline"), "--help"],
         [_installed_command("robotci-support-bundle"), "--help"],

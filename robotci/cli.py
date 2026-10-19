@@ -11,6 +11,8 @@ from robotci import __version__
 from robotci.application import RobotCIApplication
 from robotci.comparison import ComparisonInputError, compare_scenario_result_files
 from robotci.config import ConfigError
+from robotci.lerobot_cli import lerobot_app
+from robotci.model_cli import model_app
 from robotci.plan import build_execution_plan
 from robotci.regression import RegressionPolicy
 from robotci.reporting import regression_report_payload, write_regression_report
@@ -29,6 +31,8 @@ app = typer.Typer(
     help="Local-first regression testing for ROS2/Nav2.",
     no_args_is_help=True,
 )
+app.add_typer(model_app, name="model")
+app.add_typer(lerobot_app, name="lerobot")
 
 console = Console()
 

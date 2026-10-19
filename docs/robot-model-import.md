@@ -1,5 +1,28 @@
 # Импорт описания робота
 
+## Проверка файла без браузера
+
+```powershell
+robotci model list
+robotci model inspect examples/robot-models/go2.yaml --json
+robotci model inspect examples/robot-models/g1.yaml
+robotci model inspect examples/robot-models/panda.yaml
+robotci model inspect examples/robot-models/mimic-gripper.urdf
+```
+
+`model inspect` принимает путь к локальному UTF-8 URDF/MJCF или YAML с
+`robot.model`. Показывает структурную классификацию, число звеньев/суставов,
+идентификацию и предупреждения. JSON `kind: robot_model_inspection` содержит
+SHA-256 исходных байтов файла и полное разобранное описание; код 0 означает
+успешный разбор, код 3 — ошибку входа. `model list --json` перечисляет локальный
+каталог с происхождением моделей.
+
+Область проверки `static_reference`, `mesh_files_checked: false`: CLI не читает
+соседние меши, не запускает симулятор и не подтверждает полноту геометрии.
+Полный `robotci.yaml` отдельно проверяется командой `robotci validate`.
+
+## Просмотр модели
+
 В локальном replay откройте **«Описание робота»**, вставьте описание или выберите
 файл, затем нажмите **«Распознать и встроить»**. Выбор модели меняет только
 представление в 3D. Исходные результаты, траектории и официальный gate не меняются.
