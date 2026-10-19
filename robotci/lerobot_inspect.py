@@ -6,7 +6,8 @@ compatibility. No LeRobot, torch, Hub, camera or serial package is imported.
 
 Contract reference: huggingface/lerobot at
 ae2b57f12223c8c5184fcd814eb63cd9ce7de203, datasets/utils.py,
-utils/feature_utils.py and configs/{types,policies}.py.
+utils/feature_utils.py, configs/{types,policies}.py and the Diffusion/SmolVLA
+modeling modules' mandatory observation requirements.
 """
 
 from __future__ import annotations
@@ -223,6 +224,16 @@ def _profile_features(policy: dict[str, Any], issues: list[dict[str, str]]) -> N
     """Mirror supported profiles' feature requirements, without constructing a model."""
     policy_type = policy.get("type")
     inputs = policy.get("input_features")
+    if isinstance(inputs, dict) and inputs and policy_type in ("diffusion", "smolvla"):
+        # Both implementations consume this exact key; another STATE is not a substitute.
+        state = inputs.get("observation.state")
+        if not isinstance(state, dict) or state.get("type") != "STATE":
+            _issue(
+                issues,
+                "policy_state_missing",
+                "policy.input_features.observation.state",
+                f"{policy_type} requires observation.state as a STATE input feature.",
+            )
     if isinstance(inputs, dict) and inputs and policy_type in ("act", "diffusion"):
         definitions = [feature for feature in inputs.values() if isinstance(feature, dict)]
         images = [feature for feature in definitions if feature.get("type") == "VISUAL"]
@@ -261,6 +272,16 @@ def _profile_features(policy: dict[str, Any], issues: list[dict[str, str]]) -> N
                 "policy.empty_cameras",
                 "SmolVLA-generated empty camera features are outside this metadata profile.",
                 "unsupported",
+            )
+        elif isinstance(inputs, dict) and inputs and not any(
+            isinstance(feature, dict) and feature.get("type") == "VISUAL"
+            for feature in inputs.values()
+        ):
+            _issue(
+                issues,
+                "policy_camera_missing",
+                "policy.input_features",
+                "SmolVLA requires at least one VISUAL input feature.",
             )
 
 

@@ -144,6 +144,55 @@ def test_profile_rejects_state_only_observations(tmp_path, policy_type):
     assert "policy_observation_missing" in codes(result)
 
 
+@pytest.mark.parametrize("state_key", [None, "observation.joints"])
+def test_diffusion_requires_named_robot_state(tmp_path, state_key):
+    info, config = metadata(), policy_config()
+    config["type"] = "diffusion"
+    dataset_state = info["features"].pop("observation.state")
+    policy_state = config["input_features"].pop("observation.state")
+    if state_key is not None:
+        info["features"][state_key] = dataset_state
+        config["input_features"][state_key] = policy_state
+    dataset, policy = save(tmp_path, info, config)
+    result = inspect_lerobot(dataset, policy)
+    assert result["status"] == "INVALID"
+    assert "policy_state_missing" in codes(result)
+
+
+def test_smolvla_requires_robot_state(tmp_path):
+    info, config = metadata(), policy_config()
+    config["type"] = "smolvla"
+    del info["features"]["observation.state"]
+    del config["input_features"]["observation.state"]
+    dataset, policy = save(tmp_path, info, config)
+    result = inspect_lerobot(dataset, policy)
+    assert result["status"] == "INVALID"
+    assert "policy_state_missing" in codes(result)
+
+
+def test_smolvla_requires_camera_even_with_environment_state(tmp_path):
+    info, config = metadata(), policy_config()
+    config["type"] = "smolvla"
+    del info["features"]["observation.images.front"]
+    del config["input_features"]["observation.images.front"]
+    info["features"]["observation.environment_state"] = {
+        "dtype": "float32", "shape": [3], "names": None,
+    }
+    config["input_features"]["observation.environment_state"] = {"type": "ENV", "shape": [3]}
+    dataset, policy = save(tmp_path, info, config)
+    result = inspect_lerobot(dataset, policy)
+    assert result["status"] == "INVALID"
+    assert "policy_camera_missing" in codes(result)
+
+
+def test_act_supports_camera_without_robot_state(tmp_path):
+    info, config = metadata(), policy_config()
+    del info["features"]["observation.state"]
+    del config["input_features"]["observation.state"]
+    dataset, policy = save(tmp_path, info, config)
+    assert inspect_lerobot(dataset, policy)["status"] == "VALID"
+
+
 @pytest.mark.parametrize("policy_type", ["act", "diffusion"])
 def test_profile_accepts_environment_instead_of_visual_observations(tmp_path, policy_type):
     info, config = metadata(), policy_config()

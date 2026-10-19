@@ -94,7 +94,7 @@ def test_isolated_bootstrap_exposes_new_commands(tmp_path: Path, command: str) -
     )
     result = subprocess.run(
         [sys.executable, "-m", "robotci.bootstrap", command, *args],
-        cwd=tmp_path, capture_output=True, text=True, timeout=20, check=False,
+        cwd=tmp_path, capture_output=True, text=True, encoding="utf-8", timeout=20, check=False,
     )
     assert result.returncode == 0, result.stderr
     report = json.loads(result.stdout)

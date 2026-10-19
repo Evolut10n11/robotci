@@ -130,6 +130,14 @@ def test_mimic_gripper_inspection_preserves_constraint_and_reference_pose() -> N
         (b"\x80\x81\xff", "invalid_encoding"),
         (b"x" * (MAX_DESCRIPTION_BYTES + 1), "description_too_large"),
     ],
+    ids=[
+        "malformed_xml",
+        "scenario_only_yaml",
+        "unknown_catalog_model",
+        "utf16_xml",
+        "invalid_utf8",
+        "description_too_large",
+    ],
 )
 def test_invalid_file_is_json_with_input_error_exit(tmp_path: Path, raw: bytes, code: str) -> None:
     path = tmp_path / "invalid.xml"
