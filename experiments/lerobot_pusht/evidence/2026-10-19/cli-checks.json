@@ -1,0 +1,37 @@
+{
+  "checks": [
+    {
+      "command": [
+        ".venv/bin/robotci",
+        "lerobot",
+        "compare",
+        ".robotci/lerobot/final-baseline",
+        ".robotci/lerobot/final-unchanged",
+        "--json",
+        "--output",
+        ".robotci/lerobot/reports/unchanged.json",
+        "--markdown",
+        ".robotci/lerobot/reports/unchanged.md"
+      ],
+      "exit_code": 0,
+      "status": "PASS"
+    },
+    {
+      "command": [
+        ".venv/bin/robotci",
+        "lerobot",
+        "compare",
+        ".robotci/lerobot/final-baseline",
+        ".robotci/lerobot/final-degraded",
+        "--json",
+        "--output",
+        ".robotci/lerobot/reports/degraded.json",
+        "--markdown",
+        ".robotci/lerobot/reports/degraded.md"
+      ],
+      "exit_code": 4,
+      "status": "REGRESSION"
+    }
+  ],
+  "input_hashes_unchanged": true
+}

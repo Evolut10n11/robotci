@@ -1,0 +1,111 @@
+{
+  "artifact_type": "lerobot_pusht_evaluation",
+  "episodes": [
+    {
+      "final_reward": 1.0,
+      "inference_time_s": 57.604986365998684,
+      "max_reward": 1.0,
+      "seed": 1000,
+      "steps": 161,
+      "success": true,
+      "sum_reward": 62.77160776215331,
+      "terminated": true,
+      "trajectory_sha256": "a9bf6f8a63b083ef1a5182353baf153bc6559c0c82a4e1f926c5cb110a459a6e",
+      "truncated": false,
+      "wall_time_s": 58.45441023599983
+    },
+    {
+      "final_reward": 1.0,
+      "inference_time_s": 70.50297637800281,
+      "max_reward": 1.0,
+      "seed": 1001,
+      "steps": 212,
+      "success": true,
+      "sum_reward": 138.21825201237453,
+      "terminated": true,
+      "trajectory_sha256": "e955225323b196ec5b5e8bdbc22ddffa0ad41623a38f5e4e9805de602a34c364",
+      "truncated": false,
+      "wall_time_s": 71.7752566879999
+    },
+    {
+      "final_reward": 1.0,
+      "inference_time_s": 32.21922955200034,
+      "max_reward": 1.0,
+      "seed": 1002,
+      "steps": 128,
+      "success": true,
+      "sum_reward": 43.0046871974188,
+      "terminated": true,
+      "trajectory_sha256": "3aeb7d3c6d0272b7faa87c41f598bb5c322cc39cfa509ac29a4c4a19b739bf04",
+      "truncated": false,
+      "wall_time_s": 32.81418137700007
+    }
+  ],
+  "metrics": {
+    "episodes": 3,
+    "mean_final_reward": 1.0,
+    "mean_max_reward": 1.0,
+    "mean_steps": 167.0,
+    "mean_sum_reward": 81.33151565731555,
+    "success_rate": 1.0,
+    "successful_episodes": 3,
+    "total_inference_time_s": 160.32719229600184,
+    "total_wall_time_s": 163.0438483009998
+  },
+  "policy": {
+    "action_scale": 1.0,
+    "checkpoint_id": "lerobot/diffusion_pusht",
+    "config_sha256": "d391a7bf488accd1c26b2043482f0060b0855b1ec236f3d7358486918472c0a5",
+    "num_inference_steps": 10,
+    "revision": "84a7c23178445c6bbf7e1a884ff497017910f653",
+    "weights_sha256": "995d14d35db57d95c35ad9704c3d79c8612b7bc45f3877e5c46c2cdc516856a8"
+  },
+  "protocol": {
+    "action_transform": "observed_position_plus_scaled_policy_delta_clipped_v1",
+    "control_hz": 10,
+    "deterministic_algorithms": true,
+    "device": "cpu",
+    "env_id": "gym_pusht/PushT-v0",
+    "inference_dtype": "float32",
+    "max_steps": 300,
+    "obs_type": "pixels_agent_pos",
+    "observation_shape": [
+      3,
+      96,
+      96
+    ],
+    "runtime": {
+      "machine": "x86_64",
+      "platform": "Linux-6.18.55-x86_64-with-glibc2.39",
+      "python": "3.12.14",
+      "versions": {
+        "diffusers": "0.34.0",
+        "draccus": "0.10.0",
+        "einops": "0.8.2",
+        "gym-pusht": "0.1.5",
+        "gymnasium": "0.29.1",
+        "lerobot": "0.3.3",
+        "numpy": "2.2.6",
+        "opencv-python": "4.11.0.86",
+        "opencv-python-headless": "4.11.0.86",
+        "pygame": "2.6.1",
+        "pymunk": "6.11.1",
+        "safetensors": "0.5.3",
+        "scikit-image": "0.25.2",
+        "scipy": "1.18.1",
+        "shapely": "2.1.1",
+        "torch": "2.7.1+cpu",
+        "torchvision": "0.22.1+cpu"
+      }
+    },
+    "seed_strategy": "per_episode_python_numpy_torch_env_v1",
+    "seeds": [
+      1000,
+      1001,
+      1002
+    ],
+    "torch_threads": 1
+  },
+  "schema_version": 1,
+  "status": "COMPLETED"
+}
